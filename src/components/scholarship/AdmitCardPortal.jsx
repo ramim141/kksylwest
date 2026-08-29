@@ -29,6 +29,7 @@ import { Skeleton, SkeletonRegion } from "../common";
 import { useExamYear } from "../../context/ExamYearContext";
 import { useBranding } from "../../context/BrandingContext";
 import kkmLogo from "../../assets/images/KKM LOGO.png";
+import examControllerSign from "../../assets/images/exam_controller.png";
 
 const AdmitCardPortal = () => {
   const examYear = useExamYear();
@@ -556,9 +557,14 @@ const AdmitCardPortal = () => {
                       </span>
                     </div>
 
-                    <div className="space-y-0.5">
+                    <div className="flex flex-col items-center justify-end">
+                      <img
+                        src={admitSettings.controllerSignatureUrl || examControllerSign}
+                        alt="পরীক্ষা নিয়ন্ত্রকের স্বাক্ষর"
+                        className="h-7 sm:h-9 w-auto max-w-[110px] object-contain -mb-1"
+                      />
                       <div className="w-20 sm:w-28 border-b border-slate-500 mx-auto" />
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-900 block">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-900 block mt-0.5">
                         {admitSettings.controllerTitle || "পরীক্ষা নিয়ন্ত্রক"}
                       </span>
                       <span className="text-[8px] text-slate-500 block">
