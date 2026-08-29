@@ -1,0 +1,535 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   NOCTURNAL SCHOLAR — token layer
+   "Library at Midnight": authoritative, prestigious, focused.
+   Dark-only system. Depth = tonal layering + ghost outlines.
+   Channels are raw RGB so Tailwind can apply /opacity.
+   ============================================================ */
+@layer base {
+  :root {
+    color-scheme: dark;
+
+    /* ---- Surface ladder: higher in the stack = brighter ---- */
+    --surface:                   11 19 38;   /* #0b1326  Level 0 / background */
+    --surface-dim:               11 19 38;   /* #0b1326 */
+    --surface-bright:            49 57 77;   /* #31394d */
+    --surface-lowest:   6 14 32;   /* #060e20 */
+    --surface-low:     19 27 46;   /* #131b2e */
+    --surface-container:         23 31 51;   /* #171f33 */
+    --surface-container-high:    34 42 61;   /* #222a3d */
+    --surface-container-highest: 45 52 73;   /* #2d3449 */
+    --surface-variant:           45 52 73;   /* #2d3449 */
+    --surface-card:              30 41 59;   /* #1e293b  Level 1 */
+    --surface-overlay:           51 65 85;   /* #334155  Level 2 */
+    --inverse-surface:          218 226 253; /* #dae2fd */
+    --inverse-on-surface:        40 48 68;   /* #283044 */
+
+    /* ---- Text ---- */
+    --ink-strong: 248 250 252;  /* #f8fafc */
+    --ink-body:   218 226 253;  /* #dae2fd  on-surface */
+    --ink-muted:  148 163 184;  /* #94a3b8 */
+    --ink-faint:  134 148 138;  /* #86948a  outline */
+
+    /* ---- Ghost outlines: these replace shadows at Level 1 ---- */
+    --outline:          134 148 138; /* #86948a */
+    --outline-variant:   51 65 85;   /* #334155 */
+
+    /* ---- Primary: luminous emerald ---- */
+    --primary:               78 222 163; /* #4edea3 */
+    --on-primary:             0  56  36; /* #003824 */
+    --primary-container:     16 185 129; /* #10b981 */
+    --on-primary-container:   0  66  43; /* #00422b */
+    --inverse-primary:        0 108  73; /* #006c49 */
+    --primary-fixed:        111 251 190; /* #6ffbbe */
+    --primary-fixed-dim:     78 222 163; /* #4edea3 */
+
+    /* ---- Secondary: gold. Achievement, excellence, alerts. ---- */
+    --secondary:              255 202  69; /* #ffca45 */
+    --on-secondary:            63  46   0;  /* #3f2e00 */
+    --secondary-container:    228 174   0;  /* #e4ae00 */
+    --on-secondary-container:  91  68   0;  /* #5b4400 */
+    --secondary-fixed:        255 223 154; /* #ffdf9a */
+    --secondary-fixed-dim:    247 190  29; /* #f7be1d */
+
+    /* ---- Tertiary: teal ---- */
+    --tertiary:               60 221 199; /* #3cddc7 */
+    --on-tertiary:             0  55  49; /* #003731 */
+    --tertiary-container:      0 183 164; /* #00b7a4 */
+    --on-tertiary-container:   0  65  58; /* #00413a */
+    --tertiary-fixed:         98 250 227; /* #62fae3 */
+    --tertiary-fixed-dim:     60 221 199; /* #3cddc7 */
+
+    /* ---- Error ---- */
+    --error:              255 180 171; /* #ffb4ab */
+    --on-error:           105   0   5; /* #690005 */
+    --error-container:    147   0  10; /* #93000a */
+    --on-error-container: 255 218 214; /* #ffdad6 */
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background-color: rgb(var(--surface));
+  }
+
+  body {
+    font-family: 'Work Sans', 'Hind Siliguri', 'SolaimanLipi', sans-serif;
+    background-color: rgb(var(--surface));
+    color: rgb(var(--ink-body));
+    font-size: 16px;
+    line-height: 24px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Display face for every heading */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Hanken Grotesk', 'Hind Siliguri', 'SolaimanLipi', sans-serif;
+    color: rgb(var(--ink-strong));
+    font-weight: 600;
+  }
+  h1 { letter-spacing: -0.02em; }
+
+  /* Bengali needs ~1.2x leading so ascenders/descenders never collide.
+     :lang() catches the document default (<html lang="bn">). */
+  :lang(bn) {
+    line-height: 1.55;
+  }
+  :lang(bn) h1, :lang(bn) h2, :lang(bn) h3, :lang(bn) h4 {
+    line-height: 1.35;
+  }
+
+  ::selection {
+    background-color: rgb(var(--primary) / 0.28);
+    color: rgb(var(--ink-strong));
+  }
+
+  /* Focus: border shifts to primary with a 2px outer stroke */
+  :focus-visible {
+    outline: 2px solid rgb(var(--primary));
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: rgb(var(--surface-lowest)); }
+  ::-webkit-scrollbar-thumb {
+    background: rgb(var(--surface-overlay));
+    border-radius: 9999px;
+    border: 2px solid rgb(var(--surface-lowest));
+  }
+  ::-webkit-scrollbar-thumb:hover { background: rgb(var(--ink-muted)); }
+}
+
+/* ============================================================
+   COMPONENTS
+   ============================================================ */
+@layer components {
+  /* ---- Layout: fixed 1280px grid, 24px gutters, 16px mobile ---- */
+  .container-page {
+    @apply w-full mx-auto max-w-content px-margin-mobile md:px-gutter;
+  }
+  .section {
+    @apply py-lg;
+  }
+  .section-tight {
+    @apply py-md;
+  }
+  /* Tonal alternation between stacked sections — one step down the ladder,
+     never a second hue. */
+  .section-band {
+    @apply bg-surface-low border-y border-line-soft;
+  }
+
+  /* ---- Cards (Level 1): tonal surface + ghost border, NO shadow ---- */
+  .card {
+    @apply bg-surface-card border border-line-soft rounded-lg
+           p-sm md:p-md transition-colors duration-200;
+  }
+  /* Hover lifts brightness 5-10%, never size */
+  .card-hover {
+    @apply hover:bg-surface-overlay/60 hover:border-line-strong/50;
+  }
+
+  /* ---- Overlay (Level 2): the only element that earns a shadow ---- */
+  .overlay {
+    @apply bg-surface-overlay border border-line-strong/40 rounded-lg shadow-overlay;
+  }
+
+  /* ---- Buttons ---- */
+  /* Button labels here are Bengali, so they stay in Work Sans: `uppercase`
+     is a no-op for Bengali and mono tracking loosens the conjuncts. Reserve
+     JetBrains Mono for the metadata it was chosen for (.text-label). */
+  .btn {
+    @apply inline-flex items-center justify-center gap-base rounded
+           font-body text-body-md font-semibold leading-none
+           px-md py-sm transition-colors duration-200 cursor-pointer;
+  }
+  .btn-primary {
+    @apply btn bg-primary-container text-primary-on hover:bg-primary;
+  }
+  .btn-secondary {
+    @apply btn bg-transparent text-primary border border-primary hover:bg-primary/10;
+  }
+  /* Reserved for "Excellence" awards / premium features */
+  .btn-accent {
+    @apply btn bg-secondary text-secondary-on hover:bg-secondary-dim;
+  }
+  .btn-ghost {
+    @apply btn bg-surface-card text-ink-body border border-line-soft
+           hover:bg-surface-overlay hover:text-ink-strong;
+  }
+
+  /* ---- Inputs: inset look ---- */
+  .input {
+    @apply w-full bg-surface border border-line-soft rounded
+           px-sm py-sm text-ink-body placeholder:text-ink-muted
+           font-body text-body-md
+           focus:border-primary focus:outline-none focus:shadow-focus
+           transition-colors duration-200;
+  }
+
+  /* ---- Chips & badges: 10% tint + full-saturation label ---- */
+  .chip {
+    @apply inline-flex items-center gap-xs rounded-full px-sm py-xs
+           font-label text-label-sm tracking-[0.02em] border;
+  }
+  .chip-primary   { @apply chip bg-primary/10   text-primary   border-primary/25; }
+  .chip-secondary { @apply chip bg-secondary/10 text-secondary border-secondary/25; }
+  .chip-tertiary  { @apply chip bg-tertiary/10  text-tertiary  border-tertiary/25; }
+  .chip-error     { @apply chip bg-error/10     text-error     border-error/25; }
+
+  /* ---- Notice banner: dark gold ground, black text ---- */
+  .notice-banner {
+    @apply bg-secondary-container text-secondary-800 font-body;
+  }
+
+  /* ---- Type helpers ---- */
+  .text-display  { @apply font-display  text-display-lg; }
+  .text-headline { @apply font-headline text-headline-lg-mobile sm:text-headline-lg; }
+  .text-title    { @apply font-body     text-title-md text-ink-strong; }
+  .text-body-copy{ @apply font-body     text-body-md  text-ink-body; }
+  .text-label    { @apply font-label    text-label-sm uppercase text-ink-muted; }
+  /* Tabular numerals for roll numbers, marks and dates */
+  .text-numeric  { @apply font-label tabular-nums tracking-[0.02em]; }
+
+  /* The one gradient in the system: primary -> tertiary, for title emphasis */
+  .text-gradient-primary {
+    @apply text-transparent bg-clip-text bg-gradient-to-r from-primary to-tertiary;
+  }
+
+  .eyebrow {
+    @apply inline-flex items-center gap-xs rounded-full px-sm py-xs
+           bg-primary/10 text-primary border border-primary/25
+           font-label text-label-sm tracking-[0.02em];
+  }
+  .section-title { @apply font-headline text-headline-lg-mobile sm:text-headline-lg text-ink-strong; }
+  .section-sub   { @apply font-body text-body-md text-ink-muted; }
+
+  .rule { @apply h-px w-full bg-line-soft; }
+}
+
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+@layer utilities {
+  .animate-fade-in-up { animation: fadeInUp 0.8s ease-out forwards; }
+  .animate-float      { animation: float 6s ease-in-out infinite; }
+  .animate-fadeIn     { animation: fadeIn 0.3s ease-out forwards; }
+  .animate-slideUp    { animation: slideUp 0.4s ease-out forwards; }
+
+  /* Ambient accent wash. Kept very low — this system prefers tone to glow. */
+  .glow-primary  { @apply pointer-events-none absolute rounded-full blur-3xl bg-primary/[0.07]; }
+  .glow-secondary{ @apply pointer-events-none absolute rounded-full blur-3xl bg-secondary/[0.06]; }
+  .glow-tertiary { @apply pointer-events-none absolute rounded-full blur-3xl bg-tertiary/[0.06]; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes float {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes marquee {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-marquee:hover { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   MOTION SYSTEM
+   One easing family, three durations. Motion here is a hint of
+   physicality, never decoration: things fade and travel a short
+   distance on the same curve so the whole site feels like one
+   surface reacting.
+   ============================================================ */
+@layer base {
+  :root {
+    /* Standard: entrances and most state changes */
+    --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+    /* Emphasized: overlays, modals, anything that "arrives" */
+    --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+    /* Exit: leaving is faster than arriving */
+    --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+    --dur-fast: 180ms;
+    --dur-base: 320ms;
+    --dur-slow: 560ms;
+  }
+}
+
+@layer components {
+  /* ---- Skeleton: a tonal block one step up the surface ladder,
+     swept by a low-contrast highlight. Never brighter than a real
+     card, so a loading page reads as the same page, not a flash. ---- */
+  .skeleton {
+    @apply relative overflow-hidden rounded bg-surface-high;
+    isolation: isolate;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgb(var(--ink-strong) / 0.07) 45%,
+      rgb(var(--ink-strong) / 0.11) 55%,
+      transparent 100%
+    );
+    animation: skeleton-sweep 1.6s var(--ease-standard) infinite;
+  }
+  /* Nested skeletons inside one shimmering parent would double the
+     sweep — the parent owns it. */
+  .skeleton-group .skeleton::after { animation: none; }
+  .skeleton-group { position: relative; }
+
+  /* Line + block presets so callers rarely hand-size anything */
+  .skeleton-line   { @apply skeleton h-3 rounded-full; }
+  .skeleton-title  { @apply skeleton h-5 rounded-md; }
+  .skeleton-circle { @apply skeleton rounded-full; }
+  .skeleton-chip   { @apply skeleton h-6 w-20 rounded-full; }
+}
+
+@layer utilities {
+  /* ---- Scrollbars ----
+     `scrollbar-none` was already used in a dozen places but had never been
+     defined, so those bars were all still showing. Hiding one takes THREE
+     declarations: `scrollbar-width` covers Firefox, the ::-webkit- rule
+     covers Chrome/Edge/Safari, and `-ms-overflow-style` covers legacy Edge.
+     The element still scrolls — only the bar goes. ---- */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  /* For long scrollers where losing the bar would cost the reader their
+     sense of position: keep it, just make it slim and quiet. */
+  .scrollbar-slim {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--surface-overlay)) transparent;
+  }
+  .scrollbar-slim::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-slim::-webkit-scrollbar-track { background: transparent; }
+  .scrollbar-slim::-webkit-scrollbar-thumb {
+    background: rgb(var(--surface-overlay));
+    border-radius: 9999px;
+    border: none;
+  }
+  .scrollbar-slim::-webkit-scrollbar-thumb:hover {
+    background: rgb(var(--ink-faint));
+  }
+
+  /* ---- Scroll reveal: opacity + a 16px lift. The .is-visible class
+     is added by the IntersectionObserver in <Reveal />. ---- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity var(--dur-slow) var(--ease-standard),
+      transform var(--dur-slow) var(--ease-standard);
+    will-change: opacity, transform;
+  }
+  .reveal-left  { transform: translateX(-20px); }
+  .reveal-right { transform: translateX(20px); }
+  .reveal-scale { transform: scale(0.96); }
+  .reveal-fade  { transform: none; }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    will-change: auto;
+  }
+
+  /* ---- Route/content transitions ---- */
+  /* `backwards`, not `both`: the fill only covers the delay. Once an
+     entrance finishes the element returns to its normal state, so :hover
+     transforms still work on it. */
+  .page-enter { animation: pageEnter var(--dur-base) var(--ease-standard) backwards; }
+  .content-swap { animation: contentSwap var(--dur-base) var(--ease-standard) backwards; }
+  .overlay-enter { animation: overlayEnter var(--dur-base) var(--ease-emphasized) backwards; }
+  .backdrop-enter { animation: backdropEnter var(--dur-fast) ease-out backwards; }
+
+  /* Declared after the entrances above so it overrides .content-swap when
+     both land on one element: the placeholder only fades in if it is still
+     on screen after the delay, so a warm chunk never flashes one. */
+  .delayed-in { animation: fadeIn 260ms var(--ease-standard) 140ms backwards; }
+
+  /* ---- Interaction: the site's shared "press" and "lift" ---- */
+  .press {
+    transition: transform var(--dur-fast) var(--ease-standard),
+                background-color var(--dur-fast) var(--ease-standard),
+                border-color var(--dur-fast) var(--ease-standard),
+                color var(--dur-fast) var(--ease-standard);
+  }
+  .press:active { transform: scale(0.97); }
+  .lift {
+    transition: transform var(--dur-base) var(--ease-standard),
+                background-color var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                box-shadow var(--dur-base) var(--ease-standard);
+  }
+  .lift:hover { transform: translateY(-3px); }
+  .lift:active { transform: translateY(-1px) scale(0.99); }
+
+  .lift-podium {
+    margin-bottom: 0.5rem;
+    transition: transform var(--dur-base) var(--ease-standard),
+                border-color var(--dur-base) var(--ease-standard),
+                box-shadow var(--dur-base) var(--ease-standard);
+  }
+  .lift-podium:hover { transform: translateY(-4px) scale(1.02); }
+  .lift-podium:active { transform: translateY(-1px) scale(0.99); }
+  @media (min-width: 640px) {
+    .lift-podium { margin-bottom: 1rem; }
+  }
+
+  /* ---- Image blur-up ---- */
+  .img-fade {
+    opacity: 0;
+    filter: blur(12px);
+    transform: scale(1.02);
+    transition:
+      opacity var(--dur-slow) var(--ease-standard),
+      filter var(--dur-slow) var(--ease-standard),
+      transform var(--dur-slow) var(--ease-standard);
+  }
+  .img-fade.is-loaded {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+
+  /* ---- List stagger: children cascade in on their own delays, so a
+     grid or table body animates without wrapping every row in JS.
+     Capped at 12 steps — past that the tail feels like lag, not motion. ---- */
+  .stagger-in > * {
+    animation: contentSwap var(--dur-base) var(--ease-standard) backwards;
+  }
+  .stagger-in > *:nth-child(1)  { animation-delay: 0ms; }
+  .stagger-in > *:nth-child(2)  { animation-delay: 45ms; }
+  .stagger-in > *:nth-child(3)  { animation-delay: 90ms; }
+  .stagger-in > *:nth-child(4)  { animation-delay: 135ms; }
+  .stagger-in > *:nth-child(5)  { animation-delay: 180ms; }
+  .stagger-in > *:nth-child(6)  { animation-delay: 225ms; }
+  .stagger-in > *:nth-child(7)  { animation-delay: 270ms; }
+  .stagger-in > *:nth-child(8)  { animation-delay: 315ms; }
+  .stagger-in > *:nth-child(9)  { animation-delay: 360ms; }
+  .stagger-in > *:nth-child(10) { animation-delay: 405ms; }
+  .stagger-in > *:nth-child(11) { animation-delay: 450ms; }
+  .stagger-in > *:nth-child(n + 12) { animation-delay: 495ms; }
+
+  /* Table rows must not be given a transform-based entrance: it would
+     detach them from the table layout mid-animation. Fade only. */
+  .stagger-in > tr,
+  .stagger-rows > tr {
+    animation: fadeIn var(--dur-base) var(--ease-standard) backwards;
+  }
+
+  /* Collapsible height animation without measuring in JS */
+  .grid-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows var(--dur-base) var(--ease-standard);
+  }
+  .grid-collapse > * { overflow: hidden; min-height: 0; }
+  .grid-collapse.is-open { grid-template-rows: 1fr; }
+}
+
+@keyframes skeleton-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes contentSwap {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes overlayEnter {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes backdropEnter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Printing never scrolls, so nothing would ever reveal — and an entrance
+   animation on paper is meaningless. Pin everything visible. */
+@media print {
+  .reveal, .img-fade {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .page-enter, .content-swap, .overlay-enter, .backdrop-enter,
+  .delayed-in, .stagger-in > * {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  .grid-collapse { grid-template-rows: 1fr !important; }
+}
+
+/* Reduced motion: the global rule below neutralises durations, but
+   .reveal starts at opacity 0 and would never be transitioned back —
+   pin it visible so the content is never lost. */
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .img-fade {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+  }
+  .skeleton::after { animation: none !important; }
+}

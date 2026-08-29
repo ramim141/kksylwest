@@ -1,0 +1,1493 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
+  limit,
+  writeBatch,
+  serverTimestamp,
+} from "firebase/firestore";
+import { db, isFirebaseConfigured } from "../firebase/config";
+
+// Collections Names
+export const COLLECTIONS = {
+  RESULTS: "results",
+  NOTICES: "notices",
+  GALLERY: "gallery",
+  COMMITTEE: "committee",
+  MESSAGES: "messages",
+  HERO_SLIDES: "hero_slides",
+  ACTIVITIES: "activities",
+  FAQS: "faqs",
+  SITE_SETTINGS: "site_settings",
+  TEAM_STRUCTURE: "team_structure",
+  SYLLABUS: "syllabus",
+  REGISTRATIONS: "registrations",
+  UPAZILA_CENTERS: "upazila_centers",
+};
+
+// ==================== 1. RESULT SERVICES ====================
+
+/**
+ * Searches a student result by roll number
+ */
+export const searchResultByRoll = async (roll) => {
+  if (!roll) return null;
+  const cleanRoll = roll.toString().trim();
+
+  // Convert Bengali numerals to English and vice versa
+  const bengaliToEnglish = (str) =>
+    str.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+  const englishToBengali = (str) =>
+    str.replace(/[0-9]/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+
+  const engRoll = bengaliToEnglish(cleanRoll);
+  const bnRoll = englishToBengali(cleanRoll);
+  const searchRolls = Array.from(new Set([cleanRoll, engRoll, bnRoll])).filter(Boolean);
+
+  // 1. If Firebase is configured, search in Firestore
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.RESULTS),
+        where("roll", "in", searchRolls)
+      );
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const docData = querySnapshot.docs[0].data();
+        return { id: querySnapshot.docs[0].id, ...docData };
+      }
+    } catch (error) {
+      console.warn("Firestore search failed, proceeding to results.json fallback:", error);
+    }
+  }
+
+  // 2. Fallback to results.json
+  try {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/results.json`);
+    if (res.ok) {
+      const data = await res.json();
+      const student = data.find((s) => {
+        if (!s || !s.roll) return false;
+        const itemRoll = s.roll.toString().trim();
+        const itemEngRoll = bengaliToEnglish(itemRoll);
+        return (
+          itemRoll === cleanRoll ||
+          itemRoll === engRoll ||
+          itemRoll === bnRoll ||
+          itemEngRoll === engRoll
+        );
+      });
+      if (student) return student;
+    }
+  } catch (err) {
+    console.error("Fallback /results.json search error:", err);
+  }
+
+  return null;
+};
+
+/**
+ * Gets all results (or paginated/all from results.json as fallback)
+ */
+export const getAllResults = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const querySnapshot = await getDocs(collection(db, COLLECTIONS.RESULTS));
+      if (!querySnapshot.empty) {
+        return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getAllResults failed, using results.json:", error);
+    }
+  }
+
+  // Fallback to results.json
+  try {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/results.json`);
+    if (res.ok) {
+      return await res.json();
+    }
+  } catch (err) {
+    console.error("results.json load error:", err);
+  }
+  return [];
+};
+
+/**
+ * Batch uploads students results to Firestore in chunks of 400
+ */
+export const batchUploadResults = async (resultsList, year, onProgress) => {
+  if (!isFirebaseConfigured()) {
+    throw new Error("Firebase কনফিগারেশন সেট করা নেই! দয়া করে .env ফাইল কনফিগার করুন।");
+  }
+
+  const chunkSize = 400; // Under Firestore limit of 500
+  const total = resultsList.length;
+  let processed = 0;
+
+  for (let i = 0; i < total; i += chunkSize) {
+    const chunk = resultsList.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+
+    chunk.forEach((student) => {
+      // Document ID: roll_year or auto id
+      const docId = `${student.roll}_${student.year || year || new Date().getFullYear()}`;
+      const docRef = doc(db, COLLECTIONS.RESULTS, docId);
+
+      batch.set(
+        docRef,
+        {
+          ...student,
+          year: student.year || year || new Date().getFullYear().toString(),
+          uploadedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    });
+
+    await batch.commit();
+    processed += chunk.length;
+    if (onProgress) {
+      onProgress(Math.min(100, Math.round((processed / total) * 100)), processed, total);
+    }
+  }
+
+  return { success: true, count: total };
+};
+
+/**
+ * Deletes all results of a specific year or all
+ */
+export const clearResultsByYear = async (year) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+
+  let q = collection(db, COLLECTIONS.RESULTS);
+  if (year && year !== "all") {
+    q = query(q, where("year", "==", year.toString()));
+  }
+
+  const snapshot = await getDocs(q);
+  const total = snapshot.docs.length;
+  const chunkSize = 400;
+
+  for (let i = 0; i < total; i += chunkSize) {
+    const chunk = snapshot.docs.slice(i, i + chunkSize);
+    const batch = writeBatch(db);
+    chunk.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+  }
+
+  return { success: true, deleted: total };
+};
+
+/**
+ * Adds a single result entry to Firestore
+ */
+export const addSingleResult = async (studentData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+
+  const cleanRoll = studentData.roll?.toString().trim();
+  const year = studentData.year || new Date().getFullYear().toString();
+  const docId = `${cleanRoll}_${year}`;
+  const docRef = doc(db, COLLECTIONS.RESULTS, docId);
+
+  const payload = {
+    ...studentData,
+    roll: cleanRoll,
+    year: year,
+    updatedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+  };
+
+  await setDoc(docRef, payload, { merge: true });
+  return { id: docId, ...payload };
+};
+
+/**
+ * Updates a single result entry in Firestore
+ */
+export const updateSingleResult = async (id, studentData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+
+  const docRef = doc(db, COLLECTIONS.RESULTS, id);
+  const payload = {
+    ...studentData,
+    updatedAt: serverTimestamp(),
+  };
+
+  await updateDoc(docRef, payload);
+  return { id, ...payload };
+};
+
+/**
+ * Deletes a single result entry from Firestore
+ */
+export const deleteSingleResult = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+
+  const docRef = doc(db, COLLECTIONS.RESULTS, id);
+  await deleteDoc(docRef);
+  return { id, success: true };
+};
+
+// ==================== 2. NOTICE SERVICES ====================
+
+export const getNotices = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.NOTICES),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getNotices fallback:", error);
+    }
+  }
+  return null; // Signals component to use fallback/mock
+};
+
+export const addNotice = async (noticeData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.NOTICES), {
+    ...noticeData,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateNotice = async (id, updatedData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.NOTICES, id);
+  await updateDoc(docRef, {
+    ...updatedData,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteNotice = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.NOTICES, id));
+};
+
+// ==================== 3. GALLERY SERVICES ====================
+
+export const getGalleryItems = async (category = null) => {
+  if (isFirebaseConfigured()) {
+    try {
+      let q = collection(db, COLLECTIONS.GALLERY);
+      if (category && category !== "all") {
+        q = query(q, where("category", "==", category));
+      }
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getGalleryItems fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addGalleryItem = async (itemData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.GALLERY), {
+    ...itemData,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateGalleryItem = async (id, itemData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.GALLERY, id);
+  await updateDoc(docRef, {
+    ...itemData,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteGalleryItem = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.GALLERY, id));
+};
+
+export const getGalleryHeroContent = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "gallery_hero");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data();
+      }
+    } catch (error) {
+      console.warn("Firestore getGalleryHeroContent fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const saveGalleryHeroContent = async (contentData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "gallery_hero");
+  await setDoc(
+    docRef,
+    {
+      ...contentData,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};
+
+// ==================== 4. COMMITTEE SERVICES ====================
+
+export const getCommitteeMembers = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.COMMITTEE),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getCommitteeMembers fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addCommitteeMember = async (memberData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.COMMITTEE), {
+    ...memberData,
+    orderIndex: Number(memberData.orderIndex) || 99,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateCommitteeMember = async (id, memberData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.COMMITTEE, id);
+  await updateDoc(docRef, {
+    ...memberData,
+    orderIndex: Number(memberData.orderIndex) || 99,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteCommitteeMember = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.COMMITTEE, id));
+};
+
+// ==================== 5. MESSAGES & INBOX SERVICES ====================
+
+const LOCAL_MESSAGES_KEY = "kkmb_local_messages";
+
+export const getMessages = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.MESSAGES),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          createdAt: d.data().createdAt?.toDate ? d.data().createdAt.toDate() : d.data().createdAt,
+        }));
+      }
+    } catch (error) {
+      console.warn("Firestore getMessages fallback:", error);
+    }
+  }
+
+  // Fallback to localStorage
+  try {
+    const saved = localStorage.getItem(LOCAL_MESSAGES_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.warn("localStorage getMessages error:", e);
+  }
+  return [];
+};
+
+export const sendMessage = async (messageData) => {
+  const newMsg = {
+    ...messageData,
+    isRead: false,
+    source: messageData.source || "contact_form", // 'chatbot' | 'contact_form'
+    createdAt: new Date().toISOString(),
+  };
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTIONS.MESSAGES), {
+        ...newMsg,
+        createdAt: serverTimestamp(),
+      });
+      return docRef.id;
+    } catch (err) {
+      console.warn("Firestore sendMessage failed, saving to local fallback:", err);
+    }
+  }
+
+  // Local storage fallback
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_MESSAGES_KEY) || "[]");
+    const localItem = {
+      id: `local-msg-${Date.now()}`,
+      ...newMsg,
+    };
+    existing.unshift(localItem);
+    localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(existing));
+    return localItem.id;
+  } catch (e) {
+    console.error("Failed to save local message:", e);
+    throw new Error("মেসেজ পাঠাতে সমস্যা হয়েছে!");
+  }
+};
+
+export const markMessageRead = async (id, isRead = true) => {
+  if (isFirebaseConfigured() && typeof id === "string" && !id.startsWith("local-msg-")) {
+    try {
+      const docRef = doc(db, COLLECTIONS.MESSAGES, id);
+      await updateDoc(docRef, { isRead });
+      return;
+    } catch (err) {
+      console.warn("Firestore markMessageRead error:", err);
+    }
+  }
+
+  // Update local storage
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_MESSAGES_KEY) || "[]");
+    const updated = existing.map((m) => (m.id === id ? { ...m, isRead } : m));
+    localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn("Local storage markMessageRead error:", e);
+  }
+};
+
+export const deleteMessage = async (id) => {
+  if (isFirebaseConfigured() && typeof id === "string" && !id.startsWith("local-msg-")) {
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.MESSAGES, id));
+      return;
+    } catch (err) {
+      console.warn("Firestore deleteMessage error:", err);
+    }
+  }
+
+  // Delete from local storage
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_MESSAGES_KEY) || "[]");
+    const updated = existing.filter((m) => m.id !== id);
+    localStorage.setItem(LOCAL_MESSAGES_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.warn("Local storage deleteMessage error:", e);
+  }
+};
+
+// ==================== 6. HERO SLIDER SERVICES ====================
+
+export const getHeroSlides = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.HERO_SLIDES),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getHeroSlides fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addHeroSlide = async (slideData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.HERO_SLIDES), {
+    ...slideData,
+    orderIndex: Number(slideData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateHeroSlide = async (id, slideData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.HERO_SLIDES, id);
+  await updateDoc(docRef, {
+    ...slideData,
+    orderIndex: Number(slideData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteHeroSlide = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.HERO_SLIDES, id));
+};
+
+// ==================== 7. ACTIVITIES (যা আমরা করে থাকি) SERVICES ====================
+
+export const getActivities = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.ACTIVITIES),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getActivities fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addActivity = async (activityData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.ACTIVITIES), {
+    ...activityData,
+    orderIndex: Number(activityData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateActivity = async (id, activityData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.ACTIVITIES, id);
+  await updateDoc(docRef, {
+    ...activityData,
+    orderIndex: Number(activityData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteActivity = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.ACTIVITIES, id));
+};
+
+export const seedDefaultActivities = async () => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const defaultActivities = [
+    {
+      title: "মেধাবৃত্তি কার্যক্রম",
+      badge: "মেধাবৃত্তি",
+      content: "বার্ষিক মেধাবৃত্তি পরীক্ষা আয়োজন এবং কৃতী শিক্ষার্থীদের বিশেষ বৃত্তি ও ক্রেস্ট প্রদান।",
+      details: "শিক্ষার্থীদের সুপ্ত প্রতিভা অন্বেষণে প্রতি বছর সিলেট অঞ্চলে বিশাল পরিসরে আয়োজন করা হয় কিশোরকণ্ঠ মেধা বৃত্তি পরীক্ষা। পরীক্ষায় উত্তীর্ণ শিক্ষার্থীদের ট্যালেন্টপুল ও সাধারণ গ্রেডে বৃত্তি, সনদপত্র ও আকর্ষণীয় পুরস্কার প্রদান করা হয়।",
+      orderIndex: 1,
+      theme: "emerald"
+    },
+    { 
+      title: "শিক্ষা ও অলিম্পিয়াড", 
+      badge: "শিক্ষা ও বিজ্ঞান",
+      content: "বিজ্ঞান মেলা, কুইজ প্রতিযোগিতা, বিতর্ক উৎসব এবং বিষয়ভিত্তিক শিক্ষা ক্যাম্প।",
+      details: "শিক্ষার্থীদের পাঠ্যবইয়ের পাশাপাশি সৃজনশীল মেধা ও মননের বিকাশে আমরা নিয়মিত কুইজ প্রতিযোগিতা, উপস্থিত বক্তৃতা, বিতর্ক উৎসব এবং বিজ্ঞান অলিম্পিয়াডের আয়োজন করে থাকি।",
+      orderIndex: 2,
+      theme: "blue"
+    },
+    { 
+      title: "সাংস্কৃতিক কার্যক্রম", 
+      badge: "সংস্কৃতি",
+      content: "হামদ-নাত, ক্বিরাত প্রতিযোগিতা, আবৃত্তি, অভিনয় ও সুস্থ সংস্কৃতির আসর।",
+      details: "সুস্থ সংস্কৃতি মানুষকে সুন্দর মনের অধিকারী করে। আমরা নিয়মিত হামদ-নাত, ক্বিরাত এবং দেশাত্মবোধক গানের প্রতিযোগিতার আয়োজন করি। অপসংস্কৃতির সয়লাব থেকে যুবসমাজকে রক্ষা করাই আমাদের উদ্দেশ্য।",
+      orderIndex: 3,
+      theme: "purple"
+    },
+    { 
+      title: "সমাজকল্যাণ ও সেবা", 
+      badge: "সামাজিক সেবা",
+      content: "শীতবস্ত্র বিতরণ, বিনামূল্যে রক্তদান কর্মসূচি, ও দুর্যোগে ত্রাণ সহায়তা।",
+      details: "মানবতার সেবায় আমরা সদা সচেষ্ট। প্রতি শীতে গরিব ও অসহায়দের মাঝে শীতবস্ত্র বিতরণ, ব্লাড ডোনার গ্রুপের মাধ্যমে মুমূর্ষু রোগীদের রক্তদান এবং বন্যা ও প্রাকৃতিক দুর্যোগে মানুষের পাশে দাঁড়ানো আমাদের অন্যতম প্রধান কাজ।",
+      orderIndex: 4,
+      theme: "teal"
+    },
+    { 
+      title: "পুরস্কার বিতরণী ও সংবর্ধনা", 
+      badge: "পুরস্কার",
+      content: "কৃতী শিক্ষার্থীদের অভিভাবক ও বিশিষ্টজনদের উপস্থিতিতে জমকালো সংবর্ধনা অনুষ্ঠান।",
+      details: "মেধাবীদের যথাযথ মূল্যায়ন করতে প্রতি বছর বর্ণাঢ্য আয়োজনে কৃতী শিক্ষার্থী সংবর্ধনা ও পুরস্কার বিতরণী অনুষ্ঠিত হয়। বিশিষ্ট শিক্ষাবিদ ও বুদ্ধিজীবীদের উপস্থিতিতে শিক্ষার্থীদের হাতে ক্রেস্ট ও নগদ অর্থ তুলে দেওয়া হয়।",
+      orderIndex: 5,
+      theme: "amber"
+    },
+    { 
+      title: "পাঠাগার ও পাঠচক্র", 
+      badge: "পাঠাগার",
+      content: "জ্ঞানভিত্তিক সমাজ গঠনে নিয়মিত বই পড়া, পাঠচক্র ও সমৃদ্ধ উন্মুক্ত পাঠাগার।",
+      details: "একটি আলোকিত জাতি গঠনে বই পড়ার কোনো বিকল্প নেই। আমাদের সমৃদ্ধ পাঠাগারে সাহিত্য, বিজ্ঞান, ধর্ম ও ক্যারিয়ার বিষয়ক সহস্রাধিক বই রয়েছে যা শিক্ষার্থীদের জ্ঞানের পরিধি প্রসারিত করে।",
+      orderIndex: 6,
+      theme: "rose"
+    }
+  ];
+
+  for (const act of defaultActivities) {
+    await addDoc(collection(db, COLLECTIONS.ACTIVITIES), {
+      ...act,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+};
+
+// ==================== 8. FAQ (প্রায়শই জিজ্ঞাসিত প্রশ্নাবলী) SERVICES ====================
+
+export const getFaqs = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.FAQS),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getFaqs fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addFaq = async (faqData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.FAQS), {
+    ...faqData,
+    orderIndex: Number(faqData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateFaq = async (id, faqData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.FAQS, id);
+  await updateDoc(docRef, {
+    ...faqData,
+    orderIndex: Number(faqData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteFaq = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.FAQS, id));
+};
+
+// ==================== 9. HOMEPAGE CONTENT & STATS (HERO & ABOUT) ====================
+
+export const getHomepageContent = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "homepage");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data();
+      }
+    } catch (error) {
+      console.warn("Firestore getHomepageContent fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const saveHomepageContent = async (contentData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "homepage");
+  await setDoc(
+    docRef,
+    {
+      ...contentData,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};
+
+// ==================== 9.1 IMPACT & ABOUT STATS SERVICES ====================
+
+export const DEFAULT_IMPACT_STATS = [
+  {
+    id: "stat_1",
+    number: "৮০০+",
+    label: "পুরস্কারপ্রাপ্ত শিক্ষার্থী",
+    iconType: "trophy",
+    color: "emerald",
+  },
+  {
+    id: "stat_2",
+    number: "৩৬,০০০+",
+    label: "অংশগ্রহণকারী শিক্ষার্থী",
+    iconType: "users",
+    color: "sky",
+  },
+  {
+    id: "stat_3",
+    number: "৩২+",
+    label: "বছরের গৌরবোজ্জ্বল ইতিহাস",
+    iconType: "calendar",
+    color: "amber",
+  },
+  {
+    id: "stat_4",
+    number: "১০০%",
+    label: "স্বচ্ছতা ও নিরপেক্ষতা",
+    iconType: "shield",
+    color: "indigo",
+  },
+];
+
+export const getImpactStats = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "impact_stats");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists() && docSnap.data().stats && docSnap.data().stats.length > 0) {
+        return docSnap.data().stats;
+      }
+    } catch (error) {
+      console.warn("Firestore getImpactStats fallback:", error);
+    }
+  }
+  return DEFAULT_IMPACT_STATS;
+};
+
+export const saveImpactStats = async (statsList) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "impact_stats");
+  await setDoc(
+    docRef,
+    {
+      stats: statsList,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+};
+
+// ==================== 9.1 ANNOUNCEMENT / TOP FLASH TICKER SERVICES ====================
+
+const LOCAL_ANNOUNCEMENT_KEY = "kkmb_top_announcement_data";
+
+export const getAnnouncement = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "announcement");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return docSnap.data();
+      }
+    } catch (error) {
+      console.warn("Firestore getAnnouncement fallback:", error);
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(LOCAL_ANNOUNCEMENT_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.warn("localStorage getAnnouncement error:", e);
+  }
+
+  return {
+    enabled: true,
+    title: "জরুরি ঘোষণা",
+    message: "কিশোরকণ্ঠ মেধাবৃত্তি ২০২৫-এর অনলাইন রেজিস্ট্রেশন চলছে! আপনার প্রবেশপত্র ডাউনলোড করতে প্রবেশপত্র মেনুতে ক্লিক করুন।",
+    linkText: "প্রবেশপত্র ডাউনলোড →",
+    linkUrl: "/admit-card",
+    badgeType: "urgent", // 'urgent' | 'info' | 'success' | 'amber'
+  };
+};
+
+export const saveAnnouncement = async (announcementData) => {
+  const payload = {
+    ...announcementData,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(LOCAL_ANNOUNCEMENT_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("localStorage saveAnnouncement error:", e);
+  }
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "announcement");
+      await setDoc(
+        docRef,
+        {
+          ...payload,
+          serverUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveAnnouncement fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
+// ==================== 10. TEAM STRUCTURE (আমাদের টিম স্ট্রাকচার) SERVICES ====================
+
+export const getTeamStructure = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.TEAM_STRUCTURE),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getTeamStructure fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addTeamStructure = async (teamData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.TEAM_STRUCTURE), {
+    ...teamData,
+    orderIndex: Number(teamData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateTeamStructure = async (id, teamData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.TEAM_STRUCTURE, id);
+  await updateDoc(docRef, {
+    ...teamData,
+    orderIndex: Number(teamData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteTeamStructure = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.TEAM_STRUCTURE, id));
+};
+
+// ==================== 11. SCHOLARSHIP SYLLABUS SERVICES ====================
+
+export const getSyllabus = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.SYLLABUS),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getSyllabus fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addSyllabus = async (syllabusData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.SYLLABUS), {
+    ...syllabusData,
+    orderIndex: Number(syllabusData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateSyllabus = async (id, syllabusData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.SYLLABUS, id);
+  await updateDoc(docRef, {
+    ...syllabusData,
+    orderIndex: Number(syllabusData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteSyllabus = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.SYLLABUS, id));
+};
+
+// ==================== 12. ONLINE REGISTRATION SERVICES ====================
+
+export const getRegistrations = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.REGISTRATIONS),
+        orderBy("createdAt", "desc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getRegistrations fallback:", error);
+    }
+  }
+  return [];
+};
+
+export const getRegistrationById = async (id) => {
+  if (!isFirebaseConfigured()) return null;
+  const docRef = doc(db, COLLECTIONS.REGISTRATIONS, id);
+  const docSnap = await getDoc(docRef);
+  if (docSnap.exists()) {
+    return { id: docSnap.id, ...docSnap.data() };
+  }
+  return null;
+};
+
+export const addRegistration = async (registrationData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  
+  // Generate human-friendly Tracking ID
+  const trackingNumber = Math.floor(100000 + Math.random() * 900000);
+  const trackingId = `KKMB-2025-${trackingNumber}`;
+
+  const docRef = await addDoc(collection(db, COLLECTIONS.REGISTRATIONS), {
+    ...registrationData,
+    trackingId,
+    status: registrationData.status || "pending", // pending, approved, rejected
+    createdAt: serverTimestamp(),
+  });
+  return { id: docRef.id, trackingId };
+};
+
+export const updateRegistrationStatus = async (
+  id,
+  status,
+  adminNote = "",
+  assignedRoll = "",
+  examCenter = "",
+  examDate = "",
+  examTime = "",
+  roomNo = ""
+) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.REGISTRATIONS, id);
+  await updateDoc(docRef, {
+    status,
+    adminNote,
+    assignedRoll: assignedRoll || "",
+    examCenter: examCenter || "",
+    examDate: examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
+    examTime: examTime || "সকাল ১০:০০ টা - ১১:৩০ টা",
+    roomNo: roomNo || "",
+    reviewedAt: serverTimestamp(),
+  });
+};
+
+export const deleteRegistration = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.REGISTRATIONS, id));
+};
+
+/**
+ * Searches for an Admit Card by Tracking ID, Roll Number, or Phone
+ */
+export const searchAdmitCard = async (queryTerm) => {
+  const cleanTerm = (queryTerm || "").trim();
+  if (!cleanTerm) return null;
+
+  if (isFirebaseConfigured()) {
+    try {
+      // 1. Search in registrations
+      const regRef = collection(db, COLLECTIONS.REGISTRATIONS);
+      const snapshot = await getDocs(regRef);
+      if (!snapshot.empty) {
+        const found = snapshot.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .find(
+            (r) =>
+              (r.status === "approved" || r.assignedRoll) &&
+              (r.assignedRoll === cleanTerm ||
+                r.trackingId?.toLowerCase() === cleanTerm.toLowerCase() ||
+                r.trackingId?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
+                r.mobile?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
+                r.whatsappNumber?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
+                r.guardianPhone?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
+                r.studentPhone?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, ""))
+          );
+
+        if (found) return found;
+      }
+
+      // 2. Search in results as fallback
+      const qResult = query(
+        collection(db, COLLECTIONS.RESULTS),
+        where("roll", "==", cleanTerm)
+      );
+      const resSnap = await getDocs(qResult);
+      if (!resSnap.empty) {
+        const resData = resSnap.docs[0].data();
+        return {
+          id: resSnap.docs[0].id,
+          nameBn: resData.name,
+          fatherName: resData.father,
+          studentClass: resData.class,
+          institution: resData.school,
+          assignedRoll: resData.roll,
+          trackingId: `KKMB-2025-${resData.roll}`,
+          status: "approved",
+          examCenter: resData.upazila || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+        };
+      }
+    } catch (err) {
+      console.warn("Firestore searchAdmitCard error:", err);
+    }
+  }
+
+  // 3. Fallback to results.json
+  try {
+    const res = await fetch("/results.json");
+    const data = await res.json();
+    const student = data.find((s) => s.roll === cleanTerm);
+    if (student) {
+      return {
+        id: `mock-${student.roll}`,
+        nameBn: student.name,
+        fatherName: student.father,
+        studentClass: student.class,
+        institution: student.school,
+        assignedRoll: student.roll,
+        trackingId: `KKMB-2025-${student.roll}`,
+        status: "approved",
+        examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+      };
+    }
+  } catch (e) {
+    console.warn("Fallback admit lookup failed:", e);
+  }
+
+  return null;
+};
+
+// ==================== 13. UPAZILA CENTERS & LIBRARIES SERVICES ====================
+
+export const getUpazilaCenters = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.UPAZILA_CENTERS),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getUpazilaCenters fallback:", error);
+    }
+  }
+  return null;
+};
+
+export const addUpazilaCenter = async (upazilaData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.UPAZILA_CENTERS), {
+    ...upazilaData,
+    orderIndex: Number(upazilaData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateUpazilaCenter = async (id, upazilaData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = doc(db, COLLECTIONS.UPAZILA_CENTERS, id);
+  await updateDoc(docRef, {
+    ...upazilaData,
+    orderIndex: Number(upazilaData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteUpazilaCenter = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.UPAZILA_CENTERS, id));
+};
+
+// ==================== 15. GLOBAL CONTACT & FOOTER SETTINGS ====================
+
+const LOCAL_CONTACT_SETTINGS_KEY = "kkmb_contact_settings_data";
+
+export const DEFAULT_CONTACT_SETTINGS = {
+  organizationName: "কিশোরকণ্ঠ পাঠক ফোরাম",
+  branchName: "সিলেট জেলা পশ্চিম",
+  establishedYear: "১৯৯৪",
+  bio: "নৈতিকতা ও মেধার সমন্বয়ে এক নতুন প্রজন্ম গড়ার প্রত্যয়ে আমাদের অবিরাম পথচলা। শিক্ষার্থীদের মেধা বিকাশ ও সুস্থ সংস্কৃতির বিস্তারে নিবেদিতপ্রাণ।",
+  helplinePrimary: "০১৯৬২-৬৩৩৬৬২",
+  helplineSecondary: "০১৭৯১-৬২৯৯৯৬",
+  whatsappNumber: "০১৭৯১-৬২৯৯৯৬",
+  email: "kkmb.sylhetwest@gmail.com",
+  officeAddress: "মেহনাজ টাওয়ার (৪র্থ তলা), রিকাবীবাজার, সিলেট-৩১০০",
+  officeHours: "শনিবার - বৃহস্পতিবার: সকাল ৯:০০ - রাত ৮:০০",
+  facebookUrl: "https://www.facebook.com/kkmb.sylhetwest",
+  youtubeUrl: "https://youtube.com/@kishorkantho",
+  copyrightText: "সর্বস্বত্ব সংরক্ষিত © ১৯৯৪ - ২০২৫ কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম শাখা।",
+};
+
+export const getContactSettings = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "contact_info");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...DEFAULT_CONTACT_SETTINGS, ...docSnap.data() };
+      }
+    } catch (e) {
+      console.warn("Firestore getContactSettings fallback:", e);
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(LOCAL_CONTACT_SETTINGS_KEY);
+    if (saved) return { ...DEFAULT_CONTACT_SETTINGS, ...JSON.parse(saved) };
+  } catch (e) {
+    console.warn("localStorage getContactSettings error:", e);
+  }
+
+  return DEFAULT_CONTACT_SETTINGS;
+};
+
+export const saveContactSettings = async (contactData) => {
+  const payload = {
+    ...contactData,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(LOCAL_CONTACT_SETTINGS_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("localStorage saveContactSettings error:", e);
+  }
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "contact_info");
+      await setDoc(
+        docRef,
+        {
+          ...payload,
+          serverUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveContactSettings fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
+// ==================== 16. IMPORTANT DATES & COUNTDOWN SETTINGS ====================
+
+const LOCAL_IMPORTANT_DATES_KEY = "kkmb_important_dates_data";
+
+export const DEFAULT_IMPORTANT_DATES = {
+  examYear: "২০২৫",
+  registrationDeadline: "২০২৫-১০-১৫T23:59:59",
+  registrationDeadlineBn: "১৫ অক্টোবর ২০২৫ (বুধবার)",
+  admitCardReleaseDate: "২০২৫-১০-১৮T00:00:00",
+  admitCardReleaseDateBn: "১৮ অক্টোবর ২০২৫ (শনিবার)",
+  examDate: "২০২৫-১০-২৪T10:00:00",
+  examDateBn: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
+  examTimeBn: "সকাল ১০:০০ টা - ১১:৩০ টা",
+  resultPublishDate: "২০২৫-১১-১০T15:00:00",
+  resultPublishDateBn: "১০ নভেম্বর ২০২৫",
+  prizeDistributionDate: "২০২৫-১১-২০",
+  prizeDistributionDateBn: "২০ নভেম্বর ২০২৫",
+  activeCountdownTarget: "examDate", // 'registrationDeadline' | 'examDate' | 'resultPublishDate'
+};
+
+export const getImportantDates = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "important_dates");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...DEFAULT_IMPORTANT_DATES, ...docSnap.data() };
+      }
+    } catch (e) {
+      console.warn("Firestore getImportantDates fallback:", e);
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(LOCAL_IMPORTANT_DATES_KEY);
+    if (saved) return { ...DEFAULT_IMPORTANT_DATES, ...JSON.parse(saved) };
+  } catch (e) {
+    console.warn("localStorage getImportantDates error:", e);
+  }
+
+  return DEFAULT_IMPORTANT_DATES;
+};
+
+export const saveImportantDates = async (datesData) => {
+  const payload = {
+    ...datesData,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(LOCAL_IMPORTANT_DATES_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("localStorage saveImportantDates error:", e);
+  }
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "important_dates");
+      await setDoc(
+        docRef,
+        {
+          ...payload,
+          serverUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveImportantDates fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
+// ==================== 17. ADMIT CARD DEFAULTS & RULES SETTINGS ====================
+
+const LOCAL_ADMIT_CARD_SETTINGS_KEY = "kkmb_admit_card_settings_data";
+
+export const DEFAULT_ADMIT_CARD_SETTINGS = {
+  defaultCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+  defaultExamDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
+  defaultExamTime: "সকাল ১০:০০টা থেকে ১১:৩০টা",
+  defaultSubjects: "বাংলা, ইংরেজি, গণিত, বিজ্ঞান, সাধারণ জ্ঞান",
+  sealText1: "SEAL",
+  sealText2: "KKMB",
+  sealText3: "SYLHET",
+  controllerTitle: "পরীক্ষা নিয়ন্ত্রক",
+  organizationTitle: "কিশোরকণ্ঠ পরিষদ",
+  rules: [
+    "প্রবেশপত্র ব্যতিত কোন পরীক্ষার্থী পরীক্ষায় অংশগ্রহণ করতে পারবে না।",
+    "প্রবেশপত্র ব্যতিত কোন প্রকার অতিরিক্ত কাগজপত্র পরীক্ষা কেন্দ্রে বহন করা সম্পূর্ণ নিষেধ।",
+    "প্রত্যেক পরীক্ষার্থী প্রয়োজনীয় কলম, পেন্সিল ও জ্যামিতি বক্স অবশ্যই সাথে আনতে হবে।",
+    "প্রবেশপত্রে উল্লেখিত সময়ের ১৫ মিনিট পূর্বে পরীক্ষার্থীকে অবশ্যই পরীক্ষার হলে উপস্থিত হতে হবে।",
+    "পরীক্ষা মানবণ্টন অনুযায়ী MCQ পদ্ধতিতে ১০০ নম্বরে সরাসরি অনুষ্ঠিত হবে।",
+    "পরীক্ষার অন্তত তিন দিন পূর্বে প্রবেশপত্র সংগ্রহ করে চূড়ান্ত কেন্দ্র ও আসন বিন্যাস জেনে নিতে হবে।",
+  ],
+};
+
+export const getAdmitCardSettings = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "admit_card_defaults");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        return { ...DEFAULT_ADMIT_CARD_SETTINGS, ...docSnap.data() };
+      }
+    } catch (e) {
+      console.warn("Firestore getAdmitCardSettings fallback:", e);
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(LOCAL_ADMIT_CARD_SETTINGS_KEY);
+    if (saved) return { ...DEFAULT_ADMIT_CARD_SETTINGS, ...JSON.parse(saved) };
+  } catch (e) {
+    console.warn("localStorage getAdmitCardSettings error:", e);
+  }
+
+  return DEFAULT_ADMIT_CARD_SETTINGS;
+};
+
+export const saveAdmitCardSettings = async (settingsData) => {
+  const payload = {
+    ...settingsData,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(LOCAL_ADMIT_CARD_SETTINGS_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("localStorage saveAdmitCardSettings error:", e);
+  }
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "admit_card_defaults");
+      await setDoc(
+        docRef,
+        {
+          ...payload,
+          serverUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveAdmitCardSettings fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
+// ==================== 18. MULTI-YEAR ARCHIVE SERVICES ====================
+
+export const getAvailableResultYears = async () => {
+  const years = ["২০২৫", "২০২৪", "২০২৩"];
+  if (isFirebaseConfigured()) {
+    try {
+      const snapshot = await getDocs(collection(db, COLLECTIONS.RESULTS));
+      if (!snapshot.empty) {
+        const foundYears = new Set(years);
+        snapshot.docs.forEach((d) => {
+          const y = d.data().year;
+          if (y) foundYears.add(y.toString());
+        });
+        return Array.from(foundYears).sort((a, b) => b.localeCompare(a));
+      }
+    } catch (e) {
+      console.warn("Firestore getAvailableResultYears error:", e);
+    }
+  }
+  return years;
+};
+
+/* ---------------------------------------------------------------
+   Year status.
+
+   Which sessions are live and which are archived used to be a
+   hardcoded string comparison on the public page, so nothing could
+   actually be archived. It now lives in one settings document:
+   every year is live unless it is listed in `archived`, which means
+   a brand new upload is visible by default and archiving is the
+   deliberate act.
+   --------------------------------------------------------------- */
+
+const RESULT_YEARS_DOC = "result_years";
+
+export const getArchivedResultYears = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const archived = docSnap.data().archived;
+        if (Array.isArray(archived)) return archived.map(String);
+      }
+    } catch (error) {
+      console.warn("Firestore getArchivedResultYears fallback:", error);
+    }
+  }
+  return [];
+};
+
+/**
+ * Archives or restores one session. Reads the current list and writes
+ * the whole set back, so the stored value never accumulates duplicates
+ * and an unknown year can be archived the moment it is uploaded.
+ */
+export const setResultYearArchived = async (year, isArchived) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+
+  const current = new Set(await getArchivedResultYears());
+  if (isArchived) current.add(String(year));
+  else current.delete(String(year));
+
+  const archived = Array.from(current).sort((a, b) => b.localeCompare(a));
+  const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC);
+  await setDoc(docRef, { archived, updatedAt: serverTimestamp() }, { merge: true });
+
+  return archived;
+};
+
+export const getResultsByYear = async (selectedYear = "all") => {
+  if (isFirebaseConfigured()) {
+    try {
+      let q = collection(db, COLLECTIONS.RESULTS);
+      if (selectedYear && selectedYear !== "all") {
+        q = query(q, where("year", "==", selectedYear.toString()));
+      }
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (e) {
+      console.warn("Firestore getResultsByYear error:", e);
+    }
+  }
+
+  // Fallback to results.json
+  try {
+    const baseUrl = import.meta.env.BASE_URL || "/";
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/results.json`);
+    if (res.ok) {
+      const all = await res.json();
+      if (selectedYear && selectedYear !== "all" && selectedYear !== "২০২৫" && selectedYear !== "2025") {
+        // If searching a past year fallback and not in json, return tagged
+        return all.filter((s) => s.year === selectedYear);
+      }
+      return all;
+    }
+  } catch (e) {
+    console.warn("Fallback results load error:", e);
+  }
+  return [];
+};
+
+
+
+
+
+
+
+
