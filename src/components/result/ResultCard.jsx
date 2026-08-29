@@ -69,6 +69,7 @@ const ResultCard = ({ data, onReset, onPrint }) => {
         pixelRatio: 2.5, // Crisp high-res export
         quality: 0.98,
         backgroundColor: "#090d1a",
+        skipFonts: true,
       });
 
       const link = document.createElement("a");
@@ -101,6 +102,7 @@ const ResultCard = ({ data, onReset, onPrint }) => {
           pixelRatio: 2,
           quality: 0.95,
           backgroundColor: "#090d1a",
+          skipFonts: true,
         });
 
         const blob = await (await fetch(dataUrl)).blob();

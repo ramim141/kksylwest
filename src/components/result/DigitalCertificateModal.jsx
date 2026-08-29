@@ -50,6 +50,7 @@ const DigitalCertificateModal = ({ data, isOpen, onClose }) => {
         pixelRatio: 3, // Ultra-high resolution 300 DPI export
         quality: 0.99,
         backgroundColor: "#ffffff",
+        skipFonts: true,
       });
 
       const link = document.createElement("a");

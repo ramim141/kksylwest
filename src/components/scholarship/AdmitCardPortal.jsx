@@ -102,11 +102,20 @@ const AdmitCardPortal = () => {
     setDownloading(true);
     try {
       await new Promise((r) => setTimeout(r, 150));
-      const dataUrl = await toPng(admitCardRef.current, {
+      const node = admitCardRef.current;
+      const dataUrl = await toPng(node, {
         cacheBust: true,
         pixelRatio: 2.5,
         quality: 0.98,
         backgroundColor: "#ffffff",
+        width: node.offsetWidth,
+        height: node.offsetHeight,
+        style: {
+          margin: "0",
+          transform: "none",
+          left: "0",
+          top: "0",
+        },
       });
 
       const link = document.createElement("a");
@@ -114,8 +123,31 @@ const AdmitCardPortal = () => {
       link.href = dataUrl;
       link.click();
     } catch (err) {
-      console.error("Admit card image download error:", err);
-      alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে। দয়া করে প্রিন্ট বাটন ব্যবহার করুন।");
+      console.warn("Retrying download with skipFonts fallback:", err);
+      try {
+        const node = admitCardRef.current;
+        const fallbackUrl = await toPng(node, {
+          pixelRatio: 2.2,
+          quality: 0.95,
+          backgroundColor: "#ffffff",
+          skipFonts: true,
+          width: node?.offsetWidth,
+          height: node?.offsetHeight,
+          style: {
+            margin: "0",
+            transform: "none",
+            left: "0",
+            top: "0",
+          },
+        });
+        const link = document.createElement("a");
+        link.download = `AdmitCard_${admitData.assignedRoll || admitData.trackingId || "Student"}_2025.png`;
+        link.href = fallbackUrl;
+        link.click();
+      } catch (e) {
+        console.error("Admit card image download error:", e);
+        alert("ছবি ডাউনলোড করতে সমস্যা হয়েছে। দয়া করে প্রিন্ট বাটন ব্যবহার করুন।");
+      }
     } finally {
       setDownloading(false);
     }
@@ -204,9 +236,9 @@ const AdmitCardPortal = () => {
 
           {/* Error Notice */}
           {errorMessage && (
-            <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm font-bold flex items-start gap-2 content-swap">
-              <HiExclamationCircle className="text-lg shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+            <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm font-bold flex items-start gap-2.5 content-swap">
+              <HiExclamationCircle className="text-lg shrink-0 mt-0.5 text-rose-400" />
+              <p className="text-justify leading-relaxed flex-1">{errorMessage}</p>
             </div>
           )}
         </div>
@@ -287,13 +319,16 @@ const AdmitCardPortal = () => {
             </div>
 
             {/* ===================================================================
-                RESPONSIVE MOBILE-FRIENDLY ADMIT CARD CANVAS (Clean Single Card)
+                FIXED A4 PROPORTION ADMIT CARD CANVAS (Scrollable on small mobile)
                 =================================================================== */}
-            <div className="w-full overflow-hidden">
+            <div className="w-full overflow-x-auto pb-4 scrollbar-thin flex justify-center">
               <div
                 ref={admitCardRef}
                 id="admit-card-canvas"
-                className="w-full bg-white text-slate-900 p-4 sm:p-7 shadow-2xl border-2 border-sky-300/80 rounded-2xl relative overflow-hidden print:shadow-none print:border-none print:p-2 print:m-0 print:rounded-none print:w-full space-y-4"
+                className="w-[750px] min-w-[750px] max-w-[750px] shrink-0 bg-white text-slate-900 p-6 sm:p-7 shadow-2xl border-2 border-sky-300/80 rounded-2xl relative overflow-hidden print:shadow-none print:border-none print:p-2 print:m-0 print:rounded-none print:w-full space-y-3.5"
+                style={{
+                  fontFamily: "'Hind Siliguri', 'Anek Bangla', 'Noto Sans Bengali', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                }}
               >
                 
                 {/* Decorative Subtle Background Watermark */}
@@ -307,18 +342,18 @@ const AdmitCardPortal = () => {
                 <div className="flex items-start justify-between gap-4 relative z-10 pb-1">
                   
                   {/* Left: Official Custom Brand Title Logo */}
-                  <div className="flex items-center pl-1 sm:pl-4">
+                  <div className="flex items-center pl-2">
                     <img
                       src={currentLogo}
                       alt="নতুন কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা"
-                      className="h-28 sm:h-36 md:h-44 w-auto max-w-full object-contain drop-shadow-sm"
+                      className="h-32 sm:h-36 md:h-40 w-auto max-w-full object-contain drop-shadow-sm"
                     />
                   </div>
 
                   {/* Right: Vertical Stack of Stamp Photo & Roll Pill */}
-                  <div className="flex flex-col items-center gap-1.5 shrink-0 pr-1 sm:pr-4 pt-1">
+                  <div className="flex flex-col items-center gap-1.5 shrink-0 pr-2 pt-1">
                     {/* Stamp Photo Box */}
-                    <div className="w-16 h-20 sm:w-20 sm:h-24 bg-slate-50 border-2 border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center p-0.5 shrink-0 shadow-sm">
+                    <div className="w-20 h-24 bg-slate-50 border-2 border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center p-0.5 shrink-0 shadow-sm">
                       {admitData.photoUrl ? (
                         <img
                           src={admitData.photoUrl}
@@ -328,7 +363,7 @@ const AdmitCardPortal = () => {
                       ) : (
                         <div className="text-slate-400 space-y-0.5">
                           <HiUser className="text-2xl mx-auto" />
-                          <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 block leading-tight">
+                          <span className="text-[8px] font-bold text-slate-500 block leading-tight">
                             স্ট্যাম্প সাইজ ছবি
                           </span>
                         </div>
@@ -337,10 +372,10 @@ const AdmitCardPortal = () => {
 
                     {/* Roll Label & Rounded Pill */}
                     <div className="text-center space-y-0.5">
-                      <span className="text-[10px] sm:text-[11px] font-black text-slate-800 block">
+                      <span className="text-[11px] font-black text-slate-800 block">
                         বৃত্তি রোল :
                       </span>
-                      <div className="px-3.5 py-0.5 sm:px-4 sm:py-1 bg-slate-50 border-2 border-slate-300 rounded-full flex items-center justify-center font-mono font-black text-sm sm:text-base text-rose-700 shadow-inner min-w-[85px] sm:min-w-[100px]">
+                      <div className="px-4 py-1 bg-slate-50 border-2 border-slate-300 rounded-full flex items-center justify-center font-mono font-black text-base text-rose-700 shadow-inner min-w-[100px]">
                         {admitData.assignedRoll || admitData.roll || "—"}
                       </div>
                     </div>
@@ -350,7 +385,7 @@ const AdmitCardPortal = () => {
                 {/* =========================================================
                     DEDICATED FULL-WIDTH DIVIDER & • প্রবেশপত্র • BADGE
                     ========================================================= */}
-                <div className="relative flex items-center justify-center py-2 z-10">
+                <div className="relative flex items-center justify-center py-1.5 z-10">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-rose-300" />
                   </div>
@@ -362,96 +397,86 @@ const AdmitCardPortal = () => {
                 </div>
 
                 {/* =========================================================
-                    CANDIDATE DETAILS (Clean Grid with Dotted Guides)
+                    CANDIDATE DETAILS (Robust Fixed-Width Grid with Clean Underlines)
                     ========================================================= */}
-                <div className="space-y-2 text-xs sm:text-sm font-bold text-slate-900 relative z-10 pt-1">
+                <div className="space-y-2 text-[13px] font-bold text-slate-900 relative z-10 pt-1">
                   
                   {/* Line 1: Name & Mobile */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 sm:gap-2">
-                    <div className="sm:col-span-8 flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">পরীক্ষার্থীর নাম :</span>
-                      <span className="font-black text-slate-950 px-1.5 text-xs sm:text-base truncate">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-[7] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">পরীক্ষার্থীর নাম :</span>
+                      <span className="font-black text-slate-950 text-[15px] truncate">
                         {admitData.nameBn || admitData.name}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
-                    <div className="sm:col-span-4 flex items-baseline">
-                      <span className="shrink-0 text-slate-800 font-bold">মোবাইল :</span>
-                      <span className="font-mono font-bold px-1.5 text-slate-950 text-xs sm:text-sm truncate">
+                    <div className="flex-[5] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">মোবাইল :</span>
+                      <span className="font-mono font-bold text-slate-950 text-xs truncate">
                         {admitData.whatsappNumber || admitData.mobile || admitData.guardianPhone || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
                   </div>
 
                   {/* Line 2: Father & Mother Name */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-                    <div className="flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">পিতার নাম :</span>
-                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">পিতার নাম :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.fatherName || admitData.father || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
-                    <div className="flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">মাতার নাম :</span>
-                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                    <div className="flex-1 flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">মাতার নাম :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.motherName || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
                   </div>
 
                   {/* Line 3: Institution, Class, Section, Class Roll */}
-                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-1.5 sm:gap-2">
-                    <div className="sm:col-span-6 flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">প্রতিষ্ঠানের নাম :</span>
-                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-[5] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">প্রতিষ্ঠানের নাম :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.institution || admitData.school}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
 
-                    <div className="sm:col-span-2 flex items-baseline">
-                      <span className="shrink-0 text-slate-800 font-bold">শ্রেণি :</span>
-                      <span className="font-bold px-1.5 text-slate-950">
+                    <div className="flex-[1.5] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1 whitespace-nowrap">শ্রেণি :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.studentClass || admitData.class}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[5px]" />
                     </div>
 
-                    <div className="sm:col-span-2 flex items-baseline">
-                      <span className="shrink-0 text-slate-800 font-bold">শাখা :</span>
-                      <span className="font-bold px-1.5 text-slate-950">
+                    <div className="flex-[1.3] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1 whitespace-nowrap">শাখা :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.section || admitData.sectionGroup || "ক"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[5px]" />
                     </div>
 
-                    <div className="sm:col-span-2 flex items-baseline">
-                      <span className="shrink-0 text-slate-800 font-bold">ক্লাস রোল :</span>
-                      <span className="font-mono font-bold px-1.5 text-slate-950">
+                    <div className="flex-[1.7] flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1 whitespace-nowrap">ক্লাস রোল :</span>
+                      <span className="font-mono font-bold text-slate-950 text-xs truncate">
                         {admitData.classRoll || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[5px]" />
                     </div>
                   </div>
 
-                  {/* Line 4 (NEW): Union & Thana / Upazila */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-                    <div className="flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">ইউনিয়ন :</span>
-                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                  {/* Line 4: Union & Thana / Upazila */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">ইউনিয়ন :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.union || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
-                    <div className="flex items-baseline min-w-0">
-                      <span className="shrink-0 text-slate-800 font-bold">থানা / উপজেলা :</span>
-                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                    <div className="flex-1 flex items-baseline border-b border-dotted border-slate-400 pb-0.5 min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold mr-1.5 whitespace-nowrap">থানা / উপজেলা :</span>
+                      <span className="font-bold text-slate-950 text-xs truncate">
                         {admitData.thana || admitData.upazila || "—"}
                       </span>
-                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
                   </div>
                 </div>
@@ -462,7 +487,7 @@ const AdmitCardPortal = () => {
                 <div className="rounded-xl border-2 border-slate-300/90 overflow-hidden text-slate-900 space-y-0 relative z-10 shadow-sm">
                   
                   {/* Exam Center Header */}
-                  <div className="bg-slate-100/90 px-3.5 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-300">
+                  <div className="bg-slate-100/90 px-3.5 py-2 flex items-center justify-between gap-1 border-b border-slate-300">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="font-black text-xs sm:text-sm text-slate-900 shrink-0">
                         পরীক্ষা কেন্দ্র :
@@ -471,7 +496,7 @@ const AdmitCardPortal = () => {
                         {admitData.examCenter || admitSettings.defaultCenter}
                       </span>
                     </div>
-                    <span className="text-[10px] sm:text-[11px] font-bold text-slate-500 italic shrink-0">
+                    <span className="text-[11px] font-bold text-slate-500 italic shrink-0">
                       (অফিস কর্তৃক পূরণীয়)
                     </span>
                   </div>
@@ -498,7 +523,7 @@ const AdmitCardPortal = () => {
                           {admitData.examTime || admitSettings.defaultExamTime}
                         </td>
                       </tr>
-                      <tr className="bg-amber-50/60 font-bold text-[10px] sm:text-xs text-slate-800">
+                      <tr className="bg-amber-50/60 font-bold text-[11px] sm:text-xs text-slate-800">
                         <td colSpan={2} className="py-1.5 px-2">
                           <span className="text-slate-600 font-normal">বিষয়সমূহ: </span>
                           <span className="font-bold text-slate-900">
@@ -513,18 +538,18 @@ const AdmitCardPortal = () => {
                 {/* =========================================================
                     OFFICIAL EXAM RULES
                     ========================================================= */}
-                <div className="mt-2 pt-2.5 border-t border-slate-200 space-y-2">
-                  <div className="flex items-center justify-center">
-                    <span className="px-3.5 py-0.5 rounded-full bg-slate-900 text-white font-black text-[11px] sm:text-xs tracking-wide">
+                <div className="mt-2 pt-2 border-t border-slate-200 space-y-2">
+                  <div className="text-center">
+                    <span className="inline-block px-5 py-0.5 rounded-full bg-slate-900 text-white font-black text-xs tracking-wide">
                       পরীক্ষা সংক্রান্ত সাধারণ নিয়মাবলি
                     </span>
                   </div>
 
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[10px] sm:text-[11px] text-slate-800 leading-relaxed font-semibold">
+                  <ul className="grid grid-cols-2 gap-x-6 gap-y-1 text-[11px] text-slate-800 leading-relaxed font-semibold">
                     {(admitSettings.rules || DEFAULT_ADMIT_CARD_SETTINGS.rules).map((rule, idx) => (
                       <li key={idx} className="flex items-start gap-1.5">
                         <span className="text-rose-600 font-bold text-xs shrink-0 mt-0.5">■</span>
-                        <span>{rule}</span>
+                        <span className="leading-snug">{rule}</span>
                       </li>
                     ))}
                   </ul>
@@ -532,8 +557,8 @@ const AdmitCardPortal = () => {
                   {/* Signatures & Seal Footer */}
                   <div className="pt-3 border-t border-slate-200 flex items-end justify-between text-center text-xs">
                     <div className="space-y-0.5">
-                      <div className="w-20 sm:w-28 border-b border-slate-500 mx-auto" />
-                      <span className="text-[9px] sm:text-[10px] text-slate-600 block">
+                      <div className="w-24 sm:w-28 border-b border-slate-500 mx-auto" />
+                      <span className="text-[10px] text-slate-600 block">
                         পরীক্ষার্থীর স্বাক্ষর
                       </span>
                     </div>
@@ -552,7 +577,7 @@ const AdmitCardPortal = () => {
                         level="M"
                         includeMargin={false}
                       />
-                      <span className="text-[8px] sm:text-[9px] font-black text-emerald-700 mt-1 tracking-tight flex items-center gap-0.5">
+                      <span className="text-[9px] font-black text-emerald-700 mt-1 tracking-tight flex items-center gap-0.5">
                         <span className="text-[10px]">✓</span> VERIFIED ADMIT
                       </span>
                     </div>
@@ -563,8 +588,8 @@ const AdmitCardPortal = () => {
                         alt="পরীক্ষা নিয়ন্ত্রকের স্বাক্ষর"
                         className="h-7 sm:h-9 w-auto max-w-[110px] object-contain -mb-1"
                       />
-                      <div className="w-20 sm:w-28 border-b border-slate-500 mx-auto" />
-                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-900 block mt-0.5">
+                      <div className="w-24 sm:w-28 border-b border-slate-500 mx-auto" />
+                      <span className="text-[10px] font-bold text-slate-900 block mt-0.5">
                         {admitSettings.controllerTitle || "পরীক্ষা নিয়ন্ত্রক"}
                       </span>
                       <span className="text-[8px] text-slate-500 block">

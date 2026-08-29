@@ -95,6 +95,7 @@ const CertificateVerification = () => {
         pixelRatio: 2.5,
         quality: 0.98,
         backgroundColor: "#ffffff",
+        skipFonts: true,
       });
 
       const link = document.createElement("a");
@@ -187,9 +188,9 @@ const CertificateVerification = () => {
             </form>
 
             {errorMessage && (
-              <div className="p-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-3 content-swap">
-                <HiExclamationCircle className="text-xl flex-shrink-0 mt-0.5" />
-                <span className="leading-relaxed font-medium">{errorMessage}</span>
+              <div className="p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs sm:text-sm flex items-start gap-2.5">
+                <HiInformationCircle className="text-lg shrink-0 mt-0.5" />
+                <p className="text-justify leading-relaxed flex-1 font-medium">{errorMessage}</p>
               </div>
             )}
           </div>
