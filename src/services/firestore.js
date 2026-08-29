@@ -1415,6 +1415,23 @@ export const getAvailableResultYears = async () => {
 
 const RESULT_YEARS_DOC = "result_years";
 
+const readYearSettings = async () => {
+  if (!isFirebaseConfigured()) return { archived: [], custom: [] };
+  try {
+    const snap = await getDoc(doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC));
+    if (snap.exists()) {
+      const data = snap.data();
+      return {
+        archived: Array.isArray(data.archived) ? data.archived.map(String) : [],
+        custom: Array.isArray(data.custom) ? data.custom.map(String) : [],
+      };
+    }
+  } catch (error) {
+    console.warn("Firestore readYearSettings fallback:", error);
+  }
+  return { archived: [], custom: [] };
+};
+
 export const getArchivedResultYears = async () => {
   if (isFirebaseConfigured()) {
     try {
@@ -1439,7 +1456,7 @@ export const getArchivedResultYears = async () => {
 export const setResultYearArchived = async (year, isArchived) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
 
-  const current = new Set(await getArchivedResultYears());
+  const current = new Set((await readYearSettings()).archived);
   if (isArchived) current.add(String(year));
   else current.delete(String(year));
 
@@ -1448,6 +1465,131 @@ export const setResultYearArchived = async (year, isArchived) => {
   await setDoc(docRef, { archived, updatedAt: serverTimestamp() }, { merge: true });
 
   return archived;
+};
+
+/**
+ * Every session year, with how many results each one holds.
+ *
+ * Years are otherwise only implied by the result documents, which means a
+ * session cannot exist before its first upload and an empty one vanishes.
+ * The settings doc carries a `custom` list so a year can be created up
+ * front, and the counts let the panel warn before a destructive delete.
+ */
+export const getResultYearStats = async () => {
+  const counts = {};
+  let custom = [];
+  let archived = [];
+
+  if (isFirebaseConfigured()) {
+    try {
+      const [snapshot, settingsSnap] = await Promise.all([
+        getDocs(collection(db, COLLECTIONS.RESULTS)),
+        getDoc(doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC)),
+      ]);
+
+      snapshot.docs.forEach((d) => {
+        const y = d.data().year;
+        if (y) counts[y.toString()] = (counts[y.toString()] || 0) + 1;
+      });
+
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        if (Array.isArray(data.custom)) custom = data.custom.map(String);
+        if (Array.isArray(data.archived)) archived = data.archived.map(String);
+      }
+    } catch (error) {
+      console.warn("Firestore getResultYearStats fallback:", error);
+    }
+  }
+
+  const years = Array.from(new Set([...Object.keys(counts), ...custom])).sort(
+    (a, b) => b.localeCompare(a)
+  );
+
+  return { years, counts, custom, archived };
+};
+
+/** Registers a session that has no results yet. */
+export const addCustomResultYear = async (year) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const clean = String(year).trim();
+  if (!clean) throw new Error("শিক্ষাবর্ষ লিখুন!");
+
+  const { years, custom } = await getResultYearStats();
+  if (years.includes(clean)) throw new Error(`"${clean}" ইতিমধ্যেই আছে!`);
+
+  const next = Array.from(new Set([...custom, clean])).sort((a, b) => b.localeCompare(a));
+  await setDoc(
+    doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC),
+    { custom: next, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
+  return next;
+};
+
+/**
+ * Renames a session everywhere it appears: the `year` field on every result
+ * document, plus the archived and custom lists. Written in batches because a
+ * session can hold hundreds of results.
+ */
+export const renameResultYear = async (oldYear, newYear) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const from = String(oldYear).trim();
+  const to = String(newYear).trim();
+  if (!to) throw new Error("নতুন শিক্ষাবর্ষ লিখুন!");
+  if (from === to) return { updated: 0 };
+
+  const { years } = await getResultYearStats();
+  if (years.includes(to)) throw new Error(`"${to}" ইতিমধ্যেই আছে!`);
+
+  const snapshot = await getDocs(
+    query(collection(db, COLLECTIONS.RESULTS), where("year", "==", from))
+  );
+  const total = snapshot.docs.length;
+  const chunkSize = 400;
+  for (let i = 0; i < total; i += chunkSize) {
+    const batch = writeBatch(db);
+    snapshot.docs.slice(i, i + chunkSize).forEach((d) => batch.update(d.ref, { year: to }));
+    await batch.commit();
+  }
+
+  const { custom, archived } = await readYearSettings();
+  const swap = (list) => list.map((y) => (y === from ? to : y));
+  await setDoc(
+    doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC),
+    {
+      custom: Array.from(new Set(swap(custom))),
+      archived: Array.from(new Set(swap(archived))),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return { updated: total };
+};
+
+/**
+ * Removes a session. Its results go too — a year with results left behind
+ * would simply reappear the next time the list is derived.
+ */
+export const deleteResultYear = async (year) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const clean = String(year).trim();
+
+  const { deleted } = await clearResultsByYear(clean);
+
+  const { custom, archived } = await readYearSettings();
+  await setDoc(
+    doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC),
+    {
+      custom: custom.filter((y) => y !== clean),
+      archived: archived.filter((y) => y !== clean),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+
+  return { deleted };
 };
 
 export const getResultsByYear = async (selectedYear = "all") => {

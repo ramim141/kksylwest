@@ -12,6 +12,8 @@ import {
   HiArchiveBox,
   HiArrowUturnLeft,
   HiBolt,
+  HiCheck,
+  HiCalendarDays,
 } from "react-icons/hi2";
 import { FaCrown, FaAward, FaFileExcel } from "react-icons/fa";
 import { parseExcelResults } from "../../../utils/excelParser";
@@ -23,12 +25,14 @@ import {
   addSingleResult,
   updateSingleResult,
   deleteSingleResult,
-  getAvailableResultYears,
-  getArchivedResultYears,
+  getResultYearStats,
   setResultYearArchived,
+  addCustomResultYear,
+  renameResultYear,
+  deleteResultYear,
 } from "../../../services/firestore";
 import * as XLSX from "xlsx";
-import { Button, Chip, SubTabs, Toast, useConfirm } from "../ui";
+import { Button, Chip, IconButton, Input, SubTabs, Toast, useConfirm } from "../ui";
 
 const CLASSES = [
   "৪র্থ শ্রেণি",
@@ -60,7 +64,12 @@ const ResultManager = () => {
   const [dbYearFilter, setDbYearFilter] = useState("২০২৫");
   const [availableYears, setAvailableYears] = useState(["২০২৫", "২০২৪", "২০২৩"]);
   const [archivedYears, setArchivedYears] = useState([]);
-  const [archivingYear, setArchivingYear] = useState(null);
+  const [yearCounts, setYearCounts] = useState({});
+  const [busyYear, setBusyYear] = useState(null);
+  const [renamingYear, setRenamingYear] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [isAddingYear, setIsAddingYear] = useState(false);
+  const [newYearValue, setNewYearValue] = useState("");
   const [dbPage, setDbPage] = useState(1);
   const dbItemsPerPage = 15;
 
@@ -103,14 +112,14 @@ const ResultManager = () => {
   const loadDatabaseResults = async () => {
     try {
       setLoadingResults(true);
-      const [allRes, yrs, archived] = await Promise.all([
+      const [allRes, stats] = await Promise.all([
         getResultsByYear(dbYearFilter),
-        getAvailableResultYears(),
-        getArchivedResultYears(),
+        getResultYearStats(),
       ]);
       setResultsList(allRes || []);
-      if (yrs && yrs.length > 0) setAvailableYears(yrs);
-      setArchivedYears(archived || []);
+      if (stats.years && stats.years.length > 0) setAvailableYears(stats.years);
+      setArchivedYears(stats.archived || []);
+      setYearCounts(stats.counts || {});
     } catch (err) {
       console.error("Load database results error:", err);
     } finally {
@@ -122,13 +131,22 @@ const ResultManager = () => {
     loadDatabaseResults();
   }, [dbYearFilter]);
 
+  /* ---------------- session year CRUD ---------------- */
+
+  const refreshYears = async () => {
+    const stats = await getResultYearStats();
+    if (stats.years && stats.years.length > 0) setAvailableYears(stats.years);
+    setArchivedYears(stats.archived || []);
+    setYearCounts(stats.counts || {});
+  };
+
   /* One click flips a session between live and archived. No confirm:
      it changes a label on the public page and is reversible from the
-     same button — unlike the delete below it, nothing is destroyed. */
+     same button — unlike delete, nothing is destroyed. */
   const handleToggleArchive = async (year) => {
     const wasArchived = archivedYears.includes(year);
     try {
-      setArchivingYear(year);
+      setBusyYear(year);
       const next = await setResultYearArchived(year, !wasArchived);
       setArchivedYears(next);
       showToast(
@@ -140,7 +158,76 @@ const ResultManager = () => {
       console.error(err);
       showToast(err.message || "স্ট্যাটাস বদলাতে ব্যর্থ হয়েছে!", "error");
     } finally {
-      setArchivingYear(null);
+      setBusyYear(null);
+    }
+  };
+
+  const handleAddYear = async () => {
+    const value = newYearValue.trim();
+    if (!value) return;
+    try {
+      setBusyYear("__new__");
+      await addCustomResultYear(value);
+      await refreshYears();
+      setNewYearValue("");
+      setIsAddingYear(false);
+      showToast(`"${value}" শিক্ষাবর্ষ যুক্ত হয়েছে।`);
+    } catch (err) {
+      showToast(err.message || "যুক্ত করতে ব্যর্থ হয়েছে!", "error");
+    } finally {
+      setBusyYear(null);
+    }
+  };
+
+  const handleRenameYear = async (oldYear) => {
+    const value = renameValue.trim();
+    if (!value || value === oldYear) {
+      setRenamingYear(null);
+      return;
+    }
+    try {
+      setBusyYear(oldYear);
+      const { updated } = await renameResultYear(oldYear, value);
+      await refreshYears();
+      if (dbYearFilter === oldYear) setDbYearFilter(value);
+      setRenamingYear(null);
+      showToast(
+        `"${oldYear}" → "${value}" করা হয়েছে। ${updated} টি ফলাফল আপডেট হয়েছে।`
+      );
+    } catch (err) {
+      showToast(err.message || "নাম বদলাতে ব্যর্থ হয়েছে!", "error");
+    } finally {
+      setBusyYear(null);
+    }
+  };
+
+  const handleDeleteYear = async (year) => {
+    const count = yearCounts[year] || 0;
+    const ok = await confirm({
+      title: `"${year}" শিক্ষাবর্ষ মুছে ফেলবেন?`,
+      body:
+        count > 0
+          ? `এই বছরের ${count} টি শিক্ষার্থীর ফলাফল স্থায়ীভাবে মুছে যাবে। এটি ফেরানো যাবে না।`
+          : `এই শিক্ষাবর্ষে কোনো ফলাফল নেই, তালিকা থেকে সরিয়ে ফেলা হবে।`,
+      detail: year,
+    });
+    if (!ok) return;
+
+    try {
+      setBusyYear(year);
+      const { deleted } = await deleteResultYear(year);
+      await refreshYears();
+      if (dbYearFilter === year) {
+        // The filter change re-runs the load effect on its own.
+        setDbYearFilter("all");
+      } else {
+        await loadDatabaseResults();
+      }
+      showToast(`"${year}" মুছে ফেলা হয়েছে। ${deleted} টি ফলাফল সরানো হয়েছে।`);
+    } catch (err) {
+      showToast(err.message || "মুছে ফেলতে ব্যর্থ হয়েছে!", "error");
+    } finally {
+      setBusyYear(null);
     }
   };
 
@@ -846,51 +933,181 @@ const ResultManager = () => {
 
           </div>
 
-          {/* Session status: which years the public page shows as live and
-              which it files under the archive. */}
+          {/* Session years: create, rename, archive, delete. The list is
+              derived from the result documents plus any year registered
+              here before its first upload. */}
           <div className="p-4 space-y-3 border rounded-lg sm:p-5 bg-surface-card border-line-soft">
-            <div className="flex flex-wrap items-start justify-between gap-2 pb-3 border-b border-line-soft">
+            <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-line-soft">
               <div className="min-w-0">
                 <h4 className="inline-flex items-center gap-2 text-sm font-semibold text-ink-strong">
-                  <HiArchiveBox className="text-base text-secondary" />
-                  শিক্ষাবর্ষ আর্কাইভ ব্যবস্থাপনা
+                  <HiCalendarDays className="text-base text-secondary" />
+                  শিক্ষাবর্ষ ব্যবস্থাপনা
                 </h4>
                 <p className="text-[13px] text-ink-muted mt-1 leading-relaxed">
-                  আর্কাইভ করলে সেই বছরের ফলাফল পাবলিক পেজে আর্কাইভ সেকশনে দেখাবে। কোনো ডাটা মুছে যাবে না — যেকোনো সময় ফিরিয়ে আনা যাবে।
+                  আর্কাইভ করলে সেই বছরের ফলাফল পাবলিক পেজে আর্কাইভ সেকশনে যাবে — কোনো ডাটা মুছে যাবে না।
                 </p>
               </div>
+
+              {!isAddingYear && (
+                <Button
+                  type="button"
+                  size="sm"
+                  tone="primary"
+                  icon={HiPlus}
+                  onClick={() => setIsAddingYear(true)}
+                >
+                  নতুন শিক্ষাবর্ষ
+                </Button>
+              )}
             </div>
+
+            {/* Create */}
+            {isAddingYear && (
+              <div className="flex flex-wrap items-center gap-2 p-3 border rounded border-primary/30 bg-primary/5">
+                <Input
+                  autoFocus
+                  value={newYearValue}
+                  onChange={(e) => setNewYearValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleAddYear();
+                    }
+                    if (e.key === "Escape") {
+                      setIsAddingYear(false);
+                      setNewYearValue("");
+                    }
+                  }}
+                  placeholder="যেমন: ২০২৬"
+                  className="w-full font-mono sm:w-48"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  tone="primary"
+                  icon={HiCheck}
+                  loading={busyYear === "__new__"}
+                  onClick={handleAddYear}
+                >
+                  যুক্ত করুন
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  tone="ghost"
+                  onClick={() => {
+                    setIsAddingYear(false);
+                    setNewYearValue("");
+                  }}
+                >
+                  বাতিল
+                </Button>
+              </div>
+            )}
 
             <ul className="space-y-2">
               {availableYears.map((yr) => {
                 const isArchived = archivedYears.includes(yr);
-                const busy = archivingYear === yr;
+                const busy = busyYear === yr;
+                const count = yearCounts[yr] || 0;
+                const isRenaming = renamingYear === yr;
+
                 return (
                   <li
                     key={yr}
                     className="flex flex-wrap items-center justify-between gap-3 p-3 border rounded bg-surface border-line-soft"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="font-mono text-sm font-semibold text-ink-strong">
-                        {yr}
-                      </span>
-                      {isArchived ? (
-                        <Chip tone="neutral" icon={HiArchiveBox}>আর্কাইভ</Chip>
-                      ) : (
-                        <Chip tone="primary" icon={HiBolt}>চলতি বর্ষ</Chip>
-                      )}
-                    </div>
+                    {isRenaming ? (
+                      /* Update. Renaming rewrites the year on every result
+                         document too, so the session does not split in two. */
+                      <div className="flex flex-wrap items-center flex-1 min-w-0 gap-2">
+                        <Input
+                          autoFocus
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleRenameYear(yr);
+                            }
+                            if (e.key === "Escape") setRenamingYear(null);
+                          }}
+                          className="w-full font-mono sm:w-40"
+                        />
+                        <Button
+                          type="button"
+                          size="sm"
+                          tone="primary"
+                          icon={HiCheck}
+                          loading={busy}
+                          onClick={() => handleRenameYear(yr)}
+                        >
+                          সংরক্ষণ
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          tone="ghost"
+                          onClick={() => setRenamingYear(null)}
+                        >
+                          বাতিল
+                        </Button>
+                        <span className="text-[13px] text-ink-muted">
+                          {count > 0
+                            ? `${count} টি ফলাফলেও বসবে`
+                            : "কোনো ফলাফল নেই"}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2.5 min-w-0">
+                          <span className="font-mono text-sm font-semibold text-ink-strong">
+                            {yr}
+                          </span>
+                          {isArchived ? (
+                            <Chip tone="neutral" icon={HiArchiveBox}>
+                              আর্কাইভ
+                            </Chip>
+                          ) : (
+                            <Chip tone="primary" icon={HiBolt}>
+                              চলতি বর্ষ
+                            </Chip>
+                          )}
+                          <Chip tone={count > 0 ? "tertiary" : "neutral"}>
+                            {count} টি ফলাফল
+                          </Chip>
+                        </div>
 
-                    <Button
-                      type="button"
-                      size="sm"
-                      tone={isArchived ? "outline" : "neutral"}
-                      icon={isArchived ? HiArrowUturnLeft : HiArchiveBox}
-                      loading={busy}
-                      onClick={() => handleToggleArchive(yr)}
-                    >
-                      {isArchived ? "চলতি করুন" : "আর্কাইভ করুন"}
-                    </Button>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Button
+                            type="button"
+                            size="sm"
+                            tone={isArchived ? "outline" : "neutral"}
+                            icon={isArchived ? HiArrowUturnLeft : HiArchiveBox}
+                            loading={busy}
+                            onClick={() => handleToggleArchive(yr)}
+                          >
+                            {isArchived ? "চলতি করুন" : "আর্কাইভ করুন"}
+                          </Button>
+                          <IconButton
+                            icon={HiPencilSquare}
+                            label="নাম বদলান"
+                            size="sm"
+                            onClick={() => {
+                              setRenamingYear(yr);
+                              setRenameValue(yr);
+                            }}
+                          />
+                          <IconButton
+                            icon={HiTrash}
+                            label="মুছে ফেলুন"
+                            size="sm"
+                            tone="danger"
+                            onClick={() => handleDeleteYear(yr)}
+                          />
+                        </div>
+                      </>
+                    )}
                   </li>
                 );
               })}
