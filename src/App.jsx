@@ -1,34 +1,41 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Home from './components/Home';
 import { archiveDetailsData } from './components/gallery/archiveDetailsData';
-import ChatbotWidget from './components/chat/ChatbotWidget';
 
-import BreakingNewsBar from './components/common/BreakingNewsBar';
 import MobileBottomNav from './components/common/MobileBottomNav';
-import { PageTransition, RouteFallback, ScrollToTop } from './components/common';
+import { PageTransition, RouteFallback, ScrollToTop, DeferredSection } from './components/common';
+import { routeLoaders, prefetchLikelyRoutes, installLinkPrefetch } from './routes';
+
+/* The chat bubble is ~600 lines of widget behind a closed launcher. Nothing
+   is visible until it is tapped, so it has no business in the entry chunk —
+   <DeferredSection> mounts it once the browser is idle. */
+const ChatbotWidget = lazy(() => import('./components/chat/ChatbotWidget'));
 
 /* Every route except the landing page is code-split: the first paint
    ships only the Home chunk, and the rest arrive behind a skeleton
-   instead of blocking the whole bundle. */
-const About = lazy(() => import('./components/About'));
-const Contact = lazy(() => import('./components/Contact'));
-const Notice = lazy(() => import('./components/Notice'));
-const Gallery = lazy(() => import('./components/Gallery'));
-const GalleryGridDetails = lazy(() => import('./components/gallery/GalleryGridDetails'));
-const GalleryDocumentaryDetails = lazy(() => import('./components/gallery/GalleryDocumentaryDetails'));
-const ResultList = lazy(() => import('./components/result/ResultList'));
-const ScholarshipDetails = lazy(() => import('./components/scholarship/ScholarshipDetails'));
-const SearchPage = lazy(() => import('./components/result/SearchPage'));
-const OnlineRegistration = lazy(() => import('./components/scholarship/OnlineRegistration'));
-const AdmitCardPortal = lazy(() => import('./components/scholarship/AdmitCardPortal'));
-const MeritLeaderboard = lazy(() => import('./components/result/MeritLeaderboard'));
-const CertificateVerification = lazy(() => import('./components/result/CertificateVerification'));
-const AdminLogin = lazy(() => import('./components/admin/AdminLogin'));
-const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
-const ProtectedRoute = lazy(() => import('./components/admin/ProtectedRoute'));
+   instead of blocking the whole bundle.
+
+   The loaders live in ./routes so the prefetcher can warm the exact same
+   chunk on hover — see prefetchRoute there. */
+const About = lazy(routeLoaders['/about']);
+const Contact = lazy(routeLoaders['/contact']);
+const Notice = lazy(routeLoaders['/notice']);
+const Gallery = lazy(routeLoaders['/gallery']);
+const GalleryGridDetails = lazy(routeLoaders['/gallery/details']);
+const GalleryDocumentaryDetails = lazy(routeLoaders['/gallery/documentary']);
+const ResultList = lazy(routeLoaders['/list']);
+const ScholarshipDetails = lazy(routeLoaders['/scholarship']);
+const SearchPage = lazy(routeLoaders['/search']);
+const OnlineRegistration = lazy(routeLoaders['/register']);
+const AdmitCardPortal = lazy(routeLoaders['/admit-card']);
+const MeritLeaderboard = lazy(routeLoaders['/leaderboard']);
+const CertificateVerification = lazy(routeLoaders['/verify-certificate']);
+const AdminLogin = lazy(routeLoaders['/admin/login']);
+const AdminDashboard = lazy(routeLoaders['/admin']);
+const ProtectedRoute = lazy(routeLoaders['/admin/guard']);
 
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
@@ -40,8 +47,22 @@ const AppContent = () => {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin');
 
+  /* Once the landing page has settled, quietly pull the chunks behind the
+     links people actually take from it. By the time a tap lands the page is
+     usually already in memory, so the route skeleton never appears at all. */
+  useEffect(() => {
+    if (isAdminRoute) return undefined;
+    prefetchLikelyRoutes();
+    // Any internal link anywhere on the page warms its own chunk on hover.
+    return installLinkPrefetch();
+  }, [isAdminRoute]);
+
   return (
-    <div className="flex flex-col min-h-screen overflow-x-hidden font-sans transition-colors duration-300 bg-surface text-ink-body">
+    /* `app-shell` replaces the old `overflow-x-hidden` here: `hidden` made
+       this wrapper a scroll container, and a sticky header sticks to its
+       nearest scroll container — so the header scrolled away instead of
+       pinning, most visibly on mobile. See the rule in index.css. */
+    <div className="app-shell flex flex-col min-h-screen font-sans transition-colors duration-300 bg-surface text-ink-body">
       <ScrollToTop />
       {!isAdminRoute && <Navbar />}
 
@@ -85,7 +106,11 @@ const AppContent = () => {
       </main>
 
       {!isAdminRoute && <Footer />}
-      {!isAdminRoute && <ChatbotWidget />}
+      {!isAdminRoute && (
+        <DeferredSection>
+          <ChatbotWidget />
+        </DeferredSection>
+      )}
       {!isAdminRoute && <MobileBottomNav />}
     </div>
   );

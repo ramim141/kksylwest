@@ -1,6 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAnalytics, isSupported } from "firebase/analytics";
 
 // Firebase Configuration with env variables and project defaults
 const firebaseConfig = {
@@ -37,14 +36,33 @@ export const getFirebaseAuth = async () => {
   return _auth;
 };
 
-// Initialize Firebase Analytics safely (only on client browsers where supported)
+/* Analytics is measurement, not content: nothing on screen waits for it.
+   Importing it statically pulled ~40KB of SDK into the critical path and ran
+   its init during the first paint. Loading it dynamically once the browser is
+   idle keeps it out of the initial bundle entirely. */
 let analytics = null;
+
+const loadAnalytics = async () => {
+  if (typeof window === "undefined" || analytics) return analytics;
+  try {
+    const { getAnalytics, isSupported } = await import("firebase/analytics");
+    if (await isSupported()) analytics = getAnalytics(app);
+  } catch {
+    // A blocked or unsupported measurement endpoint must never break the page.
+  }
+  return analytics;
+};
+
 if (typeof window !== "undefined") {
-  isSupported().then((supported) => {
-    if (supported) {
-      analytics = getAnalytics(app);
-    }
-  }).catch(() => {});
+  const start = () => loadAnalytics();
+  if ("requestIdleCallback" in window) {
+    window.requestIdleCallback(start, { timeout: 4000 });
+  } else {
+    setTimeout(start, 2500);
+  }
 }
+
+/** Resolves once (or if) analytics has initialised; null when unavailable. */
+export const getAnalyticsInstance = () => loadAnalytics();
 
 export { app, db, analytics, firebaseConfig };

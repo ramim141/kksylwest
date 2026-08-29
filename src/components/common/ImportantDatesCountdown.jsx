@@ -16,6 +16,18 @@ import { getImportantDates, DEFAULT_IMPORTANT_DATES } from "../../services/fires
 const toBengaliNumber = (num) =>
   num?.toString().padStart(2, "0").replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]) || "০০";
 
+/* The ISO date fields in Firestore can come back with Bengali digits
+   ("২০২৬-১০-২৪ T..."), because the admin form and the seed data both
+   accept them. Date() cannot parse those, and the countdown rendered
+   "NaN" in every tile. Mapping the digits back to ASCII before parsing
+   costs nothing and accepts either form. */
+const BENGALI_DIGIT = /[০-৯]/g;
+
+const toParsableDate = (value) =>
+  typeof value === "string"
+    ? value.replace(BENGALI_DIGIT, (d) => String(d.charCodeAt(0) - 0x09e6))
+    : value;
+
 const ImportantDatesCountdown = () => {
   const [dates, setDates] = useState(DEFAULT_IMPORTANT_DATES);
   const [timeLeft, setTimeLeft] = useState({
@@ -42,7 +54,12 @@ const ImportantDatesCountdown = () => {
         targetDateStr = dates.resultPublishDate;
       }
 
-      const target = new Date(targetDateStr).getTime();
+      const target = new Date(toParsableDate(targetDateStr)).getTime();
+      if (Number.isNaN(target)) {
+        // Unset or unreadable: show the dates panel without a broken timer.
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true });
+        return;
+      }
       const now = new Date().getTime();
       const difference = target - now;
 

@@ -14,6 +14,28 @@ export {
   SkeletonPage,
 } from './Skeleton';
 
+export { default as DeferredSection } from './DeferredSection';
+
+export {
+  default as RouteSkeleton,
+  SectionSkeleton,
+  AboutSkeleton,
+  ContactSkeleton,
+  NoticeSkeleton,
+  GallerySkeleton,
+  GalleryDetailsSkeleton,
+  ScholarshipSkeleton,
+  RegistrationSkeleton,
+  AdmitCardSkeleton,
+  LeaderboardSkeleton,
+  ResultListSkeleton,
+  SearchSkeleton,
+  CertificateSkeleton,
+  AdminLoginSkeleton,
+  AdminSkeleton,
+  GenericPageSkeleton,
+} from './RouteSkeletons';
+
 export { default as Reveal, RevealGroup } from './Reveal';
 export { default as useInView, prefersReducedMotion } from './useInView';
 export { default as SmartImage } from './SmartImage';

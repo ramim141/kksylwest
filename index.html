@@ -4,14 +4,47 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Font CDN, and the Firestore host every page queries on mount. Opening
+         the TCP + TLS handshakes here saves ~200-300ms on a phone connection,
+         because they are already warm when the first request is made. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Latin faces: Hanken Grotesk (display/headline), Work Sans (body), JetBrains Mono (labels) -->
-    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" crossorigin="anonymous">
-    <!-- Bengali faces: Anek Bangla (for crystal-clear readable digits), Noto Sans Bengali & Hind Siliguri -->
-    <link href="https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" crossorigin="anonymous">
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="dns-prefetch" href="https://firebasestorage.googleapis.com">
+
+    <!--
+      One request for all six faces instead of two, loaded without blocking
+      the first paint: the browser treats `media="print"` as irrelevant to
+      the screen, fetches it at low priority, and `onload` flips it back to
+      `all`. Every family carries `display=swap`, so text paints immediately
+      in the fallback and re-renders once the real face lands.
+
+      Latin: Hanken Grotesk (display), Work Sans (body), JetBrains Mono (labels)
+      Bengali: Anek Bangla (digits), Hind Siliguri, Noto Sans Bengali
+    -->
+    <link
+      rel="stylesheet"
+      crossorigin="anonymous"
+      media="print"
+      onload="this.media='all'; this.onload=null;"
+      href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Anek+Bangla:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap">
+    <noscript>
+      <link
+        rel="stylesheet"
+        crossorigin="anonymous"
+        href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Anek+Bangla:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap">
+    </noscript>
+
     <meta name="theme-color" content="#0b1326">
     <title>kksylwest</title>
+
+    <!-- Paints the page background before any CSS or JS arrives, so the very
+         first frame is the site's own dark surface rather than white. -->
+    <style>
+      html, body { background-color: #0b1326; }
+      body { margin: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

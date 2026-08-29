@@ -3,16 +3,25 @@ import { useEffect, useRef, useState } from "react";
 /* ============================================================
    IN-VIEW REGISTRY
 
-   One shared, throttled checker drives every pending element rather
-   than an IntersectionObserver each. Two reasons:
+   IntersectionObserver drives the reveals, with a rect-based sweep
+   kept as a safety net.
 
-   - Reliability. A .reveal starts at opacity 0, so anything that
-     stops the callbacks arriving leaves the content invisible for
-     good. Observers go quiet in contexts that never paint; a rect
-     check against the scroll position cannot.
-   - Cost. The registry only holds elements that have not revealed
-     yet, and it empties as the user scrolls, so the listener is
-     torn down entirely once the page has come in.
+   The observer is the part that matters for smoothness: it reports
+   from the compositor, off the main thread, so scrolling never pays
+   for it. The previous version re-read getBoundingClientRect() for
+   every pending element on every scroll burst — a forced layout per
+   element per tick, which is exactly the kind of work that turns a
+   flick into a stutter on a mid-range phone.
+
+   The sweep is still here because a .reveal starts at opacity 0: if
+   anything ever stops notifications arriving, the content would be
+   invisible for good. So the registry is also swept on the events
+   where an observer can legitimately have missed something — a
+   restored bfcache page, a tab coming back to the foreground — and
+   anything already scrolled past counts as revealed.
+
+   Observers are shared per (threshold, bottomMargin) pair, so the
+   whole site typically runs on one or two.
    ============================================================ */
 
 export const prefersReducedMotion = () =>
@@ -20,74 +29,106 @@ export const prefersReducedMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
 const watchers = new Set();
-let pending = 0;
-let listening = false;
+const observers = new Map();
+let sweepBound = false;
 
-const runChecks = () => {
-  pending = 0;
+/** True when the element is inside the viewport, or already above it. */
+const isInViewByRect = (rect, watcher) => {
   const viewport = window.innerHeight || document.documentElement.clientHeight;
+  const height = rect.height || 1;
+  const covered =
+    Math.min(rect.bottom, viewport - watcher.bottomMargin) - Math.max(rect.top, 0);
 
-  watchers.forEach((watcher) => {
-    const node = watcher.ref.current;
-    if (!node) return;
+  // Anything already above the viewport counts as revealed: landing deep in
+  // the page (a hash link, a restored scroll position) must not leave the
+  // content above the fold stuck at opacity 0.
+  return (
+    rect.bottom <= 0 ||
+    (covered > 0 && covered / height >= Math.min(watcher.threshold, 1))
+  );
+};
 
-    const rect = node.getBoundingClientRect();
-    const height = rect.height || 1;
-    // How much of the element is inside the viewport, as a fraction of
-    // its own height — the same measure IntersectionObserver reports.
-    const covered =
-      Math.min(rect.bottom, viewport - watcher.bottomMargin) - Math.max(rect.top, 0);
-    // Anything already above the viewport counts as revealed: landing deep
-    // in the page (a hash link, a restored scroll position) must not leave
-    // the content above the fold stuck at opacity 0.
-    const inView =
-      rect.bottom <= 0 ||
-      (covered > 0 && covered / height >= Math.min(watcher.threshold, 1));
+const settle = (watcher, visible) => {
+  watcher.onChange(visible);
+  if (visible && watcher.once) unwatch(watcher);
+};
 
-    if (inView) {
-      watcher.onChange(true);
-      if (watcher.once) unwatch(watcher);
-    } else if (!watcher.once) {
-      watcher.onChange(false);
-    }
+/** Last-resort pass over everything still waiting. */
+const sweep = () => {
+  if (watchers.size === 0) return;
+  // One read pass, no interleaved writes: the reflow is paid once.
+  const pending = Array.from(watchers);
+  const rects = pending.map((w) => w.ref.current?.getBoundingClientRect());
+  pending.forEach((w, i) => {
+    if (rects[i] && isInViewByRect(rects[i], w)) settle(w, true);
   });
-
-  if (watchers.size === 0) stopListening();
 };
 
-/* Coalesce a burst of scroll events into one pass. A timer rather than
-   requestAnimationFrame: rAF is paused while a document is not being
-   painted, which is one of the states this checker exists to survive. */
-const schedule = () => {
-  if (pending) return;
-  pending = setTimeout(runChecks, 0);
+const bindSweep = () => {
+  if (sweepBound || typeof window === "undefined") return;
+  sweepBound = true;
+  document.addEventListener("visibilitychange", sweep);
+  window.addEventListener("pageshow", sweep);
+  window.addEventListener("resize", sweep);
 };
 
-const startListening = () => {
-  if (listening) return;
-  listening = true;
-  window.addEventListener("scroll", schedule, { passive: true });
-  window.addEventListener("resize", schedule);
-  document.addEventListener("visibilitychange", schedule);
-};
+const observerFor = (watcher) => {
+  const key = `${watcher.threshold}|${watcher.bottomMargin}`;
+  let observer = observers.get(key);
+  if (observer) return observer;
 
-const stopListening = () => {
-  if (!listening) return;
-  listening = false;
-  window.removeEventListener("scroll", schedule);
-  window.removeEventListener("resize", schedule);
-  document.removeEventListener("visibilitychange", schedule);
+  observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const target = entry.target.__inViewWatcher;
+        if (!target) return;
+
+        // `isIntersecting` misses one case the reveals depend on: an element
+        // that is already scrolled past. The entry carries its rect, so that
+        // check costs nothing extra here.
+        const visible =
+          entry.isIntersecting || entry.boundingClientRect.bottom <= 0;
+
+        if (visible) settle(target, true);
+        else if (!target.once) target.onChange(false);
+      });
+    },
+    {
+      // Shrinking the bottom edge starts the motion just before the element
+      // is fully in, which is what bottomMargin has always meant here.
+      rootMargin: `0px 0px ${-watcher.bottomMargin}px 0px`,
+      threshold: Math.min(Math.max(watcher.threshold, 0), 1),
+    }
+  );
+  observers.set(key, observer);
+  return observer;
 };
 
 const watch = (watcher) => {
+  const node = watcher.ref.current;
+  if (!node) return;
+
   watchers.add(watcher);
-  startListening();
-  schedule();
+  bindSweep();
+
+  if (typeof IntersectionObserver === "undefined") {
+    // No observer available: reveal rather than risk invisible content.
+    settle(watcher, true);
+    return;
+  }
+
+  node.__inViewWatcher = watcher;
+  watcher.observer = observerFor(watcher);
+  watcher.observer.observe(node);
 };
 
 const unwatch = (watcher) => {
+  const node = watcher.ref.current;
+  if (node) {
+    watcher.observer?.unobserve(node);
+    delete node.__inViewWatcher;
+  }
   watchers.delete(watcher);
-  if (watchers.size === 0) stopListening();
 };
 
 /**
@@ -107,13 +148,14 @@ export const useInView = ({ threshold = 0.12, bottomMargin = 60, once = true } =
   const [isVisible, setIsVisible] = useState(prefersReducedMotion);
 
   useEffect(() => {
-    if (!ref.current || prefersReducedMotion()) return;
+    if (!ref.current || prefersReducedMotion()) return undefined;
 
     const watcher = {
       ref,
       threshold,
       bottomMargin,
       once,
+      observer: null,
       onChange: setIsVisible,
     };
 

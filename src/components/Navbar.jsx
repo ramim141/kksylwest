@@ -36,8 +36,33 @@ const Navbar = () => {
     badgeType: "urgent",
   });
   const [searchRoll, setSearchRoll] = useState("");
+  /* Phones only have ~600px of height to spend, and a three-row sticky
+     header would take a fifth of it. Past the first screenful the top
+     announcement strip folds away, leaving the brand row and the tabs
+     pinned. */
+  const [condensed, setCondensed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let frame = 0;
+    const read = () => {
+      frame = 0;
+      setCondensed(window.scrollY > 56);
+    };
+    // Coalesced into one rAF per frame: the listener itself does no layout
+    // work, so scrolling never waits on it.
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(read);
+    };
+
+    read();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     getAnnouncement().then((data) => {
@@ -99,13 +124,17 @@ const Navbar = () => {
       {/* ===================================================================
           STICKY 3-TIER LUXURY PORTAL HEADER
           =================================================================== */}
-      <header className="sticky top-0 z-50 font-sans print:hidden shadow-2xl shadow-black/60 transition-all duration-200">
+      <header className="sticky top-0 z-50 font-sans print:hidden shadow-2xl shadow-black/60 will-change-transform">
         
         {/* -------------------------------------------------------------
             ROW 1: TOP ANNOUNCEMENT STRIP (Fully Admin Dynamic)
             ------------------------------------------------------------- */}
         {announcement.enabled !== false && (
-          <div className="bg-[#0f1124] text-slate-300 text-xs py-1.5 px-3 sm:px-6 border-b border-white/[0.06]">
+          <div
+            className={`bg-[#0f1124] text-slate-300 text-xs px-3 sm:px-6 border-b border-white/[0.06] overflow-hidden transition-[max-height,opacity,padding] duration-300 ease-out md:max-h-none md:opacity-100 md:py-1.5 ${
+              condensed ? "max-h-0 opacity-0 py-0" : "max-h-16 opacity-100 py-1.5"
+            }`}
+          >
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
               
               {/* Left: Colored Bullet + Announcement Text */}
@@ -157,7 +186,11 @@ const Navbar = () => {
         {/* -------------------------------------------------------------
             ROW 2: MAIN BRAND HEADER & ACTIONS
             ------------------------------------------------------------- */}
-        <div className="bg-[#14162b] backdrop-blur-xl border-b border-white/[0.06] px-3 sm:px-6 py-2.5 sm:py-3.5">
+        <div
+          className={`bg-[#14162b] backdrop-blur-xl border-b border-white/[0.06] px-3 sm:px-6 transition-[padding] duration-300 ease-out sm:py-3.5 ${
+            condensed ? "py-1.5" : "py-2.5"
+          }`}
+        >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
             
             {/* Left: Official Logo Only */}
@@ -169,7 +202,12 @@ const Navbar = () => {
               <img
                 src={currentLogo}
                 alt="KishorKantho Logo"
-                className="h-8 sm:h-12 w-auto object-contain block group-hover:scale-105 transition-transform"
+                className={`w-auto object-contain block group-hover:scale-105 transition-all duration-300 sm:h-12 ${
+                  condensed ? "h-7" : "h-8"
+                }`}
+                width="458"
+                height="119"
+                fetchPriority="high"
               />
             </Link>
 

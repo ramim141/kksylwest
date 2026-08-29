@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800;900&display=swap');
+/* The Bengali faces are requested from index.html, which can start the
+   fetch during HTML parsing. An @import here would repeat that request and,
+   worse, block this stylesheet from being applied until it resolved — CSS
+   @import is discovered only after the stylesheet itself has downloaded. */
 
 @tailwind base;
 @tailwind components;
@@ -74,6 +77,30 @@
   html {
     scroll-behavior: smooth;
     background-color: rgb(var(--surface));
+  }
+
+  /* ---- Sideways overflow, without breaking the sticky header ----
+
+     `overflow-x: hidden` on the app wrapper was the original bug: any
+     `overflow` value other than `visible` makes an element a scroll
+     container, and `position: sticky` sticks to its nearest scroll
+     container. The wrapper never scrolls itself, so the header had
+     nothing to stick to and scrolled away with the page.
+
+     `clip` stops the overflow without creating a scroll container, so
+     the viewport stays the sticky anchor. It goes on the wrapper, NOT
+     on <html>: root-element overflow propagates to the viewport, and
+     Chromium currently paints nothing at all once such a page is
+     scrolled. On the wrapper it behaves correctly. */
+  .app-shell {
+    overflow-x: clip;
+  }
+
+  /* Pre-clip browsers (Safari < 16) get the old behaviour on <body>,
+     where overflow propagates to the viewport and sticky still works. */
+  @supports not (overflow: clip) {
+    .app-shell { overflow-x: visible; }
+    body { overflow-x: hidden; }
   }
 
   body {

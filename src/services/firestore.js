@@ -99,7 +99,7 @@ export const searchResultByRoll = async (roll) => {
 /**
  * Gets all results (or paginated/all from results.json as fallback)
  */
-export const getAllResults = async () => {
+const uncached_getAllResults = async () => {
   if (isFirebaseConfigured()) {
     try {
       const querySnapshot = await getDocs(collection(db, COLLECTIONS.RESULTS));
@@ -243,7 +243,7 @@ export const deleteSingleResult = async (id) => {
 
 // ==================== 2. NOTICE SERVICES ====================
 
-export const getNotices = async () => {
+const uncached_getNotices = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -286,7 +286,7 @@ export const deleteNotice = async (id) => {
 
 // ==================== 3. GALLERY SERVICES ====================
 
-export const getGalleryItems = async (category = null) => {
+const uncached_getGalleryItems = async (category = null) => {
   if (isFirebaseConfigured()) {
     try {
       let q = collection(db, COLLECTIONS.GALLERY);
@@ -327,7 +327,7 @@ export const deleteGalleryItem = async (id) => {
   await deleteDoc(doc(db, COLLECTIONS.GALLERY, id));
 };
 
-export const getGalleryHeroContent = async () => {
+const uncached_getGalleryHeroContent = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "gallery_hero");
@@ -388,7 +388,7 @@ export const seedGalleryDefaults = async () => {
 
 // ==================== 4. COMMITTEE SERVICES ====================
 
-export const getCommitteeMembers = async () => {
+const uncached_getCommitteeMembers = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -544,7 +544,7 @@ export const deleteMessage = async (id) => {
 
 // ==================== 6. HERO SLIDER SERVICES ====================
 
-export const getHeroSlides = async () => {
+const uncached_getHeroSlides = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -589,7 +589,7 @@ export const deleteHeroSlide = async (id) => {
 
 // ==================== 7. ACTIVITIES (যা আমরা করে থাকি) SERVICES ====================
 
-export const getActivities = async () => {
+const uncached_getActivities = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -696,7 +696,7 @@ export const seedDefaultActivities = async () => {
 
 // ==================== 8. FAQ (প্রায়শই জিজ্ঞাসিত প্রশ্নাবলী) SERVICES ====================
 
-export const getFaqs = async () => {
+const uncached_getFaqs = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -741,7 +741,7 @@ export const deleteFaq = async (id) => {
 
 // ==================== 9. HOMEPAGE CONTENT & STATS (HERO & ABOUT) ====================
 
-export const getHomepageContent = async () => {
+const uncached_getHomepageContent = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "homepage");
@@ -802,7 +802,7 @@ export const DEFAULT_IMPACT_STATS = [
   },
 ];
 
-export const getImpactStats = async () => {
+const uncached_getImpactStats = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "impact_stats");
@@ -834,7 +834,7 @@ export const saveImpactStats = async (statsList) => {
 
 const LOCAL_ANNOUNCEMENT_KEY = "kkmb_top_announcement_data";
 
-export const getAnnouncement = async () => {
+const uncached_getAnnouncement = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "announcement");
@@ -897,7 +897,7 @@ export const saveAnnouncement = async (announcementData) => {
 
 // ==================== 10. TEAM STRUCTURE (আমাদের টিম স্ট্রাকচার) SERVICES ====================
 
-export const getTeamStructure = async () => {
+const uncached_getTeamStructure = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -942,7 +942,7 @@ export const deleteTeamStructure = async (id) => {
 
 // ==================== 11. SCHOLARSHIP SYLLABUS SERVICES ====================
 
-export const getSyllabus = async () => {
+const uncached_getSyllabus = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -1142,7 +1142,7 @@ export const searchAdmitCard = async (queryTerm) => {
 
 // ==================== 13. UPAZILA CENTERS & LIBRARIES SERVICES ====================
 
-export const getUpazilaCenters = async () => {
+const uncached_getUpazilaCenters = async () => {
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -1205,7 +1205,7 @@ export const DEFAULT_CONTACT_SETTINGS = {
   copyrightText: "সর্বস্বত্ব সংরক্ষিত © ১৯৯৪ - ২০২৫ কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম শাখা।",
 };
 
-export const getContactSettings = async () => {
+const uncached_getContactSettings = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "contact_info");
@@ -1279,7 +1279,7 @@ export const DEFAULT_IMPORTANT_DATES = {
   activeCountdownTarget: "examDate", // 'registrationDeadline' | 'examDate' | 'resultPublishDate'
 };
 
-export const getImportantDates = async () => {
+const uncached_getImportantDates = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "important_dates");
@@ -1357,7 +1357,7 @@ export const DEFAULT_ADMIT_CARD_SETTINGS = {
   ],
 };
 
-export const getAdmitCardSettings = async () => {
+const uncached_getAdmitCardSettings = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "admit_card_defaults");
@@ -1443,7 +1443,7 @@ export const DEFAULT_BRANDING_SETTINGS = {
 
 const LOCAL_BRANDING_SETTINGS_KEY = "kkm_branding_settings_v1";
 
-export const getBrandingSettings = async () => {
+const uncached_getBrandingSettings = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "branding");
@@ -1513,7 +1513,7 @@ export const saveBrandingSettings = async (brandingData) => {
 
 // ==================== 18. MULTI-YEAR ARCHIVE SERVICES ====================
 
-export const getAvailableResultYears = async () => {
+const uncached_getAvailableResultYears = async () => {
   const defaultYears = ["২০২৫", "২০২৪", "২০২৩"];
   if (isFirebaseConfigured()) {
     try {
@@ -1605,7 +1605,7 @@ const readYearSettings = async () => {
   return { archived: [], custom: [] };
 };
 
-export const getArchivedResultYears = async () => {
+const uncached_getArchivedResultYears = async () => {
   if (isFirebaseConfigured()) {
     try {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC);
@@ -1663,7 +1663,7 @@ export const setResultYearArchived = async (year, isArchived) => {
  * The settings doc carries a `custom` list so a year can be created up
  * front, and the counts let the panel warn before a destructive delete.
  */
-export const getResultYearStats = async () => {
+const uncached_getResultYearStats = async () => {
   const counts = {};
   let custom = [];
   let archived = [];
@@ -1780,7 +1780,7 @@ export const deleteResultYear = async (year) => {
   return { deleted };
 };
 
-export const getResultsByYear = async (selectedYear = "all") => {
+const uncached_getResultsByYear = async (selectedYear = "all") => {
   if (isFirebaseConfigured()) {
     try {
       let q = collection(db, COLLECTIONS.RESULTS);
@@ -1814,10 +1814,77 @@ export const getResultsByYear = async (selectedYear = "all") => {
   return [];
 };
 
+/* ============================================================
+   READ CACHE
 
+   Public pages fetch their content on mount, so leaving a page and
+   coming back used to repeat every query — a second of skeletons for
+   data the browser already had. These wrappers keep the last read for
+   a short window and, because the *promise* is what gets stored, two
+   components mounting at once share one request instead of racing.
 
+   Deliberately not applied on /admin: an editor has to see their own
+   save reflected immediately, and their traffic is a rounding error.
+   ============================================================ */
 
+const READ_CACHE_TTL = 90_000; // ms
+const readCache = new Map();
 
+const isAdminSurface = () =>
+  typeof window !== "undefined" &&
+  window.location.pathname.toLowerCase().startsWith("/admin");
 
+/** Drops cached reads. Pass a name to clear one entry, nothing to clear all. */
+export const clearDataCache = (name) => {
+  if (!name) {
+    readCache.clear();
+    return;
+  }
+  for (const key of Array.from(readCache.keys())) {
+    if (key === name || key.startsWith(name + ":")) readCache.delete(key);
+  }
+};
 
+const cached = (name, fn, ttl = READ_CACHE_TTL) => {
+  const wrapped = async (...args) => {
+    if (isAdminSurface()) return fn(...args);
 
+    const key = args.length ? name + ":" + JSON.stringify(args) : name;
+    const hit = readCache.get(key);
+    if (hit && Date.now() - hit.at < ttl) return hit.promise;
+
+    // A rejected read must not be remembered, or one flaky moment would
+    // keep failing for the rest of the TTL.
+    const promise = fn(...args).catch((err) => {
+      readCache.delete(key);
+      throw err;
+    });
+    readCache.set(key, { at: Date.now(), promise });
+    return promise;
+  };
+  wrapped.uncached = fn;
+  return wrapped;
+};
+
+export const getAllResults = cached("getAllResults", uncached_getAllResults);
+export const getNotices = cached("getNotices", uncached_getNotices);
+export const getGalleryItems = cached("getGalleryItems", uncached_getGalleryItems);
+export const getGalleryHeroContent = cached("getGalleryHeroContent", uncached_getGalleryHeroContent);
+export const getCommitteeMembers = cached("getCommitteeMembers", uncached_getCommitteeMembers);
+export const getHeroSlides = cached("getHeroSlides", uncached_getHeroSlides);
+export const getActivities = cached("getActivities", uncached_getActivities);
+export const getFaqs = cached("getFaqs", uncached_getFaqs);
+export const getHomepageContent = cached("getHomepageContent", uncached_getHomepageContent);
+export const getImpactStats = cached("getImpactStats", uncached_getImpactStats);
+export const getAnnouncement = cached("getAnnouncement", uncached_getAnnouncement);
+export const getTeamStructure = cached("getTeamStructure", uncached_getTeamStructure);
+export const getSyllabus = cached("getSyllabus", uncached_getSyllabus);
+export const getUpazilaCenters = cached("getUpazilaCenters", uncached_getUpazilaCenters);
+export const getContactSettings = cached("getContactSettings", uncached_getContactSettings);
+export const getImportantDates = cached("getImportantDates", uncached_getImportantDates);
+export const getAdmitCardSettings = cached("getAdmitCardSettings", uncached_getAdmitCardSettings);
+export const getBrandingSettings = cached("getBrandingSettings", uncached_getBrandingSettings);
+export const getAvailableResultYears = cached("getAvailableResultYears", uncached_getAvailableResultYears);
+export const getArchivedResultYears = cached("getArchivedResultYears", uncached_getArchivedResultYears);
+export const getResultYearStats = cached("getResultYearStats", uncached_getResultYearStats);
+export const getResultsByYear = cached("getResultsByYear", uncached_getResultsByYear);
