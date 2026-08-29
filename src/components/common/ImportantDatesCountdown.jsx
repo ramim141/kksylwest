@@ -100,7 +100,7 @@ const ImportantDatesCountdown = () => {
               <div className="grid grid-cols-4 gap-2.5 sm:gap-4 max-w-lg mx-auto lg:mx-0 pt-2">
                 {/* Days */}
                 <div className="p-3 sm:p-4 rounded-2xl bg-[#090a16] border border-white/10 text-center shadow-lg">
-                  <div className="font-mono font-black text-2xl sm:text-4xl text-amber-300">
+                  <div className="font-bangla-number font-extrabold text-2xl sm:text-4xl text-amber-300">
                     {toBengaliNumber(timeLeft.days)}
                   </div>
                   <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1 block">
@@ -110,7 +110,7 @@ const ImportantDatesCountdown = () => {
 
                 {/* Hours */}
                 <div className="p-3 sm:p-4 rounded-2xl bg-[#090a16] border border-white/10 text-center shadow-lg">
-                  <div className="font-mono font-black text-2xl sm:text-4xl text-emerald-400">
+                  <div className="font-bangla-number font-extrabold text-2xl sm:text-4xl text-emerald-400">
                     {toBengaliNumber(timeLeft.hours)}
                   </div>
                   <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1 block">
@@ -120,7 +120,7 @@ const ImportantDatesCountdown = () => {
 
                 {/* Minutes */}
                 <div className="p-3 sm:p-4 rounded-2xl bg-[#090a16] border border-white/10 text-center shadow-lg">
-                  <div className="font-mono font-black text-2xl sm:text-4xl text-sky-400">
+                  <div className="font-bangla-number font-extrabold text-2xl sm:text-4xl text-sky-400">
                     {toBengaliNumber(timeLeft.minutes)}
                   </div>
                   <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1 block">
@@ -130,7 +130,7 @@ const ImportantDatesCountdown = () => {
 
                 {/* Seconds */}
                 <div className="p-3 sm:p-4 rounded-2xl bg-[#090a16] border border-white/10 text-center shadow-lg">
-                  <div className="font-mono font-black text-2xl sm:text-4xl text-rose-400 animate-pulse">
+                  <div className="font-bangla-number font-extrabold text-2xl sm:text-4xl text-rose-400 animate-pulse">
                     {toBengaliNumber(timeLeft.seconds)}
                   </div>
                   <span className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-1 block">

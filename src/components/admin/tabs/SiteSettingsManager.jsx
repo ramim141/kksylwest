@@ -14,6 +14,11 @@ import {
   HiPhone,
   HiIdentification,
   HiListBullet,
+  HiPhoto,
+  HiArrowUpTray,
+  HiCheck,
+  HiEye,
+  HiPencilSquare,
 } from "react-icons/hi2";
 import { FaFacebookF, FaYoutube, FaWhatsapp, FaCalendarAlt, FaAward } from "react-icons/fa";
 import { SubTabs, Toast } from "../ui";
@@ -32,7 +37,14 @@ import {
   getAdmitCardSettings,
   saveAdmitCardSettings,
   DEFAULT_ADMIT_CARD_SETTINGS,
+  getBrandingSettings,
+  saveBrandingSettings,
+  DEFAULT_BRANDING_SETTINGS,
 } from "../../../services/firestore";
+import { uploadToImgBB, isImgBBConfigured } from "../../../services/imgbb";
+import kkmLogoDefault from "../../../assets/images/KKM LOGO.png";
+import roundLogoDefault from "../../../assets/images/logo3.png";
+import { useBranding } from "../../../context/BrandingContext";
 
 const DEFAULT_SETTINGS = {
   hero: {
@@ -80,26 +92,47 @@ const COLOR_OPTIONS = [
 ];
 
 const SiteSettingsManager = () => {
-  const [activeSubTab, setActiveSubTab] = useState("contact"); // 'contact' | 'dates' | 'admit' | 'stats' | 'general'
+  const [activeSubTab, setActiveSubTab] = useState("dates"); // 'dates' | 'branding' | 'contact' | 'admit' | 'stats' | 'general'
   const [formData, setFormData] = useState(DEFAULT_SETTINGS);
   const [statsList, setStatsList] = useState(DEFAULT_IMPACT_STATS);
   const [contactData, setContactData] = useState(DEFAULT_CONTACT_SETTINGS);
   const [datesData, setDatesData] = useState(DEFAULT_IMPORTANT_DATES);
   const [admitData, setAdmitData] = useState(DEFAULT_ADMIT_CARD_SETTINGS);
+  const [brandingData, setBrandingData] = useState(DEFAULT_BRANDING_SETTINGS);
+
+  // Logo manager states
+  const [newLogoForm, setNewLogoForm] = useState({
+    name: "",
+    url: "",
+    type: "title_logo",
+    description: "",
+  });
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
+  const [editingLogoId, setEditingLogoId] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
+  const { refreshBranding } = useBranding();
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [contentData, loadedStats, loadedContact, loadedDates, loadedAdmit] = await Promise.all([
+      const [
+        contentData,
+        loadedStats,
+        loadedContact,
+        loadedDates,
+        loadedAdmit,
+        loadedBranding,
+      ] = await Promise.all([
         getHomepageContent(),
         getImpactStats(),
         getContactSettings(),
         getImportantDates(),
         getAdmitCardSettings(),
+        getBrandingSettings(),
       ]);
 
       if (contentData) {
@@ -112,6 +145,7 @@ const SiteSettingsManager = () => {
       if (loadedContact) setContactData(loadedContact);
       if (loadedDates) setDatesData(loadedDates);
       if (loadedAdmit) setAdmitData(loadedAdmit);
+      if (loadedBranding) setBrandingData(loadedBranding);
     } catch (err) {
       console.error("Load site settings error:", err);
     } finally {
@@ -197,6 +231,134 @@ const SiteSettingsManager = () => {
     }
   };
 
+  // 6. Save Branding & Logos
+  const handleSaveBranding = async (e) => {
+    if (e) e.preventDefault();
+    setSaving(true);
+    try {
+      await saveBrandingSettings(brandingData);
+      refreshBranding();
+      showToast("ব্র্যান্ডিং ও লোগো সেটিংস সফলভাবে সংরক্ষিত হয়েছে!");
+    } catch (e) {
+      showToast("সংরক্ষণ করতে সমস্যা হয়েছে!", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Branding Logo Upload to ImgBB
+  const handleLogoFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    setUploadProgress("লোগো আপলোড হচ্ছে...");
+
+    try {
+      const res = await uploadToImgBB(file);
+      if (res && res.url) {
+        setNewLogoForm((prev) => ({
+          ...prev,
+          url: res.url,
+          name: prev.name || file.name.replace(/\.[^/.]+$/, ""),
+        }));
+        showToast("লোগো সফলভাবে আপলোড হয়েছে! এখন 'সংরক্ষণ করুন' বাটনে চাপুন।");
+      }
+    } catch (err) {
+      console.error("Logo upload error:", err);
+      showToast(err.message || "লোগো আপলোড ব্যর্থ হয়েছে!", "error");
+    } finally {
+      setUploadingLogo(false);
+      setUploadProgress("");
+      e.target.value = "";
+    }
+  };
+
+  // Add / Edit Logo in Library
+  const handleAddOrUpdateLogo = () => {
+    if (!newLogoForm.name.trim()) {
+      showToast("দয়া করে লোগোর নাম বা বিবরণ লিখুন!", "error");
+      return;
+    }
+    if (!newLogoForm.url.trim()) {
+      showToast("দয়া করে লোগো ফাইল আপলোড করুন অথবা সরাসরি ইমেজ URL দিন!", "error");
+      return;
+    }
+
+    if (editingLogoId) {
+      // Update existing
+      setBrandingData((prev) => ({
+        ...prev,
+        logos: (prev.logos || []).map((l) =>
+          l.id === editingLogoId
+            ? { ...l, ...newLogoForm, updatedAt: new Date().toISOString() }
+            : l
+        ),
+      }));
+      setEditingLogoId(null);
+      showToast("লোগোর তথ্য আপডেট হয়েছে! সংরক্ষণের জন্য নিচের বাটনে ক্লিক করুন।");
+    } else {
+      // Add new
+      const newLogo = {
+        id: `logo_${Date.now()}`,
+        ...newLogoForm,
+        createdAt: new Date().toISOString(),
+      };
+      setBrandingData((prev) => ({
+        ...prev,
+        logos: [...(prev.logos || []), newLogo],
+      }));
+      showToast("নতুন লোগো লাইব্রেরিতে যুক্ত হয়েছে! পরিবর্তন সংরক্ষণের জন্য নিচের বাটনে ক্লিক করুন।");
+    }
+
+    setNewLogoForm({ name: "", url: "", type: "title_logo", description: "" });
+  };
+
+  // Delete Logo from Library
+  const handleDeleteLogo = (id) => {
+    if (id === "kkm_main_title" || id === "kkm_round_crest") {
+      showToast("ডিফল্ট সিস্টেম লোগো ডিলিট করা যাবে না!", "error");
+      return;
+    }
+    if (!window.confirm("আপনি কি নিশ্চিত এই লোগোটি ডিলিট করতে চান?")) return;
+
+    setBrandingData((prev) => {
+      const updatedLogos = (prev.logos || []).filter((l) => l.id !== id);
+      const updatedPlacements = { ...prev.placements };
+      Object.keys(updatedPlacements).forEach((k) => {
+        if (updatedPlacements[k] === id) {
+          updatedPlacements[k] = k === "admitCard" || k === "resultCard" ? "kkm_main_title" : "kkm_round_crest";
+        }
+      });
+      return { ...prev, logos: updatedLogos, placements: updatedPlacements };
+    });
+    showToast("লোগোটি রিমুভ করা হয়েছে!");
+  };
+
+  // Quick 1-Click Placement Assignment
+  const handleQuickAssign = (placementKey, logoId) => {
+    setBrandingData((prev) => ({
+      ...prev,
+      placements: {
+        ...prev.placements,
+        [placementKey]: logoId,
+      },
+    }));
+    showToast(`লোগোটি সফলভাবে নির্ধারিত স্থানে এসাইন করা হয়েছে!`);
+  };
+
+  // Helper to get image preview url for placement
+  const getPlacementPreview = (assignedValue) => {
+    if (!assignedValue) return roundLogoDefault;
+    if (assignedValue === "kkm_main_title") return kkmLogoDefault;
+    if (assignedValue === "kkm_round_crest") return roundLogoDefault;
+    if (assignedValue.startsWith("http://") || assignedValue.startsWith("https://") || assignedValue.startsWith("data:")) {
+      return assignedValue;
+    }
+    const matched = brandingData.logos?.find((l) => l.id === assignedValue);
+    return matched?.url || (assignedValue.includes("title") ? kkmLogoDefault : roundLogoDefault);
+  };
+
   // Rules List helpers
   const handleAddRule = () => {
     setAdmitData((prev) => ({
@@ -226,21 +388,428 @@ const SiteSettingsManager = () => {
 
   return (
     <div className="space-y-6 text-ink-strong font-sans">
-      
-
       <Toast message={statusMessage} onDismiss={() => setStatusMessage(null)} />
 
       <SubTabs
         value={activeSubTab}
         onChange={setActiveSubTab}
         tabs={[
+          { id: "dates", label: "শিক্ষাবর্ষ ও পরীক্ষার তারিখ", icon: HiCalendarDays },
+          { id: "branding", label: "ব্র্যান্ডিং ও লোগো", icon: HiPhoto },
           { id: "contact", label: "ফুটার ও যোগাযোগ", icon: HiPhone },
-          { id: "dates", label: "তারিখ ও কাউন্টডাউন", icon: HiCalendarDays },
           { id: "admit", label: "প্রবেশপত্রের নিয়ম", icon: HiIdentification },
           { id: "stats", label: "মূল পরিসংখ্যান", icon: HiTrophy },
           { id: "general", label: "সাধারণ তথ্য", icon: HiSparkles },
         ]}
       />
+
+      {/* ===================================================================
+          SUBTAB 0: BRANDING & LOGO MANAGER (Dynamic Logo Assignment & CRUD)
+          =================================================================== */}
+      {activeSubTab === "branding" && (
+        <div className="space-y-6 animate-fadeIn">
+          
+          {/* Header Card */}
+          <div className="p-5 sm:p-6 bg-surface-card border border-line-soft rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold">
+                <HiPhoto className="text-sm" />
+                <span>সেন্ট্রাল ব্র্যান্ডিং ও লোগো ম্যানেজমেন্ট</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-ink-strong">
+                অফিসিয়াল লোগো আপলোড ও বিভিন্ন স্থানে ব্যবহার নির্বাচন
+              </h3>
+              <p className="text-xs sm:text-sm text-ink-muted">
+                প্রবেশপত্র, রেজাল্ট ফটো কার্ড, ডিজিটাল সনদ ও ওয়েবসাইটের জন্য লোগো আপলোড করুন এবং কোন জায়গায় কোন লোগো ব্যবহৃত হবে তা নির্ধারণ করুন।
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSaveBranding}
+              disabled={saving}
+              className="px-6 py-3 bg-gradient-to-r from-primary-500 to-emerald-500 hover:from-primary-400 hover:to-emerald-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm shadow-md transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0"
+            >
+              <HiCheck className="text-base" />
+              <span>{saving ? "সংরক্ষণ হচ্ছে..." : "ব্র্যান্ডিং পরিবর্তন সেভ করুন"}</span>
+            </button>
+          </div>
+
+          {/* 1. PLACEMENT SELECTOR MATRIX (5 Target Places) */}
+          <div className="p-5 sm:p-6 bg-surface-card border border-line-soft rounded-2xl space-y-4 shadow-sm">
+            <div className="flex items-center justify-between border-b border-line-soft pb-3">
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-ink-strong flex items-center gap-2">
+                  <span>📍 বিভিন্ন স্থানে লোগো নির্ধারণ (Placement Selection)</span>
+                </h4>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  প্রতিটি সেকশনের জন্য নির্ধারিত লোগো নির্বাচন করুন:
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+              {[
+                {
+                  key: "admitCard",
+                  title: "🎫 প্রবেশপত্র (Admit Card)",
+                  desc: "প্রবেশপত্রের শীর্ষ হেডারে ব্যবহৃত মূল লোগো আর্টওয়ার্ক",
+                  defaultId: "kkm_main_title",
+                },
+                {
+                  key: "resultCard",
+                  title: "🏆 রেজাল্ট ফটো কার্ড (Result Card)",
+                  desc: "শিক্ষার্থীর ফলাফল ফটো কার্ডে প্রদর্শিত লোগো",
+                  defaultId: "kkm_main_title",
+                },
+                {
+                  key: "certificate",
+                  title: "📜 ডিজিটাল মেধা সনদ (Certificate)",
+                  desc: "অনলাইন মেধা সনদের শীর্ষে ও ওয়াটারমার্কে ব্যবহৃত লোগো",
+                  defaultId: "kkm_round_crest",
+                },
+                {
+                  key: "navbar",
+                  title: "🌐 ওয়েবসাইট হেডার (Navbar Logo)",
+                  desc: "ওয়েবসাইটের মূল নেভিগেশন বারের অফিসিয়াল লোগো",
+                  defaultId: "kkm_round_crest",
+                },
+                {
+                  key: "footer",
+                  title: "📑 ওয়েবসাইট ফুটার (Footer Logo)",
+                  desc: "ওয়েবসাইটের ফুটার অংশের ব্র্যান্ডিং ক্রেস্ট",
+                  defaultId: "kkm_round_crest",
+                },
+              ].map(({ key, title, desc, defaultId }) => {
+                const assignedVal = brandingData.placements?.[key] || defaultId;
+                const previewImg = getPlacementPreview(assignedVal);
+
+                return (
+                  <div
+                    key={key}
+                    className="p-4 rounded-xl bg-surface border border-line-soft space-y-3 flex flex-col justify-between"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <strong className="text-xs sm:text-sm font-bold text-ink-strong">{title}</strong>
+                        <button
+                          type="button"
+                          onClick={() => handleQuickAssign(key, defaultId)}
+                          className="text-[10px] text-primary hover:underline font-bold shrink-0"
+                          title="ডিফল্ট লোগোতে রিসেট করুন"
+                        >
+                          রিসেট
+                        </button>
+                      </div>
+                      <p className="text-[11px] text-ink-muted leading-tight">{desc}</p>
+
+                      {/* Visual Preview Box */}
+                      <div className="h-24 w-full bg-[#0a0d1c] border border-white/10 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
+                        <img
+                          src={previewImg}
+                          alt={title}
+                          className="max-h-full max-w-full object-contain drop-shadow-sm"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Logo Dropdown Selector */}
+                    <div className="space-y-1 pt-1">
+                      <label className="block text-[11px] font-bold text-ink-body">
+                        ব্যবহৃত লোগো নির্বাচন করুন:
+                      </label>
+                      <select
+                        value={assignedVal}
+                        onChange={(e) => handleQuickAssign(key, e.target.value)}
+                        className="w-full px-3 py-2 bg-surface-card border border-line-soft rounded-lg text-ink-strong text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+                      >
+                        {(brandingData.logos || []).map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 2. LOGO UPLOAD & LIBRARY SECTION */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            {/* Left: Upload / Add Form (5 Cols) */}
+            <div className="lg:col-span-5 p-5 sm:p-6 bg-surface-card border border-line-soft rounded-2xl space-y-4 shadow-sm">
+              <div className="border-b border-line-soft pb-3">
+                <h4 className="text-sm sm:text-base font-bold text-ink-strong flex items-center gap-2">
+                  <HiArrowUpTray className="text-primary" />
+                  <span>{editingLogoId ? "লোগোর তথ্য এডিট করুন" : "নতুন লোগো আপলোড করুন"}</span>
+                </h4>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  কম্পিউটার/মোবাইল থেকে সরাসরি ছবি আপলোড করুন অথবা সরাসরি ইমেজ লিঙ্ক দিন।
+                </p>
+              </div>
+
+              {/* Local File Picker (ImgBB) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-ink-body">
+                  ১. ডিভাইস থেকে ছবি সিলেক্ট করুন (স্বয়ংক্রিয় ক্লাউড আপলোড):
+                </label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoFileUpload}
+                    disabled={uploadingLogo}
+                    className="w-full p-2.5 bg-surface border border-dashed border-line-soft hover:border-primary rounded-xl text-xs text-ink-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/20 file:text-primary file:cursor-pointer cursor-pointer transition"
+                  />
+                  {uploadingLogo && (
+                    <div className="text-xs text-primary font-bold animate-pulse mt-1">
+                      ⏳ {uploadProgress}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Or Direct URL */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-ink-body">
+                  ২. অথবা সরাসরি ছবির লিংক (Image URL):
+                </label>
+                <input
+                  type="url"
+                  value={newLogoForm.url}
+                  onChange={(e) => setNewLogoForm({ ...newLogoForm, url: e.target.value })}
+                  placeholder="https://i.ibb.co/..."
+                  className="w-full px-3.5 py-2.5 bg-surface border border-line-soft rounded-xl text-ink-strong text-xs font-mono focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Logo Title / Label */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-ink-body">
+                  ৩. লোগোর নাম বা বিবরণ *
+                </label>
+                <input
+                  type="text"
+                  value={newLogoForm.name}
+                  onChange={(e) => setNewLogoForm({ ...newLogoForm, name: e.target.value })}
+                  placeholder="যেমন: নতুন কিশোরকণ্ঠ আর্ট লোগো ২০২৬"
+                  className="w-full px-3.5 py-2.5 bg-surface border border-line-soft rounded-xl text-ink-strong text-xs font-bold focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Logo Description */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-ink-body">
+                  ৪. অতিরিক্ত নোট (ঐচ্ছিক):
+                </label>
+                <input
+                  type="text"
+                  value={newLogoForm.description}
+                  onChange={(e) => setNewLogoForm({ ...newLogoForm, description: e.target.value })}
+                  placeholder="যেমন: প্রবেশপত্র ও ফলাফলের জন্য"
+                  className="w-full px-3.5 py-2.5 bg-surface border border-line-soft rounded-xl text-ink-strong text-xs focus:outline-none focus:border-primary"
+                />
+              </div>
+
+              {/* Preview of entered logo */}
+              {newLogoForm.url && (
+                <div className="p-3 bg-surface border border-line-soft rounded-xl space-y-1 text-center">
+                  <span className="text-[11px] font-bold text-ink-muted block">আপলোডকৃত ছবির প্রিভিউ:</span>
+                  <div className="h-20 bg-[#0a0d1c] border border-white/10 rounded-lg flex items-center justify-center p-2">
+                    <img
+                      src={newLogoForm.url}
+                      alt="Preview"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Submit Buttons */}
+              <div className="pt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleAddOrUpdateLogo}
+                  disabled={uploadingLogo || !newLogoForm.name || !newLogoForm.url}
+                  className="flex-1 py-3 bg-primary hover:bg-primary-hover text-slate-950 font-black rounded-xl text-xs transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                >
+                  <HiPlus className="text-sm" />
+                  <span>{editingLogoId ? "লোগো তথ্য আপডেট করুন" : "লাইব্রেরিতে যুক্ত করুন"}</span>
+                </button>
+
+                {editingLogoId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingLogoId(null);
+                      setNewLogoForm({ name: "", url: "", type: "title_logo", description: "" });
+                    }}
+                    className="px-4 py-3 bg-surface hover:bg-surface-high border border-line-soft text-ink-muted hover:text-ink-strong font-bold rounded-xl text-xs transition cursor-pointer"
+                  >
+                    বাতিল
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Existing Logo Library Cards (7 Cols) */}
+            <div className="lg:col-span-7 p-5 sm:p-6 bg-surface-card border border-line-soft rounded-2xl space-y-4 shadow-sm">
+              <div className="flex items-center justify-between border-b border-line-soft pb-3">
+                <h4 className="text-sm sm:text-base font-bold text-ink-strong flex items-center gap-2">
+                  <HiPhoto className="text-primary" />
+                  <span>সংরক্ষিত লোগো লাইব্রেরি (Logo Library)</span>
+                </h4>
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
+                  {brandingData.logos?.length || 0}টি লোগো
+                </span>
+              </div>
+
+              <div className="space-y-3">
+                {(brandingData.logos || []).map((item) => {
+                  const isDefaultLogo = item.id === "kkm_main_title" || item.id === "kkm_round_crest";
+                  const resolvedImg = item.url || (item.id === "kkm_main_title" ? kkmLogoDefault : roundLogoDefault);
+
+                  // Check which placements use this logo
+                  const activePlacements = Object.entries(brandingData.placements || {})
+                    .filter(([_, val]) => val === item.id || (item.url && val === item.url))
+                    .map(([key]) => key);
+
+                  const placementLabels = {
+                    admitCard: "🎫 প্রবেশপত্র",
+                    resultCard: "🏆 রেজাল্ট",
+                    certificate: "📜 সনদ",
+                    navbar: "🌐 নেভবার",
+                    footer: "📑 ফুটার",
+                  };
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="p-4 rounded-xl bg-surface border border-line-soft flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition hover:border-primary/40"
+                    >
+                      {/* Left: Thumbnail & Details */}
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <div className="w-16 h-16 rounded-xl bg-[#0a0d1c] border border-white/10 flex items-center justify-center p-1.5 shrink-0 shadow-inner overflow-hidden">
+                          <img
+                            src={resolvedImg}
+                            alt={item.name}
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <strong className="text-xs sm:text-sm font-bold text-ink-strong truncate block">
+                              {item.name}
+                            </strong>
+                            {isDefaultLogo && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                সিস্টেম ডিফল্ট
+                              </span>
+                            )}
+                          </div>
+                          {item.description && (
+                            <p className="text-[11px] text-ink-muted truncate">{item.description}</p>
+                          )}
+
+                          {/* Placement Badges */}
+                          <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                            {activePlacements.length > 0 ? (
+                              activePlacements.map((pKey) => (
+                                <span
+                                  key={pKey}
+                                  className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                                >
+                                  {placementLabels[pKey] || pKey}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-ink-faint">কোথাও যুক্ত করা হয়নি</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: Quick Assign Action Menu & Buttons */}
+                      <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                        {/* Quick 1-Click Assign Buttons */}
+                        <div className="flex flex-wrap items-center gap-1 mr-1">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAssign("admitCard", item.id)}
+                            className="text-[10px] font-bold px-2 py-1 bg-white/[0.06] hover:bg-emerald-500/20 hover:text-emerald-300 text-ink-body rounded-lg border border-line-soft transition cursor-pointer"
+                            title="প্রবেশপত্রে এই লোগো সেট করুন"
+                          >
+                            + প্রবেশপত্র
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAssign("resultCard", item.id)}
+                            className="text-[10px] font-bold px-2 py-1 bg-white/[0.06] hover:bg-amber-500/20 hover:text-amber-300 text-ink-body rounded-lg border border-line-soft transition cursor-pointer"
+                            title="রেজাল্ট কার্ডে এই লোগো সেট করুন"
+                          >
+                            + রেজাল্ট
+                          </button>
+                        </div>
+
+                        {!isDefaultLogo && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingLogoId(item.id);
+                                setNewLogoForm({
+                                  name: item.name,
+                                  url: item.url,
+                                  type: item.type || "title_logo",
+                                  description: item.description || "",
+                                });
+                              }}
+                              className="w-8 h-8 rounded-lg bg-surface-card hover:bg-surface-high border border-line-soft text-ink-muted hover:text-primary transition flex items-center justify-center cursor-pointer"
+                              title="এডিট করুন"
+                            >
+                              <HiPencilSquare className="text-sm" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLogo(item.id)}
+                              className="w-8 h-8 rounded-lg bg-error/10 hover:bg-error/20 border border-error/30 text-error transition flex items-center justify-center cursor-pointer"
+                              title="ডিলিট করুন"
+                            >
+                              <HiTrash className="text-sm" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Bottom Floating Save Button */}
+          <div className="p-4 bg-surface-card border border-line-soft rounded-2xl flex items-center justify-between gap-4">
+            <span className="text-xs text-ink-muted">
+              লোগো পরিবর্তন করার পর অবশ্যই সংরক্ষণ বাটনে চাপুন।
+            </span>
+            <button
+              type="button"
+              onClick={handleSaveBranding}
+              disabled={saving}
+              className="px-8 py-3 bg-gradient-to-r from-primary-500 to-emerald-500 hover:from-primary-400 hover:to-emerald-400 text-slate-950 font-black rounded-xl text-xs sm:text-sm shadow-md transition cursor-pointer disabled:opacity-50"
+            >
+              {saving ? "সংরক্ষণ হচ্ছে..." : "ব্র্যান্ডিং সেটিংস সংরক্ষণ করুন"}
+            </button>
+          </div>
+
+        </div>
+      )}
 
       {/* ===================================================================
           SUBTAB 1: FOOTER & GLOBAL CONTACT SETTINGS
@@ -441,23 +1010,34 @@ const SiteSettingsManager = () => {
           <div className="border-b border-line-soft pb-3">
             <h3 className="text-base sm:text-lg font-semibold text-ink-strong flex items-center gap-2">
               <HiCalendarDays className="text-secondary" />
-              <span>গুরুত্বপূর্ণ পরীক্ষার তারিখ ও লাইভ কাউন্টডাউন সেটিংস</span>
+              <span>শিক্ষাবর্ষ, গুরুত্বপূর্ণ পরীক্ষার তারিখ ও লাইভ কাউন্টডাউন</span>
             </h3>
             <p className="text-[13px] text-ink-muted mt-0.5">
-              এখানে নির্ধারিত তারিখ অনুযায়ী ওয়েবসাইট হোমপেজ ও স্কলারশিপ পেজের কাউন্টডাউন টাইমার সরাসরি পরিচালিত হবে।
+              এখানে নির্ধারিত শিক্ষাবর্ষ (Exam Year) এবং সময়সূচি অনুযায়ী ওয়েবসাইটের ব্যানার, রেজিস্ট্রেশন পোর্টাল, এডমিট কার্ড, কাউন্টডাউন টাইমার ও ফলাফল সরাসরি পরিচালিত হবে।
             </p>
           </div>
 
+          {/* Quick Notice Banner */}
+          <div className="p-3.5 bg-primary/10 border border-primary/25 rounded-lg flex items-start gap-3">
+            <HiSparkles className="text-primary text-lg mt-0.5 shrink-0" />
+            <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
+              <span className="font-bold text-ink-strong">চলতি শিক্ষাবর্ষ (Exam Year):</span> এখানে যে বছর (যেমন: <strong>২০২৬</strong>) সেট করে সংরক্ষণ করবেন, পুরো ওয়েবসাইটের সব পেজে স্বয়ংক্রিয়ভাবে সেই বছরটি দৃশ্যমান হবে।
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[13px] font-bold text-ink-body mb-1.5">
-                পরীক্ষার শিক্ষাবর্ষ (Exam Year)
+            <div className="p-3 bg-surface rounded-lg border border-primary/40 shadow-xs">
+              <label className="block text-[13px] font-bold text-primary mb-1.5 flex items-center justify-between">
+                <span>পরীক্ষার শিক্ষাবর্ষ (Exam Year) *</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-primary/20 text-primary font-bold">লাইভ সিঙ্ক</span>
               </label>
               <input
                 type="text"
                 value={datesData.examYear}
                 onChange={(e) => setDatesData({ ...datesData, examYear: e.target.value })}
-                className="w-full px-4 py-3 bg-surface border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
+                placeholder="যেমন: ২০২৬"
+                required
+                className="w-full px-4 py-2.5 bg-surface-card border border-line-soft rounded text-ink-strong text-sm sm:text-base font-bold focus:outline-none focus:border-primary"
               />
             </div>
 

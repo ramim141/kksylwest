@@ -33,6 +33,8 @@ const ProtectedRoute = lazy(() => import('./components/admin/ProtectedRoute'));
 // Context Providers
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
+import { ExamYearProvider } from './context/ExamYearContext';
+import { BrandingProvider } from './context/BrandingContext';
 
 const AppContent = () => {
   const location = useLocation();
@@ -93,7 +95,11 @@ const App = () => {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <AppContent />
+        <ExamYearProvider>
+          <BrandingProvider>
+            <AppContent />
+          </BrandingProvider>
+        </ExamYearProvider>
       </AuthProvider>
     </ThemeProvider>
   );

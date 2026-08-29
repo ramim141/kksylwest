@@ -23,13 +23,18 @@ import {
   FaDownload,
 } from "react-icons/fa";
 
+import { QRCodeSVG } from "qrcode.react";
 import DigitalCertificateModal from "./DigitalCertificateModal";
+import { useBranding } from "../../context/BrandingContext";
+import kkmLogo from "../../assets/images/KKM LOGO.png";
 
 const toBengaliNumber = (num) =>
   num?.toString().replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]) || "";
 
 const ResultCard = ({ data, onReset, onPrint }) => {
   const cardRef = useRef(null);
+  const { getLogoFor } = useBranding();
+  const currentLogo = getLogoFor("resultCard") || kkmLogo;
   const [downloading, setDownloading] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
@@ -231,28 +236,28 @@ const ResultCard = ({ data, onReset, onPrint }) => {
             background: "linear-gradient(145deg, #0d1224 0%, #080b18 50%, #060914 100%)",
           }}
         >
-          {/* Subtle Academic Dual Border */}
-          <div className="absolute inset-2 sm:inset-2.5 rounded-[1.4rem] border border-amber-400/25 pointer-events-none" />
-          
-          {/* Corner Minimal Accents */}
-          <div className="absolute top-4 left-4 w-3.5 h-3.5 border-t-2 border-l-2 border-amber-400/50 pointer-events-none" />
-          <div className="absolute top-4 right-4 w-3.5 h-3.5 border-t-2 border-r-2 border-amber-400/50 pointer-events-none" />
-          <div className="absolute bottom-4 left-4 w-3.5 h-3.5 border-b-2 border-l-2 border-amber-400/50 pointer-events-none" />
-          <div className="absolute bottom-4 right-4 w-3.5 h-3.5 border-b-2 border-r-2 border-amber-400/50 pointer-events-none" />
+          {/* Elegant Golden Corner Accents */}
+          <div className="absolute top-4 left-4 w-4 h-4 border-t-2 border-l-2 border-amber-400/80 pointer-events-none" />
+          <div className="absolute top-4 right-4 w-4 h-4 border-t-2 border-r-2 border-amber-400/80 pointer-events-none" />
+          <div className="absolute bottom-4 left-4 w-4 h-4 border-b-2 border-l-2 border-amber-400/80 pointer-events-none" />
+          <div className="absolute bottom-4 right-4 w-4 h-4 border-b-2 border-r-2 border-amber-400/80 pointer-events-none" />
 
           {/* CARD CONTENT */}
           <div className="relative z-10 space-y-5 text-center">
             
-            {/* Header: Institutional Seal & Title */}
-            <div className="space-y-1.5 pt-1">
+            {/* Header: Institutional Brand Logo, Seal & Title */}
+            <div className="space-y-2 pt-1">
+              <img
+                src={currentLogo}
+                alt="নতুন কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা"
+                className="h-20 sm:h-24 w-auto mx-auto object-contain drop-shadow-md"
+              />
+
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 text-[11px] font-bold tracking-wide">
                 <FaGraduationCap className="text-amber-400 text-xs" />
                 <span>কিশোরকণ্ঠ পাঠক ফোরাম • সিলেট জেলা পশ্চিম</span>
               </div>
 
-              <h1 className="text-lg sm:text-xl font-black tracking-tight text-white">
-                কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা — ২০২৫
-              </h1>
               <p className="text-[11px] sm:text-xs text-slate-400 font-medium">
                 অফিসিয়াল মেধা ফলাফল ও মূল্যায়ন সনদ
               </p>
@@ -295,7 +300,7 @@ const ResultCard = ({ data, onReset, onPrint }) => {
                   <span className="text-[10px] text-slate-400 font-semibold block uppercase tracking-wider">
                     শ্রেণি
                   </span>
-                  <span className="text-xs sm:text-sm font-black text-emerald-400 block font-mono">
+                  <span className="text-xs sm:text-sm font-bold text-emerald-400 block font-bangla-number">
                     {data.class}
                   </span>
                 </div>
@@ -307,8 +312,8 @@ const ResultCard = ({ data, onReset, onPrint }) => {
                   <span className="text-[10px] text-slate-400 font-semibold block">
                     বৃত্তি রোল নম্বর
                   </span>
-                  <span className="font-mono font-bold text-sm sm:text-base text-amber-300">
-                    {data.roll}
+                  <span className="font-bangla-number font-bold text-sm sm:text-base text-amber-300 tracking-wide">
+                    {toBengaliNumber(data.roll)}
                   </span>
                 </div>
 
@@ -357,16 +362,20 @@ const ResultCard = ({ data, onReset, onPrint }) => {
                 </p>
               </div>
 
-              {/* Minimal Seal */}
-              <div className="w-14 h-14 rounded-full border border-dashed border-amber-400/50 bg-amber-400/5 flex flex-col items-center justify-center text-center p-0.5 shrink-0">
-                <span className="text-[7px] uppercase tracking-tighter text-amber-300 font-black leading-none">
-                  SEAL 2025
-                </span>
-                <span className="text-[8px] font-black text-white leading-none mt-0.5">
-                  KKMB
-                </span>
-                <span className="text-[6px] text-amber-300/80 font-bold leading-none mt-0.5">
-                  SYLHET
+              {/* Official QR Code Verification */}
+              <div className="flex flex-col items-center justify-center text-center shrink-0">
+                <QRCodeSVG
+                  value={
+                    typeof window !== "undefined"
+                      ? `${window.location.origin}/search?roll=${encodeURIComponent(data.roll || "")}`
+                      : ""
+                  }
+                  size={48}
+                  level="M"
+                  includeMargin={false}
+                />
+                <span className="text-[7px] font-black text-amber-300 mt-1 tracking-tight uppercase">
+                  Scan to Verify
                 </span>
               </div>
             </div>

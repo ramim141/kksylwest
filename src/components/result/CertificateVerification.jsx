@@ -311,8 +311,8 @@ const CertificateVerification = () => {
                         প্রতিষ্ঠান: <strong className="text-slate-900">{studentData.school}</strong>
                       </p>
                       <p>
-                        শ্রেণি: <strong className="text-slate-900">{studentData.class}</strong> • রোল নম্বর:{" "}
-                        <strong className="text-slate-900 font-mono">{toBengaliNumber(studentData.roll)}</strong>
+                        শ্রেণি: <strong className="text-slate-900 font-bangla-number">{studentData.class}</strong> • রোল নম্বর:{" "}
+                        <strong className="text-slate-900 font-bangla-number font-bold text-base">{toBengaliNumber(studentData.roll)}</strong>
                       </p>
                     </div>
 

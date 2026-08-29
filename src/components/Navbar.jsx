@@ -19,13 +19,18 @@ import {
 } from "react-icons/hi2";
 import { FaCrown, FaCertificate } from "react-icons/fa";
 import { getAnnouncement } from "../services/firestore";
+import { useExamYear } from "../context/ExamYearContext";
+import { useBranding } from "../context/BrandingContext";
 
 const Navbar = () => {
+  const examYear = useExamYear();
+  const { getLogoFor } = useBranding();
+  const currentLogo = getLogoFor("navbar") || logo;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [announcement, setAnnouncement] = useState({
     enabled: true,
     title: "জরুরি ঘোষণা",
-    message: "কিশোরকণ্ঠ মেধাবৃত্তি ২০২৫-এর অনলাইন রেজিস্ট্রেশন চলছে! আপনার প্রবেশপত্র ডাউনলোড করতে প্রবেশপত্র মেনুতে ক্লিক করুন।",
+    message: "কিশোরকণ্ঠ মেধাবৃত্তির অনলাইন রেজিস্ট্রেশন চলছে! আপনার প্রবেশপত্র ডাউনলোড করতে প্রবেশপত্র মেনুতে ক্লিক করুন।",
     linkText: "প্রবেশপত্র ডাউনলোড →",
     linkUrl: "/admit-card",
     badgeType: "urgent",
@@ -162,7 +167,7 @@ const Navbar = () => {
               className="flex items-center group cursor-pointer shrink-0"
             >
               <img
-                src={logo}
+                src={currentLogo}
                 alt="KishorKantho Logo"
                 className="h-8 sm:h-12 w-auto object-contain block group-hover:scale-105 transition-transform"
               />
@@ -269,10 +274,9 @@ const Navbar = () => {
                 ফলাফল
               </NavLink>
 
-              {/* Full year-wise result list. The year is carried in the URL,
-                  so this lands directly on the 2025 archive. */}
-              <NavLink to="/list?year=2025" className={getSubNavLinkClass}>
-                আর্কাইভ ফলাফল ২০২৫
+              {/* Full year-wise result list */}
+              <NavLink to="/list" className={getSubNavLinkClass}>
+                আর্কাইভ ফলাফল
               </NavLink>
             </nav>
 
@@ -416,7 +420,7 @@ const Navbar = () => {
               </NavLink>
 
               <NavLink
-                to="/list?year=2025"
+                to="/list"
                 onClick={closeMobileMenu}
                 className={getMobileItemClass}
               >
@@ -426,8 +430,8 @@ const Navbar = () => {
                   </div>
                   <span>আর্কাইভ ফলাফল</span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold font-mono">
-                  ২০২৫
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold font-bangla-number">
+                  {examYear}
                 </span>
               </NavLink>
 

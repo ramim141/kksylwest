@@ -75,7 +75,7 @@
   }
 
   body {
-    font-family: 'Work Sans', 'Hind Siliguri', 'SolaimanLipi', sans-serif;
+    font-family: 'Work Sans', 'Anek Bangla', 'Noto Sans Bengali', 'Hind Siliguri', sans-serif;
     background-color: rgb(var(--surface));
     color: rgb(var(--ink-body));
     font-size: 16px;
@@ -87,7 +87,7 @@
 
   /* Display face for every heading */
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Hanken Grotesk', 'Hind Siliguri', 'SolaimanLipi', sans-serif;
+    font-family: 'Hanken Grotesk', 'Anek Bangla', 'Noto Sans Bengali', 'Hind Siliguri', sans-serif;
     color: rgb(var(--ink-strong));
     font-weight: 600;
   }
@@ -215,6 +215,14 @@
   .text-label    { @apply font-label    text-label-sm uppercase text-ink-muted; }
   /* Tabular numerals for roll numbers, marks and dates */
   .text-numeric  { @apply font-label tabular-nums tracking-[0.02em]; }
+  
+  /* Dedicated crystal-clear Bengali number styling */
+  .font-bangla-number {
+    font-family: 'Anek Bangla', 'Noto Sans Bengali', sans-serif !important;
+    font-feature-settings: "tnum" 1;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+  }
 
   /* The one gradient in the system: primary -> tertiary, for title emphasis */
   .text-gradient-primary {

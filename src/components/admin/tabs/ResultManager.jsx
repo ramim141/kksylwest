@@ -140,11 +140,18 @@ const ResultManager = () => {
     setYearCounts(stats.counts || {});
   };
 
+  const isYearArchived = (yr) => {
+    const needle = (yr || "").toString().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+    return archivedYears.some(
+      (a) => (a || "").toString().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d)) === needle
+    );
+  };
+
   /* One click flips a session between live and archived. No confirm:
      it changes a label on the public page and is reversible from the
      same button — unlike delete, nothing is destroyed. */
   const handleToggleArchive = async (year) => {
-    const wasArchived = archivedYears.includes(year);
+    const wasArchived = isYearArchived(year);
     try {
       setBusyYear(year);
       const next = await setResultYearArchived(year, !wasArchived);
@@ -1007,7 +1014,7 @@ const ResultManager = () => {
 
             <ul className="space-y-2">
               {availableYears.map((yr) => {
-                const isArchived = archivedYears.includes(yr);
+                const isArchived = isYearArchived(yr);
                 const busy = busyYear === yr;
                 const count = yearCounts[yr] || 0;
                 const isRenaming = renamingYear === yr;

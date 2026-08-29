@@ -31,16 +31,15 @@ export default {
         //                       up the text stacks, because font-black (900)
         //                       on Hind Siliguri would otherwise be faked by
         //                       the browser and come out smeared.
-        display: ['"Hanken Grotesk"', '"Hind Siliguri"', '"Noto Sans Bengali"', 'SolaimanLipi', 'sans-serif'],
-        headline: ['"Hanken Grotesk"', '"Hind Siliguri"', '"Noto Sans Bengali"', 'SolaimanLipi', 'sans-serif'],
-        sans: ['"Work Sans"', '"Hind Siliguri"', '"Noto Sans Bengali"', 'SolaimanLipi', 'system-ui', 'sans-serif'],
-        body: ['"Work Sans"', '"Hind Siliguri"', '"Noto Sans Bengali"', 'SolaimanLipi', 'sans-serif'],
-        // Numerals. `mono` previously ended at `monospace`, which carries no
-        // Bengali at all — every Bengali digit on the site was falling all
-        // the way through to the browser's last-resort font.
-        label: ['"JetBrains Mono"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'ui-monospace', 'monospace'],
-        mono: ['"JetBrains Mono"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'ui-monospace', 'monospace'],
-        bengali: ['"Hind Siliguri"', '"Noto Sans Bengali"', 'SolaimanLipi', 'sans-serif'],
+        display: ['"Hanken Grotesk"', '"Anek Bangla"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'sans-serif'],
+        headline: ['"Hanken Grotesk"', '"Anek Bangla"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'sans-serif'],
+        sans: ['"Work Sans"', '"Anek Bangla"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'system-ui', 'sans-serif'],
+        body: ['"Work Sans"', '"Anek Bangla"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'sans-serif'],
+        // Numerals & labels: Anek Bangla and Noto Sans Bengali provide crisp, ultra-clear digits
+        label: ['"Anek Bangla"', '"Noto Sans Bengali"', '"JetBrains Mono"', 'ui-monospace', 'monospace'],
+        mono: ['"JetBrains Mono"', '"Anek Bangla"', '"Noto Sans Bengali"', 'ui-monospace', 'monospace'],
+        bengali: ['"Anek Bangla"', '"Noto Sans Bengali"', '"Hind Siliguri"', 'sans-serif'],
+        number: ['"Anek Bangla"', '"Noto Sans Bengali"', 'sans-serif'],
       },
 
       // Named steps from the spec. Bengali gets +1.2x line-height via the

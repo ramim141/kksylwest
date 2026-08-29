@@ -19,6 +19,7 @@ import {
   deleteGalleryItem,
   getGalleryHeroContent,
   saveGalleryHeroContent,
+  seedGalleryDefaults,
 } from "../../../services/firestore";
 import galleryImg1 from "../../../assets/images/gallery/1000288989.jpg.jpeg";
 import galleryImg2 from "../../../assets/images/gallery/1000288990.jpg.jpeg";
@@ -45,11 +46,12 @@ const DEFAULT_HERO_SETTINGS = {
 };
 
 const GalleryManager = () => {
-  const [activeSubTab, setActiveSubTab] = useState("hero"); // Default to hero so admin directly sees the requested stats/photos CRUD
+  const [activeSubTab, setActiveSubTab] = useState("items"); // Default to items list for quick CRUD
   const [items, setItems] = useState([]);
   const [confirm, confirmUI] = useConfirm();
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -301,6 +303,34 @@ const GalleryManager = () => {
     setSelectedFile(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleSeedDefaults = async () => {
+    const ok = await confirm({
+      title: "ডিফল্ট গ্যালারি ডাটা সিড করবেন?",
+      body: "এটি ফায়ারস্টোরে ১৯টি সাম্প্রতিক, আর্কাইভ ও ডকুমেন্টারি ডিফল্ট অ্যালবাম এবং ছবি আপলোড করবে।",
+      confirmLabel: "হ্যাঁ, সিড করুন",
+      tone: "primary",
+    });
+    if (!ok) return;
+
+    try {
+      setSeeding(true);
+      await seedGalleryDefaults();
+      setStatusMessage({
+        type: "success",
+        text: "১৯টি ডিফল্ট অ্যালবাম সফলভাবে ফায়ারস্টোরে আপলোড ও সিঙ্ক হয়েছে!",
+      });
+      await loadAllData();
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({
+        type: "error",
+        text: "ডিফল্ট ডাটা আপলোড করতে ব্যর্থ হয়েছে!",
+      });
+    } finally {
+      setSeeding(false);
+    }
   };
 
   // Filtered gallery items
@@ -878,15 +908,27 @@ const GalleryManager = () => {
                     ))}
                   </div>
 
-                  <div className="relative w-full sm:w-56">
-                    <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-[13px]" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="খুঁজুন..."
-                      className="w-full pl-8 pr-3 py-1.5 bg-surface border border-line-soft rounded text-[13px] text-ink-strong focus:outline-none focus:border-primary"
-                    />
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-48">
+                      <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-[13px]" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="খুঁজুন..."
+                        className="w-full pl-8 pr-3 py-1.5 bg-surface border border-line-soft rounded text-[13px] text-ink-strong focus:outline-none focus:border-primary"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSeedDefaults}
+                      disabled={seeding}
+                      className="px-3 py-1.5 rounded bg-surface hover:bg-primary/20 text-secondary border border-secondary/30 text-[12px] font-bold transition whitespace-nowrap flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      title="১৯টি ডিফল্ট ছবি ফায়ারস্টোরে সিড করুন"
+                    >
+                      {seeding ? "সিড হচ্ছে..." : "⚡ ডিফল্ট সিড"}
+                    </button>
                   </div>
                 </div>
 

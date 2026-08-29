@@ -396,10 +396,11 @@ const RegistrationManager = () => {
     const trackingIdStr = student.trackingId || "";
 
     const baseUrl = window.location.origin;
-    const admitUrl = `${baseUrl}/admit-card?roll=${assignedRollNum}`;
+    const cleanRollUrl = assignedRollNum.toString().replace(/[০-৯]/g, (d) => "0123456789"["০১২৩৪৫৬৭৮৯".indexOf(d)] || d);
+    const admitUrl = `${baseUrl}/admit-card?id=${cleanRollUrl}`;
 
     const msg = `আসসালামু আলাইকুম ${student.nameBn || "শিক্ষার্থী"}! 🎉
-কিশোরকণ্ঠ মেধা বৃত্তি পরীক্ষা ২০২৫-এ আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
+কিশোরকণ্ঠ মেধা বৃত্তি পরীক্ষায় আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
 
 📌 *আপনার পরীক্ষার বিবরণ:*
 • রোল নম্বর: *${assignedRollNum}*
@@ -408,15 +409,15 @@ const RegistrationManager = () => {
 • পরীক্ষার সময়: ${examDateStr} (${examTimeStr})
 • ট্র্যাকিং আইডি: ${trackingIdStr}
 
-🪪 *আপনার অফিসিয়াল প্রবেশপত্র (Admit Card) ডাউনলোড করতে নিচের লিংকে ক্লিক করুন:*
-👉 ${admitUrl}
+🔗 *আপনার অফিসিয়াল প্রবেশপত্র (Admit Card) ডাউনলোড লিংক:*
+${admitUrl}
 
 পরীক্ষার দিন প্রবেশপত্রটি প্রিন্ট করে সাথে নিয়ে আসতে হবে।
 
 ধন্যবাদান্তে,
 কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`;
 
-    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
     window.open(waUrl, "_blank");
   };
 

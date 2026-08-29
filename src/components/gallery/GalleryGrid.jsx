@@ -44,26 +44,40 @@ const GalleryGrid = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getGalleryItems('all').then((firestoreItems) => {
-      if (firestoreItems && firestoreItems.length > 0) {
-        const merged = { ...galleryData };
-        firestoreItems.forEach((item) => {
-          const cat = item.category || 'recent';
-          if (!merged[cat]) merged[cat] = [];
-          merged[cat] = [
-            {
+    getGalleryItems('all')
+      .then((firestoreItems) => {
+        if (firestoreItems && firestoreItems.length > 0) {
+          const store = { recent: [], archive: [], documentary: [] };
+          firestoreItems.forEach((item) => {
+            const cat = item.category || 'recent';
+            if (!store[cat]) store[cat] = [];
+            store[cat].push({
               id: item.id,
               title: item.title,
               description: item.description,
               date: item.date,
-              image: item.imageUrl || item.thumbUrl,
-            },
-            ...merged[cat],
-          ];
-        });
-        setDataStore(merged);
-      }
-    }).finally(() => setLoading(false));
+              image: item.imageUrl || item.thumbUrl || item.image,
+              videoUrl: item.videoUrl,
+              attendees: item.attendees,
+              location: item.location,
+              orderIndex: Number(item.orderIndex) || 99,
+            });
+          });
+
+          Object.keys(store).forEach((cat) => {
+            store[cat].sort((a, b) => (a.orderIndex || 99) - (b.orderIndex || 99));
+          });
+
+          setDataStore(store);
+        } else {
+          setDataStore(galleryData);
+        }
+      })
+      .catch((e) => {
+        console.warn("Error fetching gallery items:", e);
+        setDataStore(galleryData);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const currentItems = dataStore[activeTab] ?? [];

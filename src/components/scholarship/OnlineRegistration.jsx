@@ -29,6 +29,7 @@ import { FaGraduationCap, FaQrcode, FaCheckCircle, FaPrint, FaWhatsapp } from "r
 import { addRegistration, getRegistrations } from "../../services/firestore";
 import { uploadToImgBB } from "../../services/imgbb";
 import ExamRulesCard from "./ExamRulesCard";
+import { useExamYear } from "../../context/ExamYearContext";
 
 const UPAZILAS = [
   "দক্ষিণ সুরমা থানা",
@@ -103,6 +104,7 @@ const PAYMENT_METHODS = [
 ];
 
 const OnlineRegistration = () => {
+  const examYear = useExamYear();
   const [activeTab, setActiveTab] = useState("form"); // 'form' | 'track'
   const [currentStep, setCurrentStep] = useState(1); // 1: Personal, 2: Academic & Address, 3: Payment
 
@@ -389,7 +391,7 @@ const OnlineRegistration = () => {
         <div className="text-center space-y-2 sm:space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-container/15 text-primary-300 border border-primary/30 text-xs font-bold uppercase tracking-wider">
             <HiSparkles className="text-sm text-primary" />
-            <span>কিশোরকণ্ঠ মেধা বৃত্তি ২০২৫</span>
+            <span>কিশোরকণ্ঠ মেধা বৃত্তি {examYear}</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl font-black tracking-tight text-white">

@@ -12,7 +12,10 @@ import {
 } from "react-icons/hi2";
 import { FaCrown, FaCertificate } from "react-icons/fa";
 
+import { useExamYear } from "../../context/ExamYearContext";
+
 const SearchForm = ({ onSearch, inputRoll, setInputRoll, loading, error }) => {
+  const examYear = useExamYear();
   const handleClear = () => {
     setInputRoll("");
   };
@@ -23,7 +26,7 @@ const SearchForm = ({ onSearch, inputRoll, setInputRoll, loading, error }) => {
       <div className="text-center space-y-3 sm:space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/15 text-indigo-300 text-xs sm:text-sm font-bold border border-indigo-500/30 backdrop-blur-md shadow-sm">
           <HiSparkles className="text-amber-400 text-base" />
-          <span>কিশোরকণ্ঠ মেধাবৃত্তি ২০২৫ • অফিশিয়াল ফলাফল প্রকাশ</span>
+          <span>কিশোরকণ্ঠ মেধাবৃত্তি {examYear} • অফিশিয়াল ফলাফল প্রকাশ</span>
         </div>
 
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">

@@ -21,8 +21,13 @@ import {
 } from "react-icons/hi2";
 import logo from "../assets/images/logo3.png";
 import { getContactSettings, DEFAULT_CONTACT_SETTINGS } from "../services/firestore";
+import { useExamYear } from "../context/ExamYearContext";
+import { useBranding } from "../context/BrandingContext";
 
 const Footer = () => {
+  const examYear = useExamYear();
+  const { getLogoFor } = useBranding();
+  const currentLogo = getLogoFor("footer") || logo;
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [contact, setContact] = useState(DEFAULT_CONTACT_SETTINGS);
 
@@ -68,7 +73,7 @@ const Footer = () => {
           <div className="lg:col-span-4 space-y-4">
             <Link to="/" className="inline-block group">
               <img
-                src={logo}
+                src={currentLogo}
                 alt={contact.organizationName || "কিশোরকণ্ঠ পাঠক ফোরাম"}
                 className="h-10 sm:h-12 w-auto object-contain transition-transform duration-200 group-hover:scale-105"
               />
@@ -278,8 +283,9 @@ const Footer = () => {
         {/* Bottom Bar: Copyright */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 font-medium text-center sm:text-left">
           <p>
-            {contact.copyrightText ||
-              `সর্বস্বত্ব সংরক্ষিত © ১৯৯৪ - ${new Date().getFullYear()} কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম শাখা।`}
+            {contact.copyrightText
+              ? contact.copyrightText.replace(/(?:২০২৫|২০২৬|\d{4}|[০-৯]{4})(?=\s*কিশোরকণ্ঠ|\s*$)/, examYear)
+              : `সর্বস্বত্ব সংরক্ষিত © ১৯৯৪ - ${examYear} কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম শাখা।`}
           </p>
 
           <p className="flex items-center justify-center gap-1">

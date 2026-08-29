@@ -129,12 +129,12 @@ export const NAV_GROUPS = [
     items: [
       {
         id: "content",
-        label: "গ্লোবাল সাইট সেটিংস",
-        title: "সাইট সেটিংস ও কনফিগারেশন",
+        label: "শিক্ষাবর্ষ ও সাইট সেটিংস",
+        title: "শিক্ষাবর্ষ ও গ্লোবাল সাইট সেটিংস",
         description:
-          "ফুটার, যোগাযোগ, গুরুত্বপূর্ণ তারিখ, কাউন্টডাউন ও প্রবেশপত্রের নিয়মাবলি নিয়ন্ত্রণ করুন।",
+          "পরীক্ষার শিক্ষাবর্ষ (Exam Year), পরীক্ষার সময়সূচি ও তারিখ, লাইভ কাউন্টডাউন, ফুটার ও প্রবেশপত্রের নিয়ম নিয়ন্ত্রণ করুন।",
         icon: HiGlobeAlt,
-        keywords: "settings footer contact dates countdown admit config",
+        keywords: "exam year শিক্ষাবর্ষ বছর তারিখ timeline dates countdown settings footer contact admit config",
       },
       {
         id: "hero",

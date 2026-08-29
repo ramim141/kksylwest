@@ -206,14 +206,21 @@ const ResultList = () => {
 
   const bestCount = bestStudents.length;
 
+  const isYearArchived = (yr) => {
+    const needle = bengaliToEnglish(String(yr).trim());
+    return archivedYears.some(
+      (a) => bengaliToEnglish(String(a).trim()) === needle
+    );
+  };
+
   /* Live sessions first, archived ones behind their own label. Which is
      which comes from the admin panel, not from a hardcoded year. */
   const liveYears = useMemo(
-    () => availableYears.filter((yr) => !archivedYears.includes(yr)),
+    () => availableYears.filter((yr) => !isYearArchived(yr)),
     [availableYears, archivedYears]
   );
   const archiveYears = useMemo(
-    () => availableYears.filter((yr) => archivedYears.includes(yr)),
+    () => availableYears.filter((yr) => isYearArchived(yr)),
     [availableYears, archivedYears]
   );
 
@@ -316,7 +323,7 @@ const ResultList = () => {
                 <HiAcademicCap />
               </div>
               <div>
-                <p className="text-xl sm:text-2xl font-black text-white">{toBengaliNumber(totalStudents)}</p>
+                <p className="text-xl sm:text-2xl font-extrabold font-bangla-number text-white">{toBengaliNumber(totalStudents)}</p>
                 <p className="text-[11px] font-semibold text-slate-400">মোট বৃত্তিপ্রাপ্ত</p>
               </div>
             </div>
@@ -327,7 +334,7 @@ const ResultList = () => {
                 <FaCrown />
               </div>
               <div>
-                <p className="text-xl sm:text-2xl font-black text-amber-400">{toBengaliNumber(talentCount)}</p>
+                <p className="text-xl sm:text-2xl font-extrabold font-bangla-number text-amber-400">{toBengaliNumber(talentCount)}</p>
                 <p className="text-[11px] font-semibold text-slate-400">ট্যালেন্টপুল বৃত্তি</p>
               </div>
             </div>
@@ -338,7 +345,7 @@ const ResultList = () => {
                 <HiCheckBadge />
               </div>
               <div>
-                <p className="text-xl sm:text-2xl font-black text-emerald-400">{toBengaliNumber(generalCount)}</p>
+                <p className="text-xl sm:text-2xl font-extrabold font-bangla-number text-emerald-400">{toBengaliNumber(generalCount)}</p>
                 <p className="text-[11px] font-semibold text-slate-400">সাধারণ বৃত্তি</p>
               </div>
             </div>
@@ -349,7 +356,7 @@ const ResultList = () => {
                 <HiSparkles />
               </div>
               <div>
-                <p className="text-xl sm:text-2xl font-black text-purple-400">{toBengaliNumber(specialCount)}</p>
+                <p className="text-xl sm:text-2xl font-extrabold font-bangla-number text-purple-400">{toBengaliNumber(specialCount)}</p>
                 <p className="text-[11px] font-semibold text-slate-400">বিশেষ বৃত্তি</p>
               </div>
             </div>
@@ -360,7 +367,7 @@ const ResultList = () => {
                 <HiTrophy />
               </div>
               <div>
-                <p className="text-xl sm:text-2xl font-black text-sky-400">{toBengaliNumber(bestCount || classData.length)}</p>
+                <p className="text-xl sm:text-2xl font-extrabold font-bangla-number text-sky-400">{toBengaliNumber(bestCount || classData.length)}</p>
                 <p className="text-[11px] font-semibold text-slate-400">শ্রেণিভিত্তিক সেরা</p>
               </div>
             </div>
@@ -385,20 +392,27 @@ const ResultList = () => {
             {/* Live sessions */}
             {liveYears.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
-                {liveYears.map((yr) => (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => handleYearChange(yr)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap press ${
-                      selectedYear === yr
-                        ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/25"
-                        : "bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12] border border-white/10"
-                    }`}
-                  >
-                    📅 {yr} (চলতি বর্ষ)
-                  </button>
-                ))}
+                {liveYears.map((yr) => {
+                  const isSelected =
+                    selectedYear === yr ||
+                    bengaliToEnglish(selectedYear) === bengaliToEnglish(yr);
+                  return (
+                    <button
+                      key={yr}
+                      type="button"
+                      onClick={() => handleYearChange(yr)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap press flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/25"
+                          : "bg-white/[0.06] text-slate-300 hover:text-white hover:bg-white/[0.12] border border-white/10"
+                      }`}
+                    >
+                      <span>📅</span>
+                      <span className="font-bangla-number font-extrabold">{toBengaliNumber(yr)}</span>
+                      <span>(চলতি বর্ষ)</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -407,23 +421,29 @@ const ResultList = () => {
             {archiveYears.length > 0 && (
               <div className="flex flex-wrap items-center gap-2">
                 <span className="hidden w-px h-5 sm:block bg-white/10" aria-hidden="true" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  আর্কাইভ
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1 bg-white/[0.04] px-2.5 py-1 rounded-lg border border-white/5">
+                  🗃️ আর্কাইভ:
                 </span>
-                {archiveYears.map((yr) => (
-                  <button
-                    key={yr}
-                    type="button"
-                    onClick={() => handleYearChange(yr)}
-                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap press ${
-                      selectedYear === yr
-                        ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/25"
-                        : "bg-white/[0.04] text-slate-400 hover:text-white hover:bg-white/[0.10] border border-white/10"
-                    }`}
-                  >
-                    🗃️ {yr}
-                  </button>
-                ))}
+                {archiveYears.map((yr) => {
+                  const isSelected =
+                    selectedYear === yr ||
+                    bengaliToEnglish(selectedYear) === bengaliToEnglish(yr);
+                  return (
+                    <button
+                      key={yr}
+                      type="button"
+                      onClick={() => handleYearChange(yr)}
+                      className={`px-3.5 py-1.5 rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap press flex items-center gap-1.5 ${
+                        isSelected
+                          ? "bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/25"
+                          : "bg-white/[0.05] text-slate-300 hover:text-white hover:bg-white/[0.12] border border-white/10"
+                      }`}
+                    >
+                      <span>📁</span>
+                      <span className="font-bangla-number font-extrabold">{toBengaliNumber(yr)}</span>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -622,10 +642,10 @@ const ResultList = () => {
                                       : "bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-300"
                                   }`}
                                 >
-                                  <span className="block text-sm font-mono font-black">
+                                  <span className="block text-base sm:text-lg font-bold font-bangla-number tracking-wider">
                                     {toBengaliNumber(st.roll)}
                                   </span>
-                                  <span className="block w-full text-[10px] font-medium text-slate-300 truncate">
+                                  <span className="block w-full text-[11px] font-medium text-slate-300 truncate">
                                     {st.name}
                                   </span>
                                 </button>

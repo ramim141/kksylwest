@@ -1,6 +1,7 @@
-"use client"
+import { useExamYear } from "../../context/ExamYearContext";
 
 const Result_info = () => {
+  const examYear = useExamYear();
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-surface-card via-surface-card to-tertiary/30 px-4 py-12">
       <div className="max-w-4xl w-full">
@@ -25,7 +26,7 @@ const Result_info = () => {
 
             {/* Title */}
             <h1 className="relative z-10 text-3xl md:text-4xl lg:text-5xl font-bold text-center text-white mb-3 drop-shadow-lg">
-              কিশোরকণ্ঠ মেধাবৃত্তি ২০২৫
+              কিশোরকণ্ঠ মেধাবৃত্তি {examYear}
             </h1>
             <div className="relative z-10 flex justify-center">
               <span className="inline-block px-6 py-2 bg-white/20 backdrop-blur-sm border border-white/30 rounded-full text-sm font-semibold text-white">

@@ -33,6 +33,7 @@ import {
   SkeletonFilterBar,
   SkeletonTable,
 } from "../common";
+import { useExamYear } from "../../context/ExamYearContext";
 
 const CLASSES = [
   "সকল শ্রেণি",
@@ -54,6 +55,7 @@ const SCHOLARSHIP_GRADES = [
 const PAGE_SIZE = 50;
 
 const MeritLeaderboard = () => {
+  const examYear = useExamYear();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState("সকল শ্রেণি");
@@ -201,7 +203,7 @@ const MeritLeaderboard = () => {
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-sm">
             <HiTrophy className="text-base text-amber-400" />
-            <span>অফিসিয়াল মেধা লিডারবোর্ড ২০২৬</span>
+            <span>অফিসিয়াল মেধা লিডারবোর্ড {examYear}</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">

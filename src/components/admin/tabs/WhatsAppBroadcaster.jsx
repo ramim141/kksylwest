@@ -6,8 +6,21 @@ import {
   HiMagnifyingGlass,
   HiChatBubbleLeftRight,
   HiCheck,
+  HiCheckCircle,
+  HiSparkles,
+  HiUserGroup,
+  HiPaperAirplane,
+  HiArrowPath,
+  HiXMark,
+  HiChevronRight,
+  HiChevronLeft,
+  HiPhone,
+  HiAcademicCap,
+  HiIdentification,
+  HiCalendarDays,
+  HiBuildingOffice2,
 } from "react-icons/hi2";
-import { FaWhatsapp, FaUserCheck, FaMobileAlt, FaPaperPlane } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
 import { getRegistrations, getAllResults, getAdmitCardSettings } from "../../../services/firestore";
 import { Button, Toast } from "../ui";
 
@@ -22,22 +35,41 @@ const CLASSES = [
   "১০ম শ্রেণি",
 ];
 
+const toEnglishDigits = (str) => {
+  if (!str) return "";
+  const bnToEn = {
+    "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+    "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9"
+  };
+  return str.toString().replace(/[০-৯]/g, (d) => bnToEn[d] || d);
+};
+
+const toBengaliDigits = (num) => {
+  if (num === null || num === undefined) return "০";
+  const enToBn = {
+    "0": "০", "1": "১", "2": "২", "3": "৩", "4": "৪",
+    "5": "৫", "6": "৬", "7": "৭", "8": "৮", "9": "৯"
+  };
+  return num.toString().replace(/[0-9]/g, (d) => enToBn[d] || d);
+};
+
 const TEMPLATES = [
   {
     id: "admit",
     name: "🎫 প্রবেশপত্র প্রকাশ ও রোল বরাদ্দ",
     badge: "প্রবেশপত্র",
-    text: `কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ২০২৫-এ আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
+    description: "শিক্ষার্থীর আবেদন অনুমোদনের পর রোল ও প্রবেশপত্র লিংক পাঠানো",
+    text: `কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষায় আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
 
-📌 আপনার পরীক্ষার বিবরণ:
+📌 পরীক্ষার বিবরণ:
 • রোল নম্বর: {roll}
 • পরীক্ষার্থীর নাম: {name}
 • শ্রেণি: {class}
 • পরীক্ষা কেন্দ্র: {center}
 • পরীক্ষার তারিখ: {examDate}
 
-🪪 প্রবেশপত্র ডাউনলোড লিংক:
-👉 {admitUrl}
+🔗 প্রবেশপত্র ডাউনলোড লিংক:
+{admitUrl}
 
 পরীক্ষার দিন প্রবেশপত্রটি প্রিন্ট করে পরীক্ষা কেন্দ্রে সাথে নিয়ে আসতে হবে।
 
@@ -46,17 +78,18 @@ const TEMPLATES = [
   },
   {
     id: "exam_reminder",
-    name: "🎯 পরীক্ষার চূড়ান্ত সময় ও কেন্দ্রের স্মরণিকা",
+    name: "🎯 পরীক্ষার সময় ও কেন্দ্রের স্মরণিকা",
     badge: "পরীক্ষা স্মরণিকা",
+    description: "পরীক্ষার আগের দিন কেন্দ্র ও সময়সূচি স্মরণ করিয়ে দেওয়া",
     text: `আসসালামু আলাইকুম {name},
 আগামী {examDate} কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা অনুষ্ঠিত হতে যাচ্ছে।
 
-📌 আপনার পরীক্ষার তথ্য:
+📌 পরীক্ষার তথ্য:
 • রোল নম্বর: {roll}
 • পরীক্ষা কেন্দ্র: {center}
-• সময়: সকাল ১০:০০টা (১৫ মিনিট পূর্বে উপস্থিতি কাম্য)
+• সময়: সকাল ১০:০০ টা (১৫ মিনিট পূর্বে উপস্থিতি কাম্য)
 
-প্রবেশপত্র, কলম ও প্রয়োজনীয় জ্যামিতি বক্স সাথে আনুন। আপনার সাফল্য কামনা করি!
+প্রবেশপত্র, কলম ও প্রয়োজনীয় উপকরণ সাথে আনুন। আপনার সাফল্য কামনা করি!
 
 কিশোরকণ্ঠ মেধাবৃত্তি পরিষদ।`,
   },
@@ -64,24 +97,37 @@ const TEMPLATES = [
     id: "result",
     name: "🏆 ফলাফল প্রকাশ ও মেধা সম্মাননা",
     badge: "ফলাফল",
+    description: "ফলাফল প্রকাশের পর বিস্তারিত রেজাল্ট ও মেধা সনদ লিংক পাঠানো",
     text: `অভিনন্দন {name}!
-কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ২০২৫-এর ফলাফল প্রকাশিত হয়েছে।
+কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষার ফলাফল প্রকাশিত হয়েছে।
 
 আপনার বিস্তারিত ফলাফল ও মেধা সনদ দেখতে নিচের লিংকে প্রবেশ করুন:
-👉 {resultUrl}
+🔗 {resultUrl}
 
 কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`,
   },
   {
     id: "custom",
-    name: "✍️ কাস্টম ব্রডকাস্ট বার্তা (Custom Message)",
+    name: "✍️ কাস্টম ব্রডকাস্ট বার্তা (Custom)",
     badge: "কাস্টম",
+    description: "নিজের ইচ্ছেমতো নোটিশ বা জরুরি নির্দেশনা তৈরি করুন",
     text: `আসসালামু আলাইকুম {name},
 
-(এখানে আপনার নোটিশ বা বার্তা লিখুন...)
+(এখানে আপনার বার্তা লিখুন...)
 
 কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`,
   },
+];
+
+const DYNAMIC_TAGS = [
+  { tag: "{name}", label: "নাম", desc: "শিক্ষার্থীর নাম" },
+  { tag: "{roll}", label: "রোল", desc: "পরীক্ষার রোল" },
+  { tag: "{class}", label: "শ্রেণি", desc: "শিক্ষার্থীর শ্রেণি" },
+  { tag: "{school}", label: "প্রতিষ্ঠান", desc: "বিদ্যালয়/মাদরাসা" },
+  { tag: "{center}", label: "কেন্দ্র", desc: "পরীক্ষা কেন্দ্র" },
+  { tag: "{examDate}", label: "তারিখ", desc: "পরীক্ষার তারিখ" },
+  { tag: "{admitUrl}", label: "প্রবেশপত্র লিংক", desc: "এডমিট ডাউনলোড URL" },
+  { tag: "{resultUrl}", label: "ফলাফল লিংক", desc: "ফলাফল দেখার URL" },
 ];
 
 const WhatsAppBroadcaster = () => {
@@ -93,6 +139,7 @@ const WhatsAppBroadcaster = () => {
   const [selectedTemplateId, setSelectedTemplateId] = useState("admit");
   const [customMessage, setCustomMessage] = useState(TEMPLATES[0].text);
   const [copiedNumbers, setCopiedNumbers] = useState(false);
+  const [copiedStudentId, setCopiedStudentId] = useState(null);
   const [statusMessage, setStatusMessage] = useState(null);
 
   // Queue state
@@ -122,7 +169,7 @@ const WhatsAppBroadcaster = () => {
           studentClass: r.studentClass || "—",
           institution: r.institution || "—",
           center: r.examCenter || settings?.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
-          examDate: r.examDate || settings?.defaultExamDate || "২৪ অক্টোবর ২০২৫",
+          examDate: r.examDate || settings?.defaultExamDate || "২৪ অক্টোবর ২০২৬",
           status: r.status || "pending",
         }));
       } else if (results && results.length > 0) {
@@ -134,7 +181,7 @@ const WhatsAppBroadcaster = () => {
           studentClass: res.class || "—",
           institution: res.school || "—",
           center: settings?.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
-          examDate: settings?.defaultExamDate || "২৪ অক্টোবর ২০২৫",
+          examDate: settings?.defaultExamDate || "২৪ অক্টোবর ২০২৬",
           status: "approved",
         }));
       }
@@ -181,8 +228,9 @@ const WhatsAppBroadcaster = () => {
   const formatMessageFor = (student) => {
     if (!student) return "";
     const origin = window.location.origin;
-    const admitUrl = `${origin}/admit-card?id=${encodeURIComponent(student.roll)}`;
-    const resultUrl = `${origin}/search?roll=${encodeURIComponent(student.roll)}`;
+    const cleanRollNum = toEnglishDigits(student.roll);
+    const admitUrl = `${origin}/admit-card?id=${cleanRollNum}`;
+    const resultUrl = `${origin}/search?roll=${cleanRollNum}`;
 
     return customMessage
       .replace(/{name}|{নাম}/g, student.name || "")
@@ -190,7 +238,7 @@ const WhatsAppBroadcaster = () => {
       .replace(/{class}|{শ্রেণি}/g, student.studentClass || "")
       .replace(/{school}|{প্রতিষ্ঠান}/g, student.institution || "")
       .replace(/{center}|{কেন্দ্র}/g, student.center || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র")
-      .replace(/{examDate}|{তারিখ}/g, student.examDate || "২৪ অক্টোবর ২০২৫")
+      .replace(/{examDate}|{তারিখ}/g, student.examDate || "২৪ অক্টোবর ২০২৬")
       .replace(/{admitUrl}|{প্রবেশপত্র_লিংক}/g, admitUrl)
       .replace(/{resultUrl}|{ফলাফল_লিংক}/g, resultUrl);
   };
@@ -202,6 +250,23 @@ const WhatsAppBroadcaster = () => {
     if (cleaned.startsWith("0")) cleaned = "880" + cleaned.substring(1);
     else if (!cleaned.startsWith("880") && cleaned.length === 10) cleaned = "880" + cleaned;
     return cleaned;
+  };
+
+  // Safe WhatsApp URL generator that prevents emoji stripping
+  const openWhatsApp = (phone, msg) => {
+    const encoded = encodeURIComponent(msg);
+    const url = `https://api.whatsapp.com/send?phone=${phone}&text=${encoded}`;
+    window.open(url, "_blank");
+  };
+
+  // Copy message text directly to clipboard
+  const handleCopyMessage = (student) => {
+    const msg = formatMessageFor(student);
+    navigator.clipboard.writeText(msg);
+    const id = student.id || student.roll;
+    setCopiedStudentId(id);
+    setStatusMessage({ type: "success", text: `📋 ${student.name}-এর বার্তাটি ক্লিপবোর্ডে কপি হয়েছে!` });
+    setTimeout(() => setCopiedStudentId(null), 2500);
   };
 
   // Send to current candidate and advance
@@ -216,8 +281,7 @@ const WhatsAppBroadcaster = () => {
     }
 
     const msg = formatMessageFor(currentStudent);
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, "_blank");
+    openWhatsApp(phone, msg);
 
     // Mark as sent
     setSentMap((prev) => ({ ...prev, [currentStudent.id || currentStudent.roll]: true }));
@@ -228,15 +292,15 @@ const WhatsAppBroadcaster = () => {
     }
   };
 
-  const handleSendDirect = (student) => {
+  const handleSendDirect = (student, index) => {
+    if (index !== undefined) setCurrentQueueIndex(index);
     const phone = cleanPhone(student.mobile);
     if (!phone) {
       setStatusMessage({ type: "error", text: `${student.name}-এর কোনো বৈধ মোবাইল নম্বর পাওয়া যায়নি!` });
       return;
     }
     const msg = formatMessageFor(student);
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, "_blank");
+    openWhatsApp(phone, msg);
     setSentMap((prev) => ({ ...prev, [student.id || student.roll]: true }));
   };
 
@@ -254,6 +318,7 @@ const WhatsAppBroadcaster = () => {
     const text = numbers.join(", ");
     navigator.clipboard.writeText(text);
     setCopiedNumbers(true);
+    setStatusMessage({ type: "success", text: `${toBengaliDigits(numbers.length)}টি মোবাইল নম্বর কপি হয়েছে!` });
     setTimeout(() => setCopiedNumbers(false), 3000);
   };
 
@@ -287,134 +352,289 @@ const WhatsAppBroadcaster = () => {
 
   const currentStudent = filteredList[currentQueueIndex];
   const sentCount = Object.keys(sentMap).length;
+  const progressPercent = filteredList.length > 0 ? Math.round((sentCount / filteredList.length) * 100) : 0;
 
   return (
-    <div className="space-y-6 text-ink-strong font-sans">
-      
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          tone="neutral"
-          icon={copiedNumbers ? HiClipboardDocumentCheck : HiClipboardDocument}
-          onClick={handleCopyAllNumbers}
-        >
-          {copiedNumbers ? "নম্বরগুলো কপি হয়েছে" : "সব নম্বর কপি করুন"}
-        </Button>
-        <Button tone="neutral" icon={HiArrowDownTray} onClick={handleExportCSV}>
-          কন্টাক্ট শিট (CSV)
-        </Button>
+    <div className="space-y-6 text-ink-strong font-sans animate-fade-in">
+      <Toast message={statusMessage} onDismiss={() => setStatusMessage(null)} />
+
+      {/* ========================================================
+          1. HEADER & LIVE METRICS
+          ======================================================== */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#121526] via-[#161a33] to-[#0f1329] border border-white/10 shadow-xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-white/10">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+              <FaWhatsapp className="text-sm" />
+              <span>WhatsApp ব্রডকাস্ট ও বার্তা প্রেরণ কেন্দ্র</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
+              স্মার্ট ওয়ান-টু-ওয়ান মেসেজিং হাব
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-400">
+              শিক্ষার্থীদের রোল, প্রবেশপত্র ডাউনলোড লিংক ও ফলাফলের তথ্য ১-ক্লিকেই তাদের হোয়াটসঅ্যাপে পৌঁছে দিন।
+            </p>
+          </div>
+
+          {/* Quick Global Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleCopyAllNumbers}
+              className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border border-white/10 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="নির্বাচিত শিক্ষার্থীদের সকল ফোন নম্বর কপি করুন"
+            >
+              {copiedNumbers ? <HiClipboardDocumentCheck className="text-emerald-400 text-base" /> : <HiClipboardDocument className="text-base" />}
+              <span>{copiedNumbers ? "নম্বরগুলো কপি হয়েছে" : "সকল নম্বর কপি"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="px-3.5 py-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white border border-white/10 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              title="CSV স্প্রেডশিট ডাউনলোড করুন"
+            >
+              <HiArrowDownTray className="text-base" />
+              <span>কন্টাক্ট শিট (CSV)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={loadData}
+              className="p-2 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/10 transition cursor-pointer"
+              title="ডাটা রিফ্রেশ করুন"
+            >
+              <HiArrowPath className="text-base" />
+            </button>
+          </div>
+        </div>
+
+        {/* 4 Stat Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5 relative z-10">
+          <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/5 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-300 flex items-center justify-center shrink-0">
+              <HiUserGroup className="text-lg" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 block">মোট ডাটাবেজ</span>
+              <strong className="text-base sm:text-lg font-black text-white">{toBengaliDigits(candidates.length)} জন</strong>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/5 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-300 flex items-center justify-center shrink-0">
+              <HiMagnifyingGlass className="text-lg" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 block">নির্বাচিত অডিয়েন্স</span>
+              <strong className="text-base sm:text-lg font-black text-sky-300">{toBengaliDigits(filteredList.length)} জন</strong>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/5 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center justify-center shrink-0">
+              <HiCheckCircle className="text-lg" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 block">মেসেজ পাঠানো হয়েছে</span>
+              <strong className="text-base sm:text-lg font-black text-emerald-400">{toBengaliDigits(sentCount)} জন</strong>
+            </div>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-white/[0.04] border border-white/5 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 flex items-center justify-center shrink-0">
+              <HiPaperAirplane className="text-lg" />
+            </div>
+            <div>
+              <span className="text-[11px] font-bold text-slate-400 block">কিউ অগ্রগতি</span>
+              <strong className="text-base sm:text-lg font-black text-amber-300">{toBengaliDigits(progressPercent)}%</strong>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Main 2-Column Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-start">
-        
-        {/* Left Column: Template & Message Composer (5 Cols) */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="p-5 bg-surface-card border border-line-soft rounded-lg shadow-none space-y-4">
+      {/* ========================================================
+          2. MAIN 2-COLUMN WORKSPACE: COMPOSER & DISPATCH QUEUE
+          ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        {/* ----------------------------------------------------
+            LEFT COLUMN: TEMPLATES, COMPOSER & LIVE PREVIEW (5 Cols)
+            ---------------------------------------------------- */}
+        <div className="lg:col-span-5 space-y-5">
+
+          {/* Card 1: Message Composer */}
+          <div className="p-5 rounded-2xl bg-[#14162b] border border-white/10 shadow-xl space-y-4">
             
-            <div className="flex items-center justify-between border-b border-line-soft pb-3">
-              <h3 className="text-[13px] sm:text-sm font-semibold text-ink-strong uppercase tracking-wider flex items-center gap-2">
-                <HiChatBubbleLeftRight className="text-primary-400 text-base" />
-                <span>মেসেজ টেমপ্লেট ও বার্তা কম্পোজার</span>
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <HiChatBubbleLeftRight className="text-indigo-400 text-base" />
+                <span>ধাপ ১: বার্তা টেমপ্লেট নির্বাচন</span>
               </h3>
+              <span className="text-[11px] font-bold text-indigo-300 bg-indigo-500/15 px-2.5 py-0.5 rounded-full border border-indigo-500/30">
+                {TEMPLATES.length}টি রেডিমেড
+              </span>
             </div>
 
-            {/* Template Presets */}
-            <div className="space-y-2">
-              <label className="block text-[13px] font-bold text-ink-body">রেডিমেড টেমপ্লেট নির্বাচন করুন:</label>
-              <div className="grid grid-cols-1 gap-2">
-                {TEMPLATES.map((tmpl) => (
-                  <button
-                    key={tmpl.id}
-                    type="button"
-                    onClick={() => handleTemplateSelect(tmpl.id)}
-                    className={`p-2.5 rounded border text-left text-[13px] font-bold transition cursor-pointer flex items-center justify-between ${
-                      selectedTemplateId === tmpl.id
-                        ? "bg-primary-500/15 border-primary-500/50 text-primary-300 shadow-sm"
-                        : "bg-surface border-line-soft text-ink-muted hover:text-ink-strong"
-                    }`}
-                  >
-                    <span>{tmpl.name}</span>
-                    {selectedTemplateId === tmpl.id && <HiCheck className="text-primary-400 text-base shrink-0" />}
-                  </button>
-                ))}
-              </div>
+            {/* Template Selector Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {TEMPLATES.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  type="button"
+                  onClick={() => handleTemplateSelect(tmpl.id)}
+                  className={`p-3 rounded-xl border text-left text-xs font-bold transition flex flex-col justify-between gap-1 cursor-pointer ${
+                    selectedTemplateId === tmpl.id
+                      ? "bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border-emerald-500/50 text-white shadow-md"
+                      : "bg-[#0c0e1e] border-white/5 text-slate-300 hover:text-white hover:border-white/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="truncate">{tmpl.name}</span>
+                    {selectedTemplateId === tmpl.id && <HiCheck className="text-emerald-400 text-sm shrink-0" />}
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-normal line-clamp-1">
+                    {tmpl.description}
+                  </span>
+                </button>
+              ))}
             </div>
 
             {/* Dynamic Tags Helper */}
-            <div>
-              <label className="block text-[13px] font-bold text-ink-muted mb-1.5">
-                ক্লিক করে ডাইনামিক ভেরিয়েবল ট্যাগ যোগ করুন:
+            <div className="space-y-1.5 pt-2 border-t border-white/[0.08]">
+              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                ডাইনামিক ভেরিয়েবল ট্যাগ (ক্লিক করলে যুক্ত হবে):
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {["{name}", "{roll}", "{class}", "{school}", "{center}", "{examDate}", "{admitUrl}", "{resultUrl}"].map((tag) => (
+                {DYNAMIC_TAGS.map(({ tag, label }) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => setCustomMessage((prev) => prev + " " + tag)}
-                    className="px-2.5 py-1 bg-surface-overlay/40 hover:bg-surface-overlay text-secondary font-mono text-[12px] rounded-lg border border-line-soft transition cursor-pointer"
+                    className="px-2.5 py-1 bg-white/[0.06] hover:bg-emerald-500/20 hover:text-emerald-300 hover:border-emerald-500/40 text-slate-300 font-mono text-[11px] rounded-lg border border-white/10 transition cursor-pointer flex items-center gap-1"
+                    title={`${label} ট্যাগ যোগ করুন`}
                   >
-                    + {tag}
+                    <span>+</span>
+                    <span>{tag}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Message Textarea */}
-            <div>
-              <label className="block text-[13px] font-bold text-ink-body mb-1.5">
-                মেসেজের পূর্ণ বিবরণ (Message Body):
-              </label>
+            {/* Message Body Textarea */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-300">
+                  মেসেজের পূর্ণ বিবরণ (Message Body):
+                </label>
+                <span className="text-[10px] text-slate-400 font-mono">
+                  {customMessage.length} অক্ষর
+                </span>
+              </div>
               <textarea
                 rows={9}
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
-                className="w-full p-3.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-medium focus:outline-none focus:border-primary-400 font-mono leading-relaxed"
-                placeholder="মেসেজ লিখুন..."
+                className="w-full p-3.5 bg-[#090a16] border border-white/10 rounded-xl text-white text-xs font-medium focus:outline-none focus:border-emerald-500 font-mono leading-relaxed resize-y"
+                placeholder="এখানে মেসেজের টেক্সট লিখুন..."
               />
             </div>
 
-            {/* WhatsApp Live Preview Bubble */}
-            <div className="pt-2 border-t border-line-soft">
-              <label className="block text-[13px] font-bold text-ink-muted mb-2">
-                লাইভ হোয়াটসঅ্যাপ প্রিভিউ (Live WhatsApp Preview):
-              </label>
-              <div className="bg-[#0b141a] p-3.5 rounded border border-line-soft space-y-2">
-                <div className="bg-[#005c4b] text-ink-strong p-3 rounded-lg rounded-tl-sm text-[13px] font-normal leading-relaxed whitespace-pre-wrap shadow-none">
+          </div>
+
+          {/* Card 2: Live WhatsApp Mockup Preview */}
+          <div className="p-5 rounded-2xl bg-[#14162b] border border-white/10 shadow-xl space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-white/[0.08]">
+              <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                <FaWhatsapp className="text-emerald-400 text-sm" />
+                <span>লাইভ হোয়াটসঅ্যাপ প্রিভিউ (Phone Preview)</span>
+              </h4>
+              <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
+                রিয়েল-টাইম
+              </span>
+            </div>
+
+            {/* WhatsApp App Mockup Container */}
+            <div className="rounded-2xl border border-white/10 bg-[#0b141a] overflow-hidden shadow-2xl">
+              {/* WhatsApp Chat Top Header */}
+              <div className="bg-[#1f2c34] px-4 py-2.5 flex items-center justify-between border-b border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold">
+                    KK
+                  </div>
+                  <div>
+                    <h5 className="text-xs font-bold text-white">কিশোরকণ্ঠ পাঠক ফোরাম</h5>
+                    <p className="text-[10px] text-emerald-400">অফিসিয়াল হেল্পলাইন</p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-slate-400">অনলাইন</span>
+              </div>
+
+              {/* Chat Canvas & Message Bubble */}
+              <div className="p-4 bg-[#0b141a] bg-opacity-95 min-h-[160px] flex flex-col justify-end space-y-2">
+                <div className="max-w-[95%] self-end bg-[#005c4b] text-white p-3.5 rounded-2xl rounded-tr-none text-xs font-normal leading-relaxed whitespace-pre-wrap shadow-lg border border-emerald-500/20">
                   {formatMessageFor(currentStudent || {
                     name: "মোহাম্মদ মুনতাসির মাহমুদ",
                     roll: "১০০১৩",
                     studentClass: "১০ম শ্রেণি",
-                    institution: "শাহজালাল স্কুল",
+                    institution: "শাহজালাল জামেয়া স্কুল এন্ড কলেজ",
                     center: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
-                    examDate: "২৪ অক্টোবর ২০২৫",
+                    examDate: "২৪ অক্টোবর ২০২৬",
                   })}
-                  <div className="text-right text-[9px] text-primary-200/70 mt-1 font-mono">
-                    ১২:৩০ PM • ✓✓
+                  <div className="text-right text-[10px] text-emerald-200/80 mt-2 font-mono flex items-center justify-end gap-1">
+                    <span>১২:৩০ PM</span>
+                    <span>✓✓</span>
                   </div>
                 </div>
               </div>
             </div>
 
+            {currentStudent && (
+              <p className="text-[11px] text-slate-400 text-center">
+                প্রিভিউ দেখানো হচ্ছে: <strong className="text-emerald-300">{currentStudent.name}</strong>-এর তথ্যানুযায়ী
+              </p>
+            )}
           </div>
+
         </div>
 
-        {/* Right Column: Audience Filters & Interactive Dispatch Queue (7 Cols) */}
-        <div className="lg:col-span-7 space-y-4">
-          
-          {/* Audience Filter Bar */}
-          <div className="p-4 sm:p-5 bg-surface-card border border-line-soft rounded-lg shadow-none space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        {/* ----------------------------------------------------
+            RIGHT COLUMN: AUDIENCE FILTERS & QUEUE DISPATCH (7 Cols)
+            ---------------------------------------------------- */}
+        <div className="lg:col-span-7 space-y-5">
+
+          {/* Card 1: Audience Filters */}
+          <div className="p-5 rounded-2xl bg-[#14162b] border border-white/10 shadow-xl space-y-4">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <HiUserGroup className="text-sky-400 text-base" />
+                <span>ধাপ ২: টার্গেট অডিয়েন্স ফিল্টারিং</span>
+              </h3>
+              <span className="text-xs font-bold text-sky-300 bg-sky-500/15 px-2.5 py-0.5 rounded-full border border-sky-500/30">
+                {toBengaliDigits(filteredList.length)} জন শিক্ষার্থী প্রস্তুত
+              </span>
+            </div>
+
+            {/* Filter Inputs Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               
-              {/* Class Filter */}
+              {/* Class Dropdown */}
               <div>
-                <label className="block text-[13px] font-bold text-ink-muted mb-1">শ্রেণি ফিল্টার</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  শ্রেণি নির্বাচন
+                </label>
                 <select
                   value={selectedClass}
                   onChange={(e) => {
                     setSelectedClass(e.target.value);
                     setCurrentQueueIndex(0);
                   }}
-                  className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-bold"
+                  className="w-full px-3 py-2 bg-[#090a16] border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-sky-400 cursor-pointer"
                 >
                   {CLASSES.map((cls) => (
                     <option key={cls} value={cls}>{cls}</option>
@@ -422,29 +642,33 @@ const WhatsAppBroadcaster = () => {
                 </select>
               </div>
 
-              {/* Status Filter */}
+              {/* Status Dropdown */}
               <div>
-                <label className="block text-[13px] font-bold text-ink-muted mb-1">আবেদন স্ট্যাটাস</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  আবেদন স্ট্যাটাস
+                </label>
                 <select
                   value={selectedStatus}
                   onChange={(e) => {
                     setSelectedStatus(e.target.value);
                     setCurrentQueueIndex(0);
                   }}
-                  className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-bold"
+                  className="w-full px-3 py-2 bg-[#090a16] border border-white/10 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-sky-400 cursor-pointer"
                 >
-                  <option value="all">সকল স্ট্যাটাস</option>
+                  <option value="all">সকল স্ট্যাটাস ({toBengaliDigits(candidates.length)})</option>
                   <option value="approved">✓ শুধুমাত্র অনুমোদিত (Approved)</option>
                   <option value="pending">⏳ অপেক্ষমাণ (Pending)</option>
                   <option value="rejected">✕ বাতিলকৃত (Rejected)</option>
                 </select>
               </div>
 
-              {/* Search input */}
+              {/* Search Bar */}
               <div>
-                <label className="block text-[13px] font-bold text-ink-muted mb-1">প্রার্থী খুঁজুন</label>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  প্রার্থী খুঁজুন
+                </label>
                 <div className="relative">
-                  <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted text-[13px]" />
+                  <HiMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -452,144 +676,276 @@ const WhatsAppBroadcaster = () => {
                       setSearchQuery(e.target.value);
                       setCurrentQueueIndex(0);
                     }}
-                    placeholder="নাম / রোল / মোবাইল..."
-                    className="w-full pl-8 pr-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                    placeholder="নাম / রোল / ফোন..."
+                    className="w-full pl-8 pr-3 py-2 bg-[#090a16] border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:border-sky-400"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    >
+                      <HiXMark className="text-xs" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          {/* Card 2: Interactive Smart Queue Dispatcher */}
+          {filteredList.length > 0 && currentStudent ? (
+            <div className="p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#13162d] to-[#0e1022] border-2 border-emerald-500/40 shadow-2xl space-y-5 relative overflow-hidden">
+              
+              {/* Top Queue Progress & Navigation */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-white/[0.08]">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <div>
+                    <h3 className="text-sm font-black text-white flex items-center gap-2">
+                      <span>ধাপ ৩: ওয়ান-ক্লিক কিউ ডিসপ্যাচার</span>
+                    </h3>
+                    <span className="text-xs text-emerald-300 font-bold">
+                      প্রার্থী নম্বর {toBengaliDigits(currentQueueIndex + 1)} / {toBengaliDigits(filteredList.length)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Sent indicator badge */}
+                <div className="flex items-center gap-2">
+                  {sentMap[currentStudent.id || currentStudent.roll] ? (
+                    <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5">
+                      <HiCheckCircle className="text-sm" />
+                      <span>মেসেজ পাঠানো হয়েছে</span>
+                    </span>
+                  ) : (
+                    <span className="px-3 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-bold">
+                      ⏳ অপেক্ষমাণ
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] text-slate-400 font-bold">
+                  <span>অগ্রগতি: {toBengaliDigits(sentCount)} / {toBengaliDigits(filteredList.length)} জন</span>
+                  <span className="text-emerald-400">{toBengaliDigits(progressPercent)}% সম্পন্ন</span>
+                </div>
+                <div className="w-full h-2 bg-[#090a16] rounded-full overflow-hidden border border-white/5">
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-indigo-500 transition-all duration-500"
+                    style={{ width: `${progressPercent}%` }}
                   />
                 </div>
               </div>
 
-            </div>
+              {/* Active Candidate Info Card */}
+              <div className="p-4 rounded-xl bg-[#0a0c18] border border-white/[0.08] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-base font-black text-white flex items-center gap-2">
+                      <span>{currentStudent.name}</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        {currentStudent.studentClass}
+                      </span>
+                    </h4>
+                    <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                      <HiBuildingOffice2 className="text-xs text-indigo-400 shrink-0" />
+                      <span>{currentStudent.institution}</span>
+                    </p>
+                  </div>
 
-            {/* Audience Count Summary Strip */}
-            <div className="flex items-center justify-between text-[13px] pt-1 border-t border-line-soft">
-              <span className="text-ink-muted font-medium">
-                নির্বাচিত শিক্ষার্থী: <strong className="text-primary-400 font-bold">{filteredList.length} জন</strong>
-              </span>
-              <span className="text-ink-muted font-medium">
-                মেসেজ পাঠানো হয়েছে: <strong className="text-secondary font-mono font-bold">{sentCount} জন</strong>
-              </span>
-            </div>
-          </div>
-
-          {/* Interactive Queue Card */}
-          {filteredList.length > 0 && currentStudent ? (
-            <div className="p-5 bg-surface-card border border-primary/40 rounded-lg space-y-4 animate-fadeIn relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl pointer-events-none" />
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-primary-400 animate-pulse" />
-                  <span className="text-[13px] font-bold text-primary-400 uppercase tracking-wider">
-                    পরবর্তী কিউ প্রার্থী ({currentQueueIndex + 1}/{filteredList.length})
-                  </span>
+                  <div className="text-left sm:text-right">
+                    <span className="text-[11px] font-bold text-slate-400 block">রোল / আইডি</span>
+                    <strong className="text-sm font-black text-amber-300 font-mono">
+                      {currentStudent.roll}
+                    </strong>
+                  </div>
                 </div>
 
-                {sentMap[currentStudent.id || currentStudent.roll] && (
-                  <span className="px-2.5 py-0.5 rounded-full bg-primary-500/20 text-primary-300 border border-primary-500/40 text-[12px] font-bold">
-                    ✓ পাঠানো সম্পন্ন
-                  </span>
-                )}
-              </div>
-
-              {/* Candidate Quick Matrix */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-surface-card p-3.5 rounded border border-line-soft text-[13px]">
-                <div>
-                  <span className="text-[12px] text-ink-muted block">নাম:</span>
-                  <strong className="text-ink-strong font-bold block truncate">{currentStudent.name}</strong>
-                </div>
-                <div>
-                  <span className="text-[12px] text-ink-muted block">রোল / ট্র্যাকিং:</span>
-                  <strong className="text-secondary font-mono font-bold block">{currentStudent.roll}</strong>
-                </div>
-                <div>
-                  <span className="text-[12px] text-ink-muted block">মোবাইল নম্বর:</span>
-                  <strong className="text-primary-400 font-mono font-bold block">{currentStudent.mobile || "নম্বর নেই"}</strong>
-                </div>
-                <div>
-                  <span className="text-[12px] text-ink-muted block">শ্রেণি:</span>
-                  <strong className="text-tertiary font-bold block">{currentStudent.studentClass}</strong>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2.5 border-t border-white/5 text-xs">
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <HiPhone className="text-emerald-400 text-sm shrink-0" />
+                    <span className="font-mono font-bold text-white">
+                      {currentStudent.mobile || "মোবাইল নম্বর নেই"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-slate-300">
+                    <HiCalendarDays className="text-indigo-400 text-sm shrink-0" />
+                    <span>কেন্দ্র: {currentStudent.center}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Big Queue Action Button */}
-              <div className="flex flex-col sm:flex-row gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={handleSendCurrentAndNext}
-                  className="flex-1 py-3.5 px-6 rounded bg-gradient-to-r from-primary-500 to-tertiary hover:from-primary-400 hover:to-tertiary text-primary-on font-semibold text-[13px] sm:text-sm shadow-none shadow-primary-500/25 transition cursor-pointer flex items-center justify-center gap-2 hover:scale-102 active:scale-98"
-                >
-                  <FaWhatsapp className="text-lg shrink-0" />
-                  <span>WhatsApp-এ পাঠান ও পরেরটিতে যান ➡️</span>
-                </button>
-
+              {/* Big Queue Action Controls */}
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-1">
+                {/* Previous Button */}
                 <button
                   type="button"
                   onClick={() => {
-                    if (currentQueueIndex < filteredList.length - 1) {
-                      setCurrentQueueIndex((prev) => prev + 1);
-                    }
+                    if (currentQueueIndex > 0) setCurrentQueueIndex((prev) => prev - 1);
+                  }}
+                  disabled={currentQueueIndex === 0}
+                  className="w-full sm:w-auto px-3.5 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white font-bold text-xs border border-white/10 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  title="পূর্ববর্তী প্রার্থী"
+                >
+                  <HiChevronLeft className="text-base" />
+                  <span>আগেরটি</span>
+                </button>
+
+                {/* Primary WhatsApp Dispatch Button */}
+                <button
+                  type="button"
+                  onClick={handleSendCurrentAndNext}
+                  className="flex-1 w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <FaWhatsapp className="text-lg shrink-0" />
+                  <span>হোয়াটসঅ্যাপে পাঠান ও পরেরটিতে যান ➡️</span>
+                </button>
+
+                {/* Copy Formatted Message Button */}
+                <button
+                  type="button"
+                  onClick={() => handleCopyMessage(currentStudent)}
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-200 hover:text-white font-bold text-xs border border-white/10 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  title="মেসেজের ফরম্যাটেড টেক্সট ক্লিপবোর্ডে কপি করুন"
+                >
+                  {copiedStudentId === (currentStudent.id || currentStudent.roll) ? (
+                    <>
+                      <HiClipboardDocumentCheck className="text-emerald-400 text-base" />
+                      <span className="text-emerald-400">কপি হয়েছে!</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiClipboardDocument className="text-base" />
+                      <span>মেসেজ কপি</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Skip / Next Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentQueueIndex < filteredList.length - 1) setCurrentQueueIndex((prev) => prev + 1);
                   }}
                   disabled={currentQueueIndex >= filteredList.length - 1}
-                  className="px-4 py-3.5 rounded bg-surface-overlay/40 hover:bg-surface-overlay text-ink-body hover:text-ink-strong font-bold text-[13px] border border-line-soft transition cursor-pointer disabled:opacity-40"
+                  className="w-full sm:w-auto px-3.5 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white font-bold text-xs border border-white/10 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                  title="পরবর্তী প্রার্থী স্কিপ করুন"
                 >
-                  পরেরটি ⏭️
+                  <span>পরেরটি</span>
+                  <HiChevronRight className="text-base" />
                 </button>
               </div>
+
             </div>
           ) : (
-            <div className="p-8 bg-surface-card border border-line-soft rounded-lg text-center text-ink-muted text-[13px]">
-              কোনো প্রার্থী ফিল্টারের সাথে মেলেনি।
+            <div className="p-10 rounded-2xl bg-[#14162b] border border-white/10 text-center text-slate-400 text-xs space-y-2">
+              <p>আপনার নির্বাচিত ফিল্টারের সাথে মেলানো কোনো শিক্ষার্থী পাওয়া যায়নি।</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedClass("সকল শ্রেণি");
+                  setSelectedStatus("all");
+                  setSearchQuery("");
+                }}
+                className="text-indigo-400 hover:underline font-bold"
+              >
+                ফিল্টার রিসেট করুন
+              </button>
             </div>
           )}
 
-          {/* Student Recipient List Table */}
-          <div className="bg-surface-card border border-line-soft rounded-lg shadow-none overflow-hidden">
-            <div className="p-3.5 bg-surface-card border-b border-line-soft flex items-center justify-between text-[13px] font-bold text-ink-body">
-              <span>প্রার্থী তালিকা ({filteredList.length})</span>
-              <span className="text-[12px] text-ink-muted">সরাসরি পাঠাতে বাটনে ক্লিক করুন</span>
+          {/* Card 3: Complete Recipient Table */}
+          <div className="rounded-2xl bg-[#14162b] border border-white/10 shadow-xl overflow-hidden">
+            <div className="p-4 bg-[#090a16] border-b border-white/[0.08] flex items-center justify-between text-xs font-bold text-slate-300">
+              <span className="flex items-center gap-2">
+                <span>সম্পূর্ণ প্রার্থী তালিকা</span>
+                <span className="text-[11px] font-bold text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full">
+                  {toBengaliDigits(filteredList.length)} জন
+                </span>
+              </span>
+              <span className="text-[11px] text-slate-400 hidden sm:inline">
+                যেকোনো সারিতে ক্লিক করলে সরাসরি কিউতে লোড হবে
+              </span>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-line-soft text-[13px]">
-              {filteredList.map((st, idx) => (
-                <div
-                  key={st.id || idx}
-                  className={`p-3 flex items-center justify-between gap-3 hover:bg-surface-overlay/40 transition ${
-                    currentQueueIndex === idx ? "bg-primary-500/10 border-l-4 border-primary-400" : ""
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="w-6 h-6 rounded-full bg-surface-overlay/40 text-ink-muted flex items-center justify-center text-[12px] font-mono shrink-0">
-                      {idx + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <strong className="text-ink-strong font-bold block truncate">{st.name}</strong>
-                      <span className="text-[12px] text-ink-muted font-mono">
-                        রোল: {st.roll} • {st.studentClass} • {st.mobile || "নম্বর নেই"}
+            <div className="max-h-96 overflow-y-auto divide-y divide-white/5 text-xs">
+              {filteredList.map((st, idx) => {
+                const isSelected = currentQueueIndex === idx;
+                const isSent = !!sentMap[st.id || st.roll];
+
+                return (
+                  <div
+                    key={st.id || idx}
+                    onClick={() => setCurrentQueueIndex(idx)}
+                    className={`p-3.5 flex items-center justify-between gap-3 transition cursor-pointer ${
+                      isSelected
+                        ? "bg-emerald-500/10 border-l-4 border-emerald-400"
+                        : "hover:bg-white/[0.03]"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold shrink-0 ${
+                        isSelected 
+                          ? "bg-emerald-500 text-slate-950" 
+                          : "bg-white/[0.06] text-slate-400"
+                      }`}>
+                        {toBengaliDigits(idx + 1)}
                       </span>
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <strong className="text-white font-bold truncate block">{st.name}</strong>
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-white/5 text-slate-400">
+                            {st.studentClass}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-slate-400 font-mono block truncate">
+                          রোল: {st.roll} • {st.mobile || "নম্বর নেই"} • {st.institution}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Controls for this Row */}
+                    <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      {isSent && (
+                        <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1 mr-1 hidden sm:flex">
+                          <HiCheck className="text-sm" />
+                          <span>পাঠানো হয়েছে</span>
+                        </span>
+                      )}
+
+                      {/* Copy message button */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopyMessage(st)}
+                        className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white border border-white/10 transition flex items-center justify-center cursor-pointer"
+                        title="মেসেজ কপি করুন"
+                      >
+                        {copiedStudentId === (st.id || st.roll) ? (
+                          <HiClipboardDocumentCheck className="text-emerald-400 text-sm" />
+                        ) : (
+                          <HiClipboardDocument className="text-sm" />
+                        )}
+                      </button>
+
+                      {/* Send WhatsApp direct */}
+                      <button
+                        type="button"
+                        onClick={() => handleSendDirect(st, idx)}
+                        className="w-8 h-8 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition flex items-center justify-center cursor-pointer"
+                        title="সরাসরি WhatsApp পাঠান"
+                      >
+                        <FaWhatsapp className="text-sm" />
+                      </button>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-2 shrink-0">
-                    {sentMap[st.id || st.roll] && (
-                      <span className="text-[12px] text-primary-400 font-bold flex items-center gap-1">
-                        <HiCheck /> পাঠানো হয়েছে
-                      </span>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCurrentQueueIndex(idx);
-                        handleSendDirect(st);
-                      }}
-                      className="w-10 h-10 inline-flex items-center justify-center shrink-0 rounded bg-primary-500/15 hover:bg-primary-500/30 text-primary-400 border border-primary-500/30 transition cursor-pointer"
-                      title="সরাসরি এই শিক্ষার্থীকে WhatsApp পাঠান"
-                    >
-                      <FaWhatsapp className="text-sm" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -597,8 +953,6 @@ const WhatsAppBroadcaster = () => {
 
       </div>
 
-
-      <Toast message={statusMessage} onDismiss={() => setStatusMessage(null)} />
     </div>
   );
 };

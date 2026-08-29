@@ -37,6 +37,8 @@ export const DocumentIcon = () => (
   </svg>
 );
 
+import { useExamYear } from "../../context/ExamYearContext";
+
 // ============= SUB COMPONENTS =============
 export const Badge = ({ text }) => (
   <div className="inline-flex items-center px-4 py-2 mb-4 text-sm font-medium rounded-full bg-primary/10 text-primary">
@@ -45,15 +47,18 @@ export const Badge = ({ text }) => (
   </div>
 );
 
-export const SectionHeader = ({ title, subtitle }) => (
-  <div className="mb-12 text-center">
-    <Badge text="মেধাবৃত্তি তথ্য" />
-    <h1 className="mb-4 text-4xl font-bold text-ink-strong md:text-5xl">
-      {title} <span className="text-primary">২০২৫</span>
-    </h1>
-    <p className="max-w-3xl mx-auto text-lg text-ink-muted">{subtitle}</p>
-  </div>
-);
+export const SectionHeader = ({ title, subtitle }) => {
+  const examYear = useExamYear();
+  return (
+    <div className="mb-12 text-center">
+      <Badge text="মেধাবৃত্তি তথ্য" />
+      <h1 className="mb-4 text-4xl font-bold text-ink-strong md:text-5xl">
+        {title} <span className="text-primary font-bangla-number">{examYear}</span>
+      </h1>
+      <p className="max-w-3xl mx-auto text-lg text-ink-muted">{subtitle}</p>
+    </div>
+  );
+};
 
 export const CardIcon = ({ Icon, bgColor, textColor }) => (
   <div className={`flex items-center justify-center w-12 h-12 rounded ${bgColor} ${textColor}`}>

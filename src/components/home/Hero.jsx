@@ -10,12 +10,13 @@ import {
 } from 'react-icons/hi2';
 import { getHeroSlides, getHomepageContent } from '../../services/firestore';
 import { SmartImage } from '../common';
+import { useExamYear } from '../../context/ExamYearContext';
 
 const DEFAULT_HERO_TEXT = {
   overline: "সিলেট জেলা পশ্চিম • ১৯৯৪ থেকে",
   titleLine1: "মেধার পাশে",
   titleLine2: "মূল্যবোধের আলো",
-  description: "কিশোরকণ্ঠ মেধাবৃত্তি ২০২৬ — রেজিস্ট্রেশন, প্রবেশপত্র ও ফলাফল সব এক জায়গায়।",
+  description: "কিশোরকণ্ঠ মেধাবৃত্তি — রেজিস্ট্রেশন, প্রবেশপত্র ও ফলাফল সব এক জায়গায়।",
 };
 
 const DEFAULT_SLIDES = [
@@ -96,6 +97,7 @@ const formatYouTubeEmbedUrl = (input) => {
 };
 
 const Hero = () => {
+  const examYear = useExamYear();
   const [slides, setSlides] = useState(DEFAULT_SLIDES);
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
   const [heroText, setHeroText] = useState(DEFAULT_HERO_TEXT);
@@ -190,7 +192,9 @@ const Hero = () => {
 
               {/* Subtitle Description */}
               <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-xl font-normal">
-                {heroText.description}
+                {heroText.description.includes("কিশোরকণ্ঠ মেধাবৃত্তি")
+                  ? heroText.description.replace(/কিশোরকণ্ঠ মেধাবৃত্তি\s*(?:২০২৫|২০২৬|\d+)?/, `কিশোরকণ্ঠ মেধাবৃত্তি ${examYear}`)
+                  : heroText.description}
               </p>
 
               {/* Action Buttons */}
@@ -225,10 +229,10 @@ const Hero = () => {
                 
                 {/* Main Big Image Frame (১৬:১০) */}
                 <div className="relative flex-1 rounded-xl sm:rounded-2xl overflow-hidden bg-black/40 aspect-[16/10] group">
-                  {/* Top Left Badge (অনুষ্ঠান ২০২৬) */}
+                  {/* Top Left Badge (অনুষ্ঠান) */}
                   <div className="absolute top-3 left-3 z-20">
                     <span className="px-3 py-1 rounded-lg bg-indigo-600/90 backdrop-blur-md text-white text-[10px] sm:text-xs font-bold shadow-md border border-indigo-400/30">
-                      অনুষ্ঠান ২০২৬
+                      অনুষ্ঠান {examYear}
                     </span>
                   </div>
 

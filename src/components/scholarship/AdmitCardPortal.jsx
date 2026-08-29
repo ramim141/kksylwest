@@ -23,10 +23,17 @@ import {
   HiLightBulb,
 } from "react-icons/hi2";
 import { FaGraduationCap, FaQrcode, FaPrint, FaDownload, FaTrophy, FaStar, FaWhatsapp } from "react-icons/fa";
+import { QRCodeSVG } from "qrcode.react";
 import { searchAdmitCard, getAdmitCardSettings, DEFAULT_ADMIT_CARD_SETTINGS } from "../../services/firestore";
 import { Skeleton, SkeletonRegion } from "../common";
+import { useExamYear } from "../../context/ExamYearContext";
+import { useBranding } from "../../context/BrandingContext";
+import kkmLogo from "../../assets/images/KKM LOGO.png";
 
 const AdmitCardPortal = () => {
+  const examYear = useExamYear();
+  const { getLogoFor } = useBranding();
+  const currentLogo = getLogoFor("admitCard") || kkmLogo;
   const [queryInput, setQueryInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [admitData, setAdmitData] = useState(null);
@@ -122,7 +129,7 @@ const AdmitCardPortal = () => {
     const time = admitData.examTime || admitSettings.defaultExamTime;
     const directUrl = `${window.location.origin}/admit-card?id=${encodeURIComponent(targetRoll)}`;
 
-    const text = `🎫 *কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ২০২৫ — প্রবেশপত্র*\n\n👨‍🎓 নাম: ${studentName}\n📋 রোল/আইডি: ${targetRoll}\n🏛️ কেন্দ্র: ${center}\n📅 তারিখ: ${date}\n⏰ সময়: ${time}\n\nআপনার ডিজিটাল প্রবেশপত্র ডাউনলোড ও প্রিন্ট লিংক:\n🔗 ${directUrl}`;
+    const text = `🎫 *কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ${examYear} — প্রবেশপত্র*\n\n👨‍🎓 নাম: ${studentName}\n📋 রোল/আইডি: ${targetRoll}\n🏛️ কেন্দ্র: ${center}\n📅 তারিখ: ${date}\n⏰ সময়: ${time}\n\nআপনার ডিজিটাল প্রবেশপত্র ডাউনলোড ও প্রিন্ট লিংক:\n🔗 ${directUrl}`;
 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, "_blank");
   };
@@ -142,7 +149,7 @@ const AdmitCardPortal = () => {
         <div className="text-center space-y-2.5 sm:space-y-3 print:hidden">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 text-xs font-bold shadow-sm">
             <HiIdentification className="text-sm text-emerald-400" />
-            <span>কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ২০২৫</span>
+            <span>কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা {examYear}</span>
           </div>
 
           <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight">
@@ -226,52 +233,54 @@ const AdmitCardPortal = () => {
           <div className="space-y-4 content-swap">
             
             {/* Top Toolbar Action Bar - Hidden on Print */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 sm:p-4 bg-[#14162b] border border-white/10 rounded-2xl shadow-xl print:hidden">
-              <div className="flex items-center gap-2 self-start sm:self-auto">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-xs font-bold text-slate-300">
+            <div className="flex items-center justify-between gap-2 p-3 sm:p-4 bg-[#14162b] border border-white/10 rounded-2xl shadow-xl print:hidden">
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                <span className="text-[11px] sm:text-xs font-bold text-slate-300 truncate">
                   প্রবেশপত্র প্রস্তুত: <strong className="text-emerald-400 font-mono">{admitData.assignedRoll || admitData.trackingId}</strong>
                 </span>
               </div>
 
-              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={handlePrint}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow transition cursor-pointer whitespace-nowrap"
+                  className="p-2.5 sm:px-4 sm:py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow transition cursor-pointer flex items-center justify-center gap-1.5"
+                  title="প্রিন্ট করুন"
                 >
-                  <HiPrinter className="text-sm shrink-0" />
-                  <span className="whitespace-nowrap">প্রিন্ট করুন</span>
+                  <HiPrinter className="text-base sm:text-sm shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">প্রিন্ট করুন</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleDownloadHD}
                   disabled={downloading}
-                  className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow transition cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                  className="p-2.5 sm:px-4 sm:py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm rounded-xl shadow transition cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  title="এইচডি প্রবেশপত্র ডাউনলোড করুন"
                 >
-                  <FaDownload className="text-xs shrink-0" />
-                  <span className="whitespace-nowrap">{downloading ? "ডাউনলোড হচ্ছে..." : "ডাউনলোড"}</span>
+                  <FaDownload className="text-sm sm:text-xs shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">{downloading ? "ডাউনলোড হচ্ছে..." : "ডাউনলোড"}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleWhatsAppShare}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer whitespace-nowrap"
+                  className="p-2.5 sm:px-4 sm:py-2.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 font-bold text-xs sm:text-sm rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
                   title="হোয়াটসঅ্যাপে লিংক পাঠান"
                 >
-                  <FaWhatsapp className="text-sm shrink-0" />
-                  <span className="whitespace-nowrap">WhatsApp</span>
+                  <FaWhatsapp className="text-base sm:text-sm shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">WhatsApp</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={resetSearch}
-                  className="inline-flex items-center justify-center gap-1 px-3 py-2.5 bg-white/[0.08] text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-xl hover:bg-white/[0.15] transition cursor-pointer shrink-0 whitespace-nowrap"
+                  className="p-2.5 sm:px-3 sm:py-2.5 bg-white/[0.08] text-slate-300 hover:text-white font-bold text-xs sm:text-sm rounded-xl hover:bg-white/[0.15] transition cursor-pointer shrink-0 flex items-center justify-center gap-1"
                   title="অন্য রোল নম্বর খুঁজুন"
                 >
-                  <HiArrowPath className="text-sm shrink-0" />
-                  <span className="whitespace-nowrap">অন্য রোল</span>
+                  <HiArrowPath className="text-base sm:text-sm shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">অন্য রোল</span>
                 </button>
               </div>
             </div>
@@ -292,59 +301,23 @@ const AdmitCardPortal = () => {
                 </div>
 
                 {/* =========================================================
-                    TOP HEADER ROW: LOGO, TITLE, CAPSULE & ROLL/PHOTO
+                    TOP HEADER ROW: CUSTOM BRAND LOGO & PHOTO / ROLL STACK
                     ========================================================= */}
-                <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3 relative z-10 border-b border-slate-200 pb-3">
+                <div className="flex items-start justify-between gap-4 relative z-10 pb-1">
                   
-                  {/* Left: Trophy + Title */}
-                  <div className="flex items-center gap-2.5 sm:gap-3 text-center sm:text-left">
-                    {/* Golden Trophy */}
-                    <div className="w-11 h-13 sm:w-14 sm:h-16 flex flex-col items-center justify-center bg-gradient-to-b from-amber-200 via-amber-400 to-amber-500 rounded-xl border border-amber-400 shrink-0 text-slate-950 font-black p-1 text-center shadow-sm">
-                      <FaTrophy className="text-xl sm:text-2xl text-slate-950" />
-                      <span className="text-[7px] sm:text-[8px] font-black uppercase tracking-tighter leading-none mt-0.5">
-                        কিশোরকণ্ঠ
-                      </span>
-                    </div>
-
-                    {/* Title Typography */}
-                    <div className="leading-tight">
-                      <div className="text-indigo-900 font-black text-base sm:text-2xl tracking-tight">
-                        নতুন কিশোরকণ্ঠ
-                      </div>
-                      <div className="flex items-center justify-center sm:justify-start gap-1.5 mt-0.5">
-                        <span className="text-rose-700 font-black text-lg sm:text-3xl tracking-tight">
-                          মেধাবৃত্তি পরীক্ষা
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-900 text-white font-black text-xs sm:text-sm font-mono">
-                          ২০২৫
-                        </span>
-                      </div>
-                    </div>
+                  {/* Left: Official Custom Brand Title Logo */}
+                  <div className="flex items-center pl-1 sm:pl-4">
+                    <img
+                      src={currentLogo}
+                      alt="নতুন কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা"
+                      className="h-28 sm:h-36 md:h-44 w-auto max-w-full object-contain drop-shadow-sm"
+                    />
                   </div>
 
-                  {/* Center: Red Capsule Badge */}
-                  <div className="flex items-center gap-1.5 self-center">
-                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-                    <span className="px-4 py-1 rounded-full bg-rose-600 text-white font-black text-xs sm:text-sm tracking-wider uppercase shadow-sm">
-                      প্রবেশপত্র
-                    </span>
-                    <span className="w-2 h-2 rounded-full bg-rose-600 animate-pulse" />
-                  </div>
-
-                  {/* Right: Roll Box & Stamp Photo */}
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    {/* Roll Box */}
-                    <div className="text-right">
-                      <span className="text-[11px] sm:text-xs font-black text-slate-800 block mb-0.5">
-                        বৃত্তি রোল :
-                      </span>
-                      <div className="w-20 sm:w-28 h-8 sm:h-9 bg-slate-50 border-2 border-slate-300 rounded-lg flex items-center justify-center font-mono font-black text-sm sm:text-lg text-rose-700 shadow-inner">
-                        {admitData.assignedRoll || admitData.roll || "—"}
-                      </div>
-                    </div>
-
+                  {/* Right: Vertical Stack of Stamp Photo & Roll Pill */}
+                  <div className="flex flex-col items-center gap-1.5 shrink-0 pr-1 sm:pr-4 pt-1">
                     {/* Stamp Photo Box */}
-                    <div className="w-14 h-18 sm:w-20 sm:h-24 bg-slate-50 border-2 border-slate-300 rounded-xl overflow-hidden flex flex-col items-center justify-center text-center p-0.5 shrink-0 shadow-sm">
+                    <div className="w-16 h-20 sm:w-20 sm:h-24 bg-slate-50 border-2 border-slate-300 rounded-2xl overflow-hidden flex flex-col items-center justify-center text-center p-0.5 shrink-0 shadow-sm">
                       {admitData.photoUrl ? (
                         <img
                           src={admitData.photoUrl}
@@ -353,13 +326,37 @@ const AdmitCardPortal = () => {
                         />
                       ) : (
                         <div className="text-slate-400 space-y-0.5">
-                          <HiUser className="text-xl sm:text-2xl mx-auto" />
+                          <HiUser className="text-2xl mx-auto" />
                           <span className="text-[7px] sm:text-[8px] font-bold text-slate-500 block leading-tight">
                             স্ট্যাম্প সাইজ ছবি
                           </span>
                         </div>
                       )}
                     </div>
+
+                    {/* Roll Label & Rounded Pill */}
+                    <div className="text-center space-y-0.5">
+                      <span className="text-[10px] sm:text-[11px] font-black text-slate-800 block">
+                        বৃত্তি রোল :
+                      </span>
+                      <div className="px-3.5 py-0.5 sm:px-4 sm:py-1 bg-slate-50 border-2 border-slate-300 rounded-full flex items-center justify-center font-mono font-black text-sm sm:text-base text-rose-700 shadow-inner min-w-[85px] sm:min-w-[100px]">
+                        {admitData.assignedRoll || admitData.roll || "—"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* =========================================================
+                    DEDICATED FULL-WIDTH DIVIDER & • প্রবেশপত্র • BADGE
+                    ========================================================= */}
+                <div className="relative flex items-center justify-center py-2 z-10">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-rose-300" />
+                  </div>
+                  <div className="relative px-7 py-1 rounded-full bg-rose-600 text-white font-black text-xs sm:text-sm tracking-wider shadow-sm flex items-center gap-2 select-none">
+                    <span className="text-xs">•</span>
+                    <span>প্রবেশপত্র</span>
+                    <span className="text-xs">•</span>
                   </div>
                 </div>
 
@@ -436,6 +433,24 @@ const AdmitCardPortal = () => {
                         {admitData.classRoll || "—"}
                       </span>
                       <span className="flex-1 border-b border-dotted border-slate-400 min-w-[5px]" />
+                    </div>
+                  </div>
+
+                  {/* Line 4 (NEW): Union & Thana / Upazila */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
+                    <div className="flex items-baseline min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold">ইউনিয়ন :</span>
+                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                        {admitData.union || "—"}
+                      </span>
+                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
+                    </div>
+                    <div className="flex items-baseline min-w-0">
+                      <span className="shrink-0 text-slate-800 font-bold">থানা / উপজেলা :</span>
+                      <span className="font-bold text-slate-950 px-1.5 truncate">
+                        {admitData.thana || admitData.upazila || "—"}
+                      </span>
+                      <span className="flex-1 border-b border-dotted border-slate-400 min-w-[10px]" />
                     </div>
                   </div>
                 </div>
@@ -522,11 +537,23 @@ const AdmitCardPortal = () => {
                       </span>
                     </div>
 
-                    {/* Official Seal Stamp */}
-                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full border-2 border-dashed border-rose-600 flex flex-col items-center justify-center text-center p-0.5 text-[6px] sm:text-[7px] font-black text-rose-700 uppercase shrink-0">
-                      <span>{admitSettings.sealText1 || "SEAL"}</span>
-                      <span className="text-[8px] sm:text-[9px]">{admitSettings.sealText2 || "KKMB"}</span>
-                      <span>{admitSettings.sealText3 || "SYLHET"}</span>
+                    {/* Official QR Code Verification */}
+                    <div className="flex flex-col items-center justify-center text-center shrink-0">
+                      <QRCodeSVG
+                        value={
+                          typeof window !== "undefined"
+                            ? `${window.location.origin}/admit-card?id=${encodeURIComponent(
+                                admitData.assignedRoll || admitData.roll || admitData.trackingId || ""
+                              )}`
+                            : ""
+                        }
+                        size={56}
+                        level="M"
+                        includeMargin={false}
+                      />
+                      <span className="text-[8px] sm:text-[9px] font-black text-emerald-700 mt-1 tracking-tight flex items-center gap-0.5">
+                        <span className="text-[10px]">✓</span> VERIFIED ADMIT
+                      </span>
                     </div>
 
                     <div className="space-y-0.5">

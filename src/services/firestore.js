@@ -355,6 +355,37 @@ export const saveGalleryHeroContent = async (contentData) => {
   );
 };
 
+export const seedGalleryDefaults = async () => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  
+  const defaultItems = [
+    { id: "recent_1", title: 'স্কলারশিপ বিতরণ ২০২৫', description: 'মেধাবৃত্তি প্রোগ্রাম উদযাপন', date: '১৯ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000288989.jpg.jpeg', category: 'recent', location: 'কাজী নজরুল অডিটোরিয়াম, রিকাবীবাজার, সিলেট', attendees: '৫০০+ শিক্ষার্থী ও অভিভাবক', orderIndex: 1 },
+    { id: "recent_2", title: 'বার্ষিক পুরস্কার বিতরণ', description: 'অসাধারণ শিক্ষার্থীদের সম্মাননা', date: '১০ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000288990.jpg.jpeg', category: 'recent', location: 'সিলেট জেলা পরিষদ মিলনায়তন', attendees: '৪০০+ উপস্থিতি', orderIndex: 2 },
+    { id: "recent_3", title: 'একাডেমিক উৎকর্ষতা সেমিনার', description: 'শিক্ষার্থীদের জন্য প্রশিক্ষণ কর্মশালা', date: '০৫ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000288991.jpg.jpeg', category: 'recent', location: 'শাহজালাল জামেয়া অডিটোরিয়াম', attendees: '৩৫০+ শিক্ষার্থী', orderIndex: 3 },
+    { id: "recent_4", title: 'কমিউনিটি আউটরিচ প্রোগ্রাম', description: 'সমাজসেবামূলক কার্যক্রম', date: '২৮ ফেব্রুয়ারি ২০২৬', imageUrl: '/src/assets/images/gallery/1000288992.jpg.jpeg', category: 'recent', location: 'দক্ষিণ সুরমা উপজেলা', attendees: '২০০+ অংশগ্রহণকারী', orderIndex: 4 },
+    { id: "recent_5", title: 'মেধা উন্নয়ন ওয়ার্কশপ', description: 'দক্ষতা বৃদ্ধির প্রশিক্ষণ সেশন', date: '২০ ফেব্রুয়ারি ২০২৬', imageUrl: '/src/assets/images/gallery/1000288993.jpg.jpeg', category: 'recent', location: 'বিশ্বনাথ উপজেলা কেন্দ্র', attendees: '২৫০+ শিক্ষার্থী', orderIndex: 5 },
+    { id: "recent_6", title: 'বার্ষিকী উদযাপন অনুষ্ঠান', description: 'প্রতিষ্ঠানের প্রতিষ্ঠাবার্ষিকী উৎসব', date: '১৫ ফেব্রুয়ারি ২০২৬', imageUrl: '/src/assets/images/gallery/1000289013.jpg.jpeg', category: 'recent', location: 'সিলেট কেন্দ্রীয় মুসলিম সাহিত্য সংসদ', attendees: '৬০০+ সুধী ও শুভাকাঙ্ক্ষী', orderIndex: 6 },
+    { id: "recent_7", title: 'ডিজিটাল সাক্ষরতা কর্মসূচি', description: 'তরুণদের জন্য প্রযুক্তি প্রশিক্ষণ', date: '০৮ ফেব্রুয়ারি ২০২৬', imageUrl: '/src/assets/images/gallery/1000289015.jpg.jpeg', category: 'recent', location: 'ওসমানীনগর আইসিটি ল্যাব', attendees: '১৮০+ শিক্ষার্থী', orderIndex: 7 },
+    { id: "recent_8", title: 'পরিবেশ সচেতনতা প্রচারাভিযান', description: 'টেকসই উন্নয়নের দিকে সচেতনতা সৃষ্টি ও বৃক্ষরোপণ', date: '০১ ফেব্রুয়ারি ২০২৬', imageUrl: '/src/assets/images/gallery/1000289019.jpg.jpeg', category: 'recent', location: 'বালাগঞ্জ উপজেলা চত্বর', attendees: '৩০০+ সদস্য', orderIndex: 8 },
+    { id: "archive_1", title: 'স্কলারশিপ বিতরণ ২০২৪', description: 'গত বছরের মেধাবৃত্তি কর্মসূচির স্মরণীয় আয়োজন', date: '১৯ মার্চ ২০২৫', imageUrl: '/src/assets/images/gallery/1000289021.jpg.jpeg', category: 'archive', location: 'কাজী নজরুল অডিটোরিয়াম, সিলেট', attendees: '৪৫০+ অংশগ্রহণকারী', orderIndex: 1 },
+    { id: "archive_2", title: 'একাডেমিক সম্মেলন ২০২৪', description: 'শিক্ষাবিদ ও গবেষকদের অংশগ্রহণে জ্ঞানভিত্তিক সমাবেশ', date: '১২ ফেব্রুয়ারি ২০২৫', imageUrl: '/src/assets/images/gallery/1000289022.jpg.jpeg', category: 'archive', location: 'জাতীয় অডিটোরিয়াম', attendees: '৩০০+ অংশগ্রহণকারী', orderIndex: 2 },
+    { id: "archive_3", title: 'দাতব্য ও শীতবস্ত্র বিতরণ কর্মসূচি', description: 'সমাজের প্রতি দায়বদ্ধতার মানবিক আয়োজন', date: '০৫ জানুয়ারি ২০২৫', imageUrl: '/src/assets/images/gallery/1000289029.jpg.jpeg', category: 'archive', location: 'স্থানীয় কমিউনিটি সেন্টার', attendees: '২৫০+ উপকারভোগী', orderIndex: 3 },
+    { id: "archive_4", title: 'নেতৃত্ব বিকাশ ও মেধা অন্বেষণ প্রোগ্রাম', description: 'ভবিষ্যৎ যুব নেতৃত্ব তৈরির বিশেষ কর্মশালা', date: '২৮ ডিসেম্বর ২০২৪', imageUrl: '/src/assets/images/gallery/1000289030.jpg.jpeg', category: 'archive', location: 'সিলেট শিল্পকলা একাডেমি', attendees: '২০০+ তরুণ শিক্ষার্থী', orderIndex: 4 },
+    { id: "archive_5", title: 'সাংস্কৃতিক সন্ধ্যা ও পুরস্কার প্রদান', description: 'ঐতিহ্য, হামদ-নাত এবং সুস্থ সংস্কৃতির মহতী উদযাপন', date: '১৫ অক্টোবর ২০২৪', imageUrl: '/src/assets/images/gallery/1000289031.jpg.jpeg', category: 'archive', location: 'মুসলিম সাহিত্য সংসদ', attendees: '৫০০+ দর্শক', orderIndex: 5 },
+    { id: "archive_6", title: 'দক্ষতা উন্নয়ন ও ক্যারিয়ার ক্যাম্প', description: 'উচ্চশিক্ষা ও ক্যারিয়ার নির্মাণে দিকনির্দেশনা কর্মসূচি', date: '০১ সেপ্টেম্বর ২০২৪', imageUrl: '/src/assets/images/gallery/1000289032.jpg.jpeg', category: 'archive', location: 'ফেঞ্চুগঞ্জ উপজেলা হল', attendees: '৩২০+ শিক্ষার্থী', orderIndex: 6 },
+    { id: "archive_7", title: 'যুব প্রশিক্ষণ ও অলিম্পিয়াড সম্মেলন', description: 'বিজ্ঞান ও গণিত অলিম্পিয়াডের বিজয়ীদের সংবর্ধনা', date: '২৪ আগস্ট ২০২৪', imageUrl: '/src/assets/images/gallery/1000289033.jpg.jpeg', category: 'archive', location: 'শাহজালাল বিশ্ববিদ্যালয় কনফারেন্স রুম', attendees: '২৮০+ অংশগ্রহণকারী', orderIndex: 7 },
+    { id: "archive_8", title: 'সামাজিক দায়বদ্ধতা ও সেবা প্রকল্প', description: 'স্থানীয় সম্প্রদায়ের পাশে দাঁড়ানোর মানবিক উদ্যোগ', date: '০১ জুলাই ২০২৪', imageUrl: '/src/assets/images/gallery/1000289021.jpg.jpeg', category: 'archive', location: 'মোগলাবাজার ইউনিয়ন', attendees: '২০০+ পরিবার', orderIndex: 8 },
+    { id: "documentary_1", title: 'মেধাবৃত্তি গৌরবময় পথচলা - অফিসিয়াল ডকুমেন্টারি', description: 'কিশোরকণ্ঠ মেধাবৃত্তির তিন দশকের সোনালী ইতিহাস ও সাফল্যের গল্প', date: '১২ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000289029.jpg.jpeg', videoUrl: 'https://www.facebook.com/61550084636519/videos/1560922935088975/', category: 'documentary', location: 'সিলেট জেলা পশ্চিম', orderIndex: 1 },
+    { id: "documentary_2", title: 'প্রতিষ্ঠানের উন্নয়ন ও সমাজসেবা যাত্রা', description: 'বছরের বিভিন্ন মাইলফলক, মেধা মূল্যায়ন ও সমাজকল্যাণমূলক কর্মকাণ্ড', date: '৩০ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000289030.jpg.jpeg', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', category: 'documentary', location: 'সিলেট', orderIndex: 2 },
+    { id: "documentary_3", title: 'কৃতী শিক্ষার্থী সাক্ষাৎকার ও অভিজ্ঞতা সিরিজ', description: 'ট্যালেন্টপুল বৃত্তিপ্রাপ্ত মেধাবী শিক্ষার্থীদের অনুপ্রেরণামূলক সাক্ষাৎকার', date: '৩০ মার্চ ২০২৬', imageUrl: '/src/assets/images/gallery/1000289033.jpg.jpeg', videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', category: 'documentary', location: 'সিলেট', orderIndex: 3 }
+  ];
+
+  for (const item of defaultItems) {
+    const docRef = doc(db, COLLECTIONS.GALLERY, item.id);
+    await setDoc(docRef, { ...item, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }, { merge: true });
+  }
+};
+
 // ==================== 4. COMMITTEE SERVICES ====================
 
 export const getCommitteeMembers = async () => {
@@ -1233,18 +1264,18 @@ export const saveContactSettings = async (contactData) => {
 const LOCAL_IMPORTANT_DATES_KEY = "kkmb_important_dates_data";
 
 export const DEFAULT_IMPORTANT_DATES = {
-  examYear: "২০২৫",
-  registrationDeadline: "২০২৫-১০-১৫T23:59:59",
-  registrationDeadlineBn: "১৫ অক্টোবর ২০২৫ (বুধবার)",
-  admitCardReleaseDate: "২০২৫-১০-১৮T00:00:00",
-  admitCardReleaseDateBn: "১৮ অক্টোবর ২০২৫ (শনিবার)",
-  examDate: "২০২৫-১০-২৪T10:00:00",
-  examDateBn: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
+  examYear: "২০২৬",
+  registrationDeadline: "২০২৬-১০-১৫T23:59:59",
+  registrationDeadlineBn: "১৫ অক্টোবর ২০২৬ (বুধবার)",
+  admitCardReleaseDate: "২০২৬-১০-১৮T00:00:00",
+  admitCardReleaseDateBn: "১৮ অক্টোবর ২০২৬ (শনিবার)",
+  examDate: "২০২৬-১০-২৪T10:00:00",
+  examDateBn: "২৪ অক্টোবর ২০২৬ (শুক্রবার)",
   examTimeBn: "সকাল ১০:০০ টা - ১১:৩০ টা",
-  resultPublishDate: "২০২৫-১১-১০T15:00:00",
-  resultPublishDateBn: "১০ নভেম্বর ২০২৫",
-  prizeDistributionDate: "২০২৫-১১-২০",
-  prizeDistributionDateBn: "২০ নভেম্বর ২০২৫",
+  resultPublishDate: "২০২৬-১১-১০T15:00:00",
+  resultPublishDateBn: "১০ নভেম্বর ২০২৬",
+  prizeDistributionDate: "২০২৬-১১-২০",
+  prizeDistributionDateBn: "২০ নভেম্বর ২০২৬",
   activeCountdownTarget: "examDate", // 'registrationDeadline' | 'examDate' | 'resultPublishDate'
 };
 
@@ -1380,26 +1411,168 @@ export const saveAdmitCardSettings = async (settingsData) => {
   return payload;
 };
 
+// ==================== 17.1 BRANDING & LOGO SERVICES ====================
+
+export const DEFAULT_BRANDING_SETTINGS = {
+  logos: [
+    {
+      id: "kkm_main_title",
+      name: "নতুন কিশোরকণ্ঠ মেধাবৃত্তি ২০২৬ (মূল আর্টওয়ার্ক লোগো)",
+      url: "", // Empty string instructs frontend to use bundled KKM LOGO.png
+      type: "title_logo",
+      description: "প্রবেশপত্র ও রেজাল্ট ফটো কার্ডের জন্য রঙিন আর্টওয়ার্ক",
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: "kkm_round_crest",
+      name: "কিশোরকণ্ঠ গোল ক্রেস্ট লোগো (Classic Logo)",
+      url: "", // Empty string instructs frontend to use bundled logo3.png
+      type: "crest_logo",
+      description: "ওয়েবসাইট নেভবার, ফুটার ও সনদের বৃত্তাকার লোগো",
+      createdAt: new Date().toISOString(),
+    },
+  ],
+  placements: {
+    admitCard: "kkm_main_title",
+    resultCard: "kkm_main_title",
+    certificate: "kkm_round_crest",
+    navbar: "kkm_round_crest",
+    footer: "kkm_round_crest",
+  },
+};
+
+const LOCAL_BRANDING_SETTINGS_KEY = "kkm_branding_settings_v1";
+
+export const getBrandingSettings = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "branding");
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        return {
+          ...DEFAULT_BRANDING_SETTINGS,
+          ...data,
+          logos: data.logos && data.logos.length > 0 ? data.logos : DEFAULT_BRANDING_SETTINGS.logos,
+          placements: { ...DEFAULT_BRANDING_SETTINGS.placements, ...(data.placements || {}) },
+        };
+      }
+    } catch (e) {
+      console.warn("Firestore getBrandingSettings fallback:", e);
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(LOCAL_BRANDING_SETTINGS_KEY);
+    if (saved) {
+      const data = JSON.parse(saved);
+      return {
+        ...DEFAULT_BRANDING_SETTINGS,
+        ...data,
+        logos: data.logos && data.logos.length > 0 ? data.logos : DEFAULT_BRANDING_SETTINGS.logos,
+        placements: { ...DEFAULT_BRANDING_SETTINGS.placements, ...(data.placements || {}) },
+      };
+    }
+  } catch (e) {
+    console.warn("localStorage getBrandingSettings error:", e);
+  }
+
+  return DEFAULT_BRANDING_SETTINGS;
+};
+
+export const saveBrandingSettings = async (brandingData) => {
+  const payload = {
+    ...brandingData,
+    updatedAt: new Date().toISOString(),
+  };
+
+  try {
+    localStorage.setItem(LOCAL_BRANDING_SETTINGS_KEY, JSON.stringify(payload));
+  } catch (e) {
+    console.warn("localStorage saveBrandingSettings error:", e);
+  }
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "branding");
+      await setDoc(
+        docRef,
+        {
+          ...payload,
+          serverUpdatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveBrandingSettings fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
 // ==================== 18. MULTI-YEAR ARCHIVE SERVICES ====================
 
 export const getAvailableResultYears = async () => {
-  const years = ["২০২৫", "২০২৪", "২০২৩"];
+  const defaultYears = ["২০২৫", "২০২৪", "২০২৩"];
   if (isFirebaseConfigured()) {
     try {
-      const snapshot = await getDocs(collection(db, COLLECTIONS.RESULTS));
-      if (!snapshot.empty) {
-        const foundYears = new Set(years);
-        snapshot.docs.forEach((d) => {
-          const y = d.data().year;
-          if (y) foundYears.add(y.toString());
+      const [snapshot, settingsSnap] = await Promise.all([
+        getDocs(collection(db, COLLECTIONS.RESULTS)),
+        getDoc(doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC)),
+      ]);
+
+      const foundMap = new Map();
+
+      // Collect from results collection
+      snapshot.docs.forEach((d) => {
+        const y = d.data().year;
+        if (y) {
+          const str = String(y).trim();
+          const eng = str.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+          if (eng && !foundMap.has(eng)) {
+            // Convert to Bengali representation for standard display
+            const bn = eng.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+            foundMap.set(eng, bn);
+          }
+        }
+      });
+
+      // Collect from site settings (custom / archived years)
+      if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        const allConfigured = [
+          ...(Array.isArray(data.custom) ? data.custom : []),
+          ...(Array.isArray(data.archived) ? data.archived : []),
+        ];
+        allConfigured.forEach((y) => {
+          const str = String(y).trim();
+          const eng = str.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+          if (eng && !foundMap.has(eng)) {
+            const bn = eng.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+            foundMap.set(eng, bn);
+          }
         });
-        return Array.from(foundYears).sort((a, b) => b.localeCompare(a));
       }
+
+      // If nothing found in db, fallback to defaults
+      if (foundMap.size === 0) {
+        defaultYears.forEach((y) => {
+          const eng = y.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+          foundMap.set(eng, y);
+        });
+      }
+
+      return Array.from(foundMap.values()).sort((a, b) => {
+        const numA = parseInt(a.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
+        const numB = parseInt(b.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
+        return numB - numA;
+      });
     } catch (e) {
       console.warn("Firestore getAvailableResultYears error:", e);
     }
   }
-  return years;
+  return defaultYears;
 };
 
 /* ---------------------------------------------------------------
@@ -1450,17 +1623,32 @@ export const getArchivedResultYears = async () => {
 
 /**
  * Archives or restores one session. Reads the current list and writes
- * the whole set back, so the stored value never accumulates duplicates
- * and an unknown year can be archived the moment it is uploaded.
+ * the whole set back, normalized to prevent digit-encoding mismatches.
  */
 export const setResultYearArchived = async (year, isArchived) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
 
-  const current = new Set((await readYearSettings()).archived);
-  if (isArchived) current.add(String(year));
-  else current.delete(String(year));
+  const targetEng = String(year).trim().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+  const current = (await readYearSettings()).archived || [];
 
-  const archived = Array.from(current).sort((a, b) => b.localeCompare(a));
+  // Remove existing entries with the same numeric value
+  const filtered = current.filter((y) => {
+    const yEng = String(y).trim().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+    return yEng !== targetEng;
+  });
+
+  if (isArchived) {
+    // Save in standard Bengali format
+    const bnYear = targetEng.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
+    filtered.push(bnYear);
+  }
+
+  const archived = filtered.sort((a, b) => {
+    const numA = parseInt(a.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
+    const numB = parseInt(b.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
+    return numB - numA;
+  });
+
   const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC);
   await setDoc(docRef, { archived, updatedAt: serverTimestamp() }, { merge: true });
 

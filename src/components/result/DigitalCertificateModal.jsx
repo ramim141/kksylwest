@@ -13,9 +13,12 @@ import {
 } from "react-icons/hi2";
 import { FaCrown, FaAward, FaCertificate, FaDownload } from "react-icons/fa";
 import logo from "../../assets/images/logo3.png";
+import { useBranding } from "../../context/BrandingContext";
 
 const DigitalCertificateModal = ({ data, isOpen, onClose }) => {
   const certRef = useRef(null);
+  const { getLogoFor } = useBranding();
+  const currentLogo = getLogoFor("certificate") || logo;
   const [downloading, setDownloading] = useState(false);
 
   if (!isOpen || !data) return null;
@@ -131,7 +134,7 @@ const DigitalCertificateModal = ({ data, isOpen, onClose }) => {
 
             {/* Background Watermark Crest */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-6 pointer-events-none">
-              <img src={logo} alt="Watermark" className="w-96 h-auto grayscale" />
+              <img src={currentLogo} alt="Watermark" className="w-96 h-auto grayscale" />
             </div>
 
             {/* CERTIFICATE CONTENT */}
@@ -140,7 +143,7 @@ const DigitalCertificateModal = ({ data, isOpen, onClose }) => {
               {/* Header: Logo, Organization & Title */}
               <div className="space-y-2">
                 <img
-                  src={logo}
+                  src={currentLogo}
                   alt="KishorKantho Logo"
                   className="h-14 sm:h-16 w-auto mx-auto object-contain drop-shadow-sm"
                 />

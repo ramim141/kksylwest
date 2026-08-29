@@ -14,6 +14,7 @@ import { Swiper, SwiperSlide } from "swiper/react";
 import { Pagination, Autoplay } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/pagination";
+import { useExamYear } from "../../context/ExamYearContext";
 
 const FEATURES = [
   {
@@ -85,8 +86,13 @@ const FEATURES = [
 ];
 
 const FeatureHub = () => {
+  const examYear = useExamYear();
   const [mobileIndex, setMobileIndex] = useState(0);
   const swiperRef = useRef(null);
+
+  const features = FEATURES.map((f) =>
+    f.id === "search" ? { ...f, badge: examYear } : f
+  );
 
   return (
     <section className="relative w-full px-3 sm:px-6 py-10 sm:py-16 bg-[#0b1326] text-white border-b border-white/[0.08]">
@@ -110,7 +116,7 @@ const FeatureHub = () => {
 
         {/* Desktop Grid View */}
         <div className="hidden gap-5 md:grid md:grid-cols-2 lg:grid-cols-3 stagger-in">
-          {FEATURES.map((item) => {
+          {features.map((item) => {
             const Icon = item.icon;
             return (
               <Link
@@ -173,7 +179,7 @@ const FeatureHub = () => {
             }}
             className="w-full !px-1 !py-1"
           >
-            {FEATURES.map((item) => {
+            {features.map((item) => {
               const Icon = item.icon;
               return (
                 <SwiperSlide key={item.id} className="h-auto">

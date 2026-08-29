@@ -1,8 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { HiPencilSquare, HiAcademicCap, HiSparkles } from 'react-icons/hi2';
+import { useExamYear } from '../../context/ExamYearContext';
 
 const CallToAction = () => {
+  const examYear = useExamYear();
   return (
     <section className="section bg-surface py-12 sm:py-16 w-full px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
@@ -26,12 +28,12 @@ const CallToAction = () => {
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/20 backdrop-blur-md border border-emerald-400/30 text-xs font-bold uppercase tracking-wider text-emerald-200">
               <HiSparkles className="text-amber-400 text-sm" />
-              <span>নিবন্ধন সেশন ২০২৬</span>
+              <span>নিবন্ধন সেশন {examYear}</span>
             </div>
 
             {/* Main Headline */}
             <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
-              মেধাবৃত্তি ২০২৬ রেজিস্ট্রেশন
+              মেধাবৃত্তি {examYear} রেজিস্ট্রেশন
             </h2>
 
             {/* Description */}
