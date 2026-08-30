@@ -18,16 +18,19 @@ const TABS = [
   {
     key: 'recent',
     label: 'সাম্প্রতিক অ্যালবাম',
+    mobileLabel: 'সাম্প্রতিক',
     icon: HiSparkles,
   },
   {
     key: 'archive',
     label: 'আর্কাইভ কালেকশন',
+    mobileLabel: 'আর্কাইভ',
     icon: HiArchiveBox,
   },
   {
     key: 'documentary',
     label: 'ডকুমেন্টারি ও ভিডিও',
+    mobileLabel: 'ডকুমেন্টারি',
     icon: HiVideoCamera,
   },
 ];
@@ -137,23 +140,25 @@ const GalleryGrid = () => {
       <div className="max-w-7xl mx-auto space-y-8 sm:space-y-12 relative z-10">
         
         {/* FILTER TABS DOCK */}
-        <div className="flex justify-center">
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#14162b] border border-white/10 shadow-2xl backdrop-blur-xl">
+        <div className="flex justify-center w-full">
+          <div className="grid grid-cols-3 w-full max-w-2xl p-1 sm:p-1.5 rounded-2xl bg-[#14162b] border border-white/10 shadow-2xl backdrop-blur-xl gap-1 sm:gap-1.5">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
+                  type="button"
                   onClick={() => handleTabChange(tab.key)}
-                  className={`flex items-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-bold cursor-pointer press ${
+                  className={`flex items-center justify-center gap-1.5 sm:gap-2 px-2 sm:px-5 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-bold cursor-pointer transition-all duration-200 select-none ${
                     active
                       ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 scale-[1.02]'
                       : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
                   }`}
                 >
-                  <Icon className="text-base" />
-                  <span>{tab.label}</span>
+                  <Icon className="text-sm sm:text-base shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">{tab.label}</span>
+                  <span className="sm:hidden whitespace-nowrap">{tab.mobileLabel}</span>
                 </button>
               );
             })}

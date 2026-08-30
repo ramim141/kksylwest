@@ -12,6 +12,7 @@ import {
   HiTag,
   HiUsers,
   HiVideoCamera,
+  HiCheckCircle,
 } from 'react-icons/hi2';
 import { galleryData } from './galleryData';
 import { documentaryDetailsData } from './documentaryDetailsData';
@@ -24,210 +25,23 @@ const getRelatedDocumentaries = (id) =>
   galleryData.documentary?.filter((documentary) => String(documentary.id) !== String(id)) ?? [];
 
 const getAutoplayVideoUrl = (videoUrl = '') => {
-  if (!videoUrl) {
-    return '';
-  }
-
+  if (!videoUrl) return '';
   const separator = videoUrl.includes('?') ? '&' : '?';
-
   return `${videoUrl}${separator}autoplay=1&rel=0`;
-};
-
-const infoItems = (item) => [
-  {
-    id: 'date',
-    icon: HiCalendarDays,
-    label: 'প্রকাশের তারিখ',
-    value: item.date,
-    className: 'bg-secondary/10 text-secondary',
-  },
-  {
-    id: 'location',
-    icon: HiMapPin,
-    label: 'অবস্থান',
-    value: item.location,
-    className: 'bg-tertiary/10 text-tertiary',
-  },
-  {
-    id: 'attendees',
-    icon: HiUsers,
-    label: 'দর্শক',
-    value: item.attendees,
-    className: 'bg-primary/10 text-primary',
-  },
-];
-
-const GalleryDocumentaryDetailsHero = ({ item, posterImage, autoplayVideoUrl, onBack, onShare }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const playVideo = () => {
-    setIsPlaying(true);
-  };
-
-  return (
-    <section
-      className="relative overflow-hidden text-white"
-      style={{ backgroundColor: '#071f1b' }}
-    >
-      <div className="absolute inset-0" style={{ backgroundColor: '#071f1b' }} />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(135deg, rgba(13,116,99,0.52) 0%, rgba(7,31,27,0.98) 48%, rgba(8,145,178,0.38) 100%)',
-        }}
-      />
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(circle at 18% 18%, rgba(245,158,11,0.18), transparent 30%), radial-gradient(circle at 84% 22%, rgba(6,182,212,0.16), transparent 32%)',
-        }}
-      />
-      <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface-card to-transparent" />
-
-      <div className="container relative z-10 mx-auto max-w-7xl px-4 pb-12 pt-24 sm:px-6 sm:pb-16 sm:pt-28 lg:px-8 lg:pb-20 lg:pt-32">
-        <button
-          onClick={onBack}
-          className="group mb-7 inline-flex max-w-full items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2.5 text-white backdrop-blur-md transition-all duration-300 hover:bg-surface-card hover:text-primary"
-        >
-          <HiArrowLeft className="h-5 w-5 flex-shrink-0 transition-transform group-hover:-translate-x-1" />
-          <span className="truncate text-sm font-semibold">গ্যালারিতে ফিরুন</span>
-        </button>
-
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
-          <div className="mx-auto max-w-3xl text-center lg:mx-0 lg:text-left">
-            <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-secondary/30 bg-secondary/15 px-4 py-2 text-xs font-bold uppercase tracking-wider text-secondary-100 backdrop-blur-md">
-              <HiPlayCircle className="h-4 w-4 flex-shrink-0" />
-              Documentary Feature
-            </div>
-
-            <div className="mb-4 flex min-w-0 items-center justify-center gap-2 text-sm font-medium text-primary-100/80 lg:justify-start">
-              <span>গ্যালারি</span>
-              <span className="text-primary-300/60">/</span>
-              <span>ডকুমেন্টারি</span>
-              <span className="text-primary-300/60">/</span>
-              <span className="truncate font-semibold text-white">{item.title}</span>
-            </div>
-
-            <h1 className="break-words text-3xl font-extrabold leading-tight min-[380px]:text-4xl sm:text-5xl lg:text-6xl">
-              {item.title}
-            </h1>
-            <p className="mx-auto mt-5 max-w-2xl break-words text-sm leading-relaxed text-primary-50/85 min-[380px]:text-base sm:text-lg lg:mx-0">
-              {item.shortDescription}
-            </p>
-
-            <div className="mx-auto mt-6 flex max-w-3xl flex-wrap justify-center gap-2.5 lg:mx-0 lg:justify-start">
-              {infoItems(item).map((info) => (
-                <div
-                  key={info.id}
-                  className="inline-flex min-h-12 max-w-full items-center gap-3 rounded-lg border border-white/15 bg-white/10 px-3 py-2 text-left backdrop-blur-md"
-                >
-                  <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded ${info.className}`}>
-                    <info.icon className="h-5 w-5" />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-[11px] font-bold uppercase tracking-wider text-primary-50/60">
-                      {info.label}
-                    </span>
-                    <span className="block truncate text-sm font-bold text-white sm:max-w-[14rem]">
-                      {info.value}
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-7 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center lg:justify-start">
-              <button
-                type="button"
-                onClick={playVideo}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-secondary/15 px-5 py-3.5 text-sm font-bold text-primary shadow-[0_18px_40px_-24px_rgba(245,158,11,0.85)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-secondary/15 sm:w-auto sm:px-6 sm:text-base"
-              >
-                <HiPlayCircle className="h-5 w-5" />
-                ভিডিও দেখুন
-              </button>
-              <button
-                type="button"
-                onClick={onShare}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 px-5 py-3.5 text-sm font-bold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15 sm:w-auto sm:px-6 sm:text-base"
-              >
-                <HiOutlineShare className="h-5 w-5" />
-                শেয়ার করুন
-              </button>
-            </div>
-          </div>
-
-          <div className="relative mx-auto w-full max-w-[560px] lg:mx-0 lg:ml-auto">
-            <div className="absolute -inset-2 rounded-[1.75rem] border border-white/10 bg-white/5 shadow-overlay sm:-inset-3 sm:rounded-[2rem]" />
-            <div className="relative overflow-hidden rounded-[1.35rem] border border-white/15 bg-surface-lowest shadow-[0_30px_90px_-45px_rgba(0,0,0,0.9)] sm:rounded-[1.75rem]">
-              {isPlaying ? (
-                <iframe
-                  className="aspect-video h-full w-full"
-                  src={autoplayVideoUrl}
-                  title={item.title}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              ) : (
-                <>
-                  {posterImage ? (
-                    <img
-                      src={posterImage}
-                      alt={item.title}
-                      className="aspect-video h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex aspect-video items-center justify-center bg-primary-900">
-                      <HiVideoCamera className="h-24 w-24 text-white/25" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-                  <button
-                    type="button"
-                    onClick={playVideo}
-                    className="absolute left-1/2 top-1/2 flex h-16 w-16 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/45 bg-white/25 text-white shadow-overlay backdrop-blur-md transition-all duration-300 hover:scale-105 hover:bg-surface-card hover:text-primary sm:h-20 sm:w-20"
-                    aria-label="ভিডিও দেখুন"
-                  >
-                    <HiPlayCircle className="h-11 w-11 sm:h-12 sm:w-12" />
-                  </button>
-                  <div className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-full border border-white/25 bg-black/45 px-3 py-1.5 text-xs font-bold text-white backdrop-blur-md">
-                    <HiVideoCamera className="h-4 w-4 text-secondary" />
-                    Watch Documentary
-                  </div>
-                  <div className="absolute bottom-4 left-4 right-4 text-white sm:bottom-5 sm:left-5 sm:right-5">
-                    <p className="text-xs font-bold uppercase tracking-wider text-secondary-100/85">Now Showing</p>
-                    <p className="mt-1 line-clamp-2 break-words text-lg font-extrabold leading-snug sm:text-2xl">
-                      {item.title}
-                    </p>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="relative mt-4 rounded-lg border border-white/15 bg-white/10 p-4 backdrop-blur-md">
-              <p className="flex items-center gap-2 text-sm font-bold text-primary-50">
-                <HiSparkles className="h-5 w-5 text-secondary" />
-                ডকুমেন্টারি ভিডিও, সারাংশ ও সংশ্লিষ্ট তথ্য এক জায়গায়।
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
 };
 
 const GalleryDocumentaryDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [item, setItem] = useState(() => documentaryDetailsData[Number(id)] || documentaryDetailsData[id]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const documentaryCard = getDocumentaryCard(id);
   const relatedDocumentaries = getRelatedDocumentaries(id);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    setIsPlaying(false);
     if (!item) {
       getGalleryItems('documentary').then((list) => {
         const found = list?.find((x) => String(x.id) === String(id));
@@ -242,8 +56,9 @@ const GalleryDocumentaryDetails = () => {
             fullDescription: found.description,
             attendees: found.attendees || '৫০০+ শিক্ষার্থী',
             videoUrl: found.videoUrl || 'https://www.youtube.com/embed/dQw4w9WgXcQ',
-            images: [found.imageUrl || found.thumbUrl],
-            highlights: ['অনুষ্ঠানের দৃশ্যমালা', 'শিক্ষার্থীদের অনুভূতি'],
+            images: [found.imageUrl || found.thumbUrl].filter(Boolean),
+            highlights: ['অনুষ্ঠানের দৃশ্যমালা', 'শিক্ষার্থীদের অনুভূতি ও সাক্ষাৎকার'],
+            tags: ['ডকুমেন্টারি', 'মেধাবৃত্তি', 'ভিডিও'],
             relatedDocumentaries: [],
           });
         }
@@ -253,12 +68,16 @@ const GalleryDocumentaryDetails = () => {
 
   if (!item) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-surface-card to-surface-card">
-        <div className="space-y-6 text-center">
-          <h1 className="text-3xl font-bold text-ink-strong">ডকুমেন্টারি লোড হচ্ছে...</h1>
+      <div className="flex min-h-screen items-center justify-center bg-[#0b1326] text-white px-4">
+        <div className="space-y-6 text-center max-w-md">
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-3xl">
+            <HiVideoCamera />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-black text-white">ডকুমেন্টারি পাওয়া যায়নি</h1>
+          <p className="text-xs sm:text-sm text-slate-400">অনুরোধকৃত ডকুমেন্টারি ভিডিওটি খুঁজে পাওয়া যায়নি।</p>
           <button
             onClick={() => navigate('/gallery')}
-            className="rounded bg-gradient-to-r from-primary-container to-tertiary-container px-8 py-3 font-semibold text-white cursor-pointer"
+            className="rounded-full bg-indigo-600 hover:bg-indigo-500 px-8 py-3 text-xs sm:text-sm font-bold text-white transition-all duration-200 shadow-lg shadow-indigo-500/25 cursor-pointer"
           >
             গ্যালারিতে ফিরুন
           </button>
@@ -273,7 +92,7 @@ const GalleryDocumentaryDetails = () => {
   const handleShare = async () => {
     const shareData = {
       title: item.title,
-      text: item.shortDescription,
+      text: item.shortDescription || item.title,
       url: window.location.href,
     };
 
@@ -282,164 +101,303 @@ const GalleryDocumentaryDetails = () => {
         await navigator.share(shareData);
         return;
       } catch {
-        // User may cancel share; fallback handled below.
+        // User cancelled
       }
     }
 
     try {
       await navigator.clipboard.writeText(window.location.href);
-      window.alert('লিংক কপি হয়েছে');
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2500);
     } catch {
-      window.alert('শেয়ার করা যায়নি, অনুগ্রহ করে ম্যানুয়ালি লিংক কপি করুন');
+      window.alert('লিংক কপি করা যায়নি');
     }
   };
 
-  if (!item) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-surface-card to-surface-card px-4">
-        <div className="max-w-md space-y-5 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-lg bg-error-container text-error">
-            <HiVideoCamera className="h-8 w-8" />
-          </div>
-          <h2 className="text-2xl font-bold text-ink-strong">তথ্য পাওয়া যায়নি!</h2>
-          <button
-            onClick={() => navigate('/gallery')}
-            className="rounded-full bg-primary-700 px-6 py-3 font-bold text-white transition-colors hover:bg-primary-800"
-          >
-            গ্যালারিতে ফিরে যান
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#ffffff_0%,#effbf7_40%,#ffffff_100%)] pb-14 selection:bg-primary/15 selection:text-primary sm:pb-20">
-      <GalleryDocumentaryDetailsHero
-        item={item}
-        posterImage={posterImage}
-        autoplayVideoUrl={autoplayVideoUrl}
-        onBack={() => navigate('/gallery')}
-        onShare={handleShare}
-      />
+    <div className="min-h-screen bg-[#0b1326] text-white pb-14 sm:pb-20">
+      
+      {/* Hero & Video Stage */}
+      <section className="relative overflow-hidden bg-[#070913] text-white border-b border-white/[0.08]">
+        {/* Soft Ambience Glow */}
+        <div className="pointer-events-none absolute -left-20 top-1/3 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 top-1/2 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
 
-      <div className="container mx-auto max-w-7xl px-3 py-8 sm:px-6 sm:py-10 md:py-16 lg:px-8">
-        <div className="grid items-start gap-6 lg:grid-cols-12 lg:gap-12">
-          <main className="space-y-6 sm:space-y-8 lg:col-span-8">
-            <section className="relative overflow-hidden rounded-xl border border-primary/25 bg-surface-card p-5 shadow-[0_24px_70px_-48px_rgba(6,95,70,0.5)] sm:rounded-[2rem] sm:p-10">
-              <div className="absolute left-0 top-0 h-full w-1.5 bg-gradient-to-b from-primary-container via-tertiary to-tertiary" />
-              <div className="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-line-soft bg-surface-card px-3 py-2 text-sm font-bold text-primary sm:mb-6 sm:px-4">
-                <HiDocumentText className="h-5 w-5 flex-shrink-0" />
-                ডকুমেন্টারি সারাংশ
+        <div className="relative z-10 w-full px-4 pt-6 pb-10 sm:px-6 sm:pt-8 sm:pb-14 md:pt-10 md:pb-16 max-w-7xl mx-auto space-y-6">
+          
+          {/* Top Bar & Breadcrumbs */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/gallery')}
+              className="group inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#14162b]/80 px-3.5 sm:px-4 py-2 text-xs sm:text-sm font-bold text-slate-200 backdrop-blur-md transition-all duration-300 hover:bg-indigo-600 hover:text-white hover:border-indigo-500 shadow-md cursor-pointer"
+            >
+              <HiArrowLeft className="h-4 w-4 shrink-0 transition-transform group-hover:-translate-x-1" />
+              <span>গ্যালারিতে ফিরুন</span>
+            </button>
+
+            <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
+              <span className="cursor-pointer hover:text-indigo-300" onClick={() => navigate('/gallery')}>গ্যালারি</span>
+              <span>/</span>
+              <span>ডকুমেন্টারি</span>
+              <span>/</span>
+              <span className="text-emerald-400 font-semibold truncate max-w-[140px] sm:max-w-[220px]">{item.title}</span>
+            </div>
+          </div>
+
+          {/* Grid Layout: Header Info & Video Player */}
+          <div className="grid items-center gap-6 sm:gap-8 lg:grid-cols-12 lg:gap-10">
+            
+            {/* Left Content (6 cols) */}
+            <div className="space-y-4 sm:space-y-6 lg:col-span-6">
+              
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 text-xs font-bold text-rose-300 backdrop-blur-md">
+                <HiPlayCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                <span>ভিডিও ফিচার ও তথ্যচিত্র</span>
               </div>
 
-              <h2 className="mb-5 break-words text-lg font-bold leading-snug text-primary sm:text-2xl">
-                {item.shortDescription}
-              </h2>
-              <div className="mb-8 h-1 w-16 rounded-full bg-surface-card/20" />
-
-              <div className="space-y-5 break-words text-[15px] leading-loose text-ink-muted sm:text-base">
-                {item.fullDescription?.split('\n').map((paragraph, index) => (
-                  paragraph.trim() ? <p key={index}>{paragraph}</p> : null
-                ))}
+              <div className="space-y-2.5">
+                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight leading-tight">
+                  {item.title}
+                </h1>
+                {item.shortDescription && (
+                  <p className="text-xs sm:text-base text-slate-300 leading-relaxed max-w-2xl font-normal">
+                    {item.shortDescription}
+                  </p>
+                )}
               </div>
-            </section>
-          </main>
 
-          <aside className="space-y-5 sm:space-y-6 lg:sticky lg:top-24 lg:col-span-4">
-            <section className="overflow-hidden rounded-xl border border-primary/25 bg-surface-card shadow-[0_24px_70px_-48px_rgba(6,95,70,0.45)] sm:rounded-[2rem]">
-              <div className="bg-surface-card px-5 py-5 text-white sm:px-8 sm:py-6">
-                <h3 className="flex items-center gap-2 text-lg font-bold">
-                  <HiSparkles className="h-5 w-5 text-secondary" />
-                  ভিডিও তথ্য
-                </h3>
-              </div>
-              <div className="space-y-5 p-5 sm:p-8">
-                {infoItems(item).map((info) => (
-                  <div key={info.id} className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded ${info.className}`}>
-                      <info.icon className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-ink-muted">{info.label}</p>
-                      <p className="break-words font-semibold text-ink-strong">{info.value}</p>
-                    </div>
+              {/* Quick Meta Chips */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {item.date && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#14162b] border border-white/10 text-xs font-semibold text-slate-300 shadow-sm">
+                    <HiCalendarDays className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span>{item.date}</span>
                   </div>
-                ))}
-              </div>
-            </section>
+                )}
 
+                {item.location && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#14162b] border border-white/10 text-xs font-semibold text-slate-300 shadow-sm">
+                    <HiMapPin className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>{item.location}</span>
+                  </div>
+                )}
+
+                {item.attendees && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#14162b] border border-white/10 text-xs font-semibold text-slate-300 shadow-sm">
+                    <HiUsers className="w-4 h-4 text-sky-400 shrink-0" />
+                    <span>{item.attendees}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPlaying(true)}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white font-bold text-xs sm:text-sm shadow-lg shadow-rose-600/30 transition cursor-pointer active:scale-95"
+                >
+                  <HiPlayCircle className="text-lg" />
+                  <span>এখনই দেখুন</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-white font-bold text-xs sm:text-sm transition cursor-pointer"
+                >
+                  {isCopied ? (
+                    <>
+                      <HiCheckCircle className="text-base text-emerald-300" />
+                      <span>লিংক কপি হয়েছে</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiOutlineShare className="text-base" />
+                      <span>শেয়ার করুন</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+            </div>
+
+            {/* Right Video Showcase (6 cols) */}
+            <div className="lg:col-span-6">
+              <div className="relative mx-auto w-full max-w-lg">
+                <div className="absolute -inset-1.5 rounded-3xl bg-gradient-to-r from-rose-500/25 to-indigo-500/25 blur-lg opacity-70" />
+                
+                <div className="relative aspect-video rounded-2xl sm:rounded-3xl overflow-hidden border border-white/15 bg-[#090a16] shadow-2xl">
+                  {isPlaying ? (
+                    <iframe
+                      className="w-full h-full"
+                      src={autoplayVideoUrl || item.videoUrl}
+                      title={item.title}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : (
+                    <div className="relative w-full h-full group">
+                      {posterImage ? (
+                        <img
+                          src={posterImage}
+                          alt={item.title}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-[#090a16] text-slate-600">
+                          <HiVideoCamera className="w-16 h-16" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                      
+                      {/* Play Button Overlay */}
+                      <button
+                        type="button"
+                        onClick={() => setIsPlaying(true)}
+                        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white flex items-center justify-center shadow-2xl transition-transform hover:scale-110 active:scale-95 cursor-pointer border border-white/30 backdrop-blur-sm"
+                        aria-label="ভিডিও চালু করুন"
+                      >
+                        <HiPlayCircle className="text-3xl sm:text-4xl" />
+                      </button>
+
+                      {/* Video Tag */}
+                      <div className="absolute top-3 left-3 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white">
+                        <HiVideoCamera className="text-rose-400" />
+                        <span>Watch Video</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* Main Body Details */}
+      <div className="w-full px-3.5 sm:px-6 py-6 sm:py-10 max-w-7xl mx-auto">
+        <div className="grid items-start gap-6 lg:grid-cols-12 lg:gap-10">
+          
+          {/* Main Description (8 cols) */}
+          <div className="space-y-5 sm:space-y-6 lg:col-span-8">
+            
+            <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0f1124] p-4 sm:p-8 shadow-2xl space-y-4">
+              <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/15 px-3.5 py-1 text-xs font-bold text-indigo-300">
+                <HiDocumentText className="text-sm text-emerald-400" />
+                <span>ডকুমেন্টারি সারাংশ ও প্রেক্ষাপট</span>
+              </div>
+
+              <h2 className="text-lg sm:text-2xl font-black text-white leading-snug">
+                {item.title}
+              </h2>
+
+              <div className="space-y-3.5 text-xs sm:text-sm text-slate-300 leading-relaxed font-normal pt-2 border-t border-white/[0.08]">
+                {item.fullDescription ? (
+                  item.fullDescription.split('\n').map((paragraph, index) => (
+                    paragraph.trim() ? <p key={index}>{paragraph}</p> : null
+                  ))
+                ) : (
+                  <p>{item.shortDescription}</p>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Sidebar (4 cols) */}
+          <div className="space-y-5 sm:space-y-6 lg:sticky lg:top-24 lg:col-span-4">
+            
+            {/* Tags */}
             {item.tags && item.tags.length > 0 && (
-              <section className="rounded-xl border border-line-soft bg-surface-card p-5 shadow-[0_24px_70px_-48px_rgba(6,95,70,0.45)] sm:rounded-[2rem] sm:p-8">
-                <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-ink-strong">
-                  <HiTag className="h-5 w-5 text-primary" />
-                  ট্যাগসমূহ
+              <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0f1124] p-5 sm:p-6 shadow-2xl space-y-3">
+                <h3 className="flex items-center gap-2 text-sm sm:text-base font-black text-white border-b border-white/[0.08] pb-2.5">
+                  <HiTag className="text-indigo-400 text-base" />
+                  <span>ট্যাগসমূহ</span>
                 </h3>
-                <div className="flex flex-wrap gap-2.5">
+                <div className="flex flex-wrap gap-1.5">
                   {item.tags.map((tag, index) => (
                     <span
                       key={index}
-                      className="break-words rounded-full border border-line-soft bg-surface-card px-3 py-2 text-sm font-medium text-ink-muted transition-colors hover:border-line-soft/30 hover:bg-primary/10 hover:text-primary sm:px-4"
+                      className="px-3 py-1 rounded-lg bg-white/[0.05] border border-white/10 text-xs font-semibold text-slate-300"
                     >
                       #{tag}
                     </span>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
+            {/* Related Documentaries */}
             {relatedDocumentaries.length > 0 && (
-              <section className="rounded-xl border border-primary/25 bg-surface-card p-5 shadow-[0_24px_70px_-48px_rgba(6,95,70,0.45)] sm:rounded-[2rem] sm:p-8">
-                <h3 className="mb-5 flex items-center gap-2 text-lg font-bold text-ink-strong">
-                  <HiPhoto className="h-5 w-5 text-primary" />
-                  আরও ডকুমেন্টারি
+              <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0f1124] p-5 sm:p-6 shadow-2xl space-y-3.5">
+                <h3 className="flex items-center gap-2 text-sm sm:text-base font-black text-white border-b border-white/[0.08] pb-2.5">
+                  <HiPhoto className="text-emerald-400 text-base" />
+                  <span>আরও ডকুমেন্টারি</span>
                 </h3>
-                <div className="space-y-3">
-                  {relatedDocumentaries.map((documentary) => (
+
+                <div className="space-y-2.5">
+                  {relatedDocumentaries.map((doc) => (
                     <button
-                      key={documentary.id}
+                      key={doc.id}
                       type="button"
-                      onClick={() => navigate(`/gallery/documentary/${documentary.id}`)}
-                      className="group flex w-full items-center gap-3 rounded-lg border border-line-soft bg-surface-card p-2 text-left transition-all duration-300 hover:border-primary/25 hover:bg-primary/10"
+                      onClick={() => navigate(`/gallery/documentary/${doc.id}`)}
+                      className="group flex w-full items-center gap-3 rounded-xl border border-white/10 bg-[#14162b] p-2.5 text-left transition hover:border-indigo-400/40 hover:bg-white/[0.06] cursor-pointer"
                     >
-                      <img
-                        src={documentary.image}
-                        alt={documentary.title}
-                        className="h-16 w-20 flex-shrink-0 rounded object-cover"
-                      />
-                      <span className="min-w-0">
-                        <span className="line-clamp-2 break-words text-sm font-bold leading-snug text-ink-strong group-hover:text-primary">
-                          {documentary.title}
+                      <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-black">
+                        <img
+                          src={doc.image}
+                          alt={doc.title}
+                          className="h-full w-full object-cover transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <HiPlayCircle className="text-white text-lg" />
+                        </div>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="line-clamp-1 text-xs sm:text-sm font-bold text-white group-hover:text-indigo-300 transition-colors">
+                          {doc.title}
+                        </h4>
+                        <span className="text-[11px] text-slate-400 block mt-0.5">
+                          {doc.date}
                         </span>
-                        <span className="mt-1 block truncate text-xs font-medium text-ink-muted">
-                          {documentary.date}
-                        </span>
-                      </span>
+                      </div>
                     </button>
                   ))}
                 </div>
-              </section>
+              </div>
             )}
 
-            <div className="flex flex-col gap-3 pt-2">
+            {/* Share & Back Navigation */}
+            <div className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-white/10 bg-[#0f1124] shadow-2xl space-y-3">
               <button
+                type="button"
                 onClick={handleShare}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-line-soft bg-surface-card px-4 py-3.5 font-bold text-white shadow-[0_18px_40px_-24px_rgba(6,95,70,0.8)] transition-colors hover:bg-surface-card sm:py-4"
+                className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/25 transition cursor-pointer active:scale-95"
               >
-                <HiOutlineShare className="h-5 w-5 stroke-2" />
-                শেয়ার করুন
+                <HiOutlineShare className="text-base" />
+                <span>ডকুমেন্টারি শেয়ার করুন</span>
               </button>
+
               <button
+                type="button"
                 onClick={() => navigate('/gallery')}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-line-soft bg-surface-card px-4 py-3.5 font-bold text-primary shadow-[0_4px_20px_-8px_rgba(13,116,99,0.08)] transition-colors hover:bg-surface-card hover:shadow-[0_4px_20px_-6px_rgba(13,116,99,0.15)] sm:py-4"
+                className="w-full py-3 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-slate-200 hover:text-white font-bold text-xs sm:text-sm transition cursor-pointer text-center flex items-center justify-center gap-2"
               >
-                <HiArrowLeft className="h-5 w-5 stroke-2" />
-                গ্যালারিতে ফিরুন
+                <HiArrowLeft className="text-base" />
+                <span>সব গ্যালারি দেখুন</span>
               </button>
             </div>
-          </aside>
+
+          </div>
+
         </div>
       </div>
+
     </div>
   );
 };

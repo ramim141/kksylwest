@@ -7,8 +7,6 @@ import {
   HiArrowRight,
   HiFire,
   HiCheckCircle,
-  HiIdentification,
-  HiDocumentText,
 } from "react-icons/hi2";
 import { FaHourglassHalf, FaCalendarCheck } from "react-icons/fa";
 import { getImportantDates, DEFAULT_IMPORTANT_DATES } from "../../services/firestore";
@@ -165,24 +163,22 @@ const ImportantDatesCountdown = () => {
             <div className="flex flex-wrap gap-3 justify-center lg:justify-start pt-2">
               <Link
                 to="/scholarship"
-                className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 transition cursor-pointer flex items-center gap-2"
+                className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_22px_-2px_rgba(16,185,129,0.55)] hover:shadow-[0_0_34px_0px_rgba(16,185,129,0.75)] transition-shadow duration-300 cursor-pointer flex items-center justify-center"
               >
-                <HiDocumentText className="text-base" />
                 <span>অনলাইন রেজিস্ট্রেশন করুন</span>
               </Link>
 
               <Link
                 to="/admit-card"
-                className="px-5 py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-white/10 transition cursor-pointer flex items-center gap-2"
+                className="px-6 py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] text-slate-200 hover:text-white font-bold text-xs sm:text-sm border border-indigo-400/40 hover:border-indigo-300/70 shadow-[0_0_20px_-4px_rgba(99,102,241,0.55)] hover:shadow-[0_0_32px_-2px_rgba(99,102,241,0.8)] transition-shadow duration-300 cursor-pointer flex items-center justify-center"
               >
-                <HiIdentification className="text-base text-indigo-400" />
                 <span>প্রবেশপত্র ডাউনলোড</span>
               </Link>
             </div>
           </div>
 
           {/* Right Column: Important Timeline Matrix (5 Cols) */}
-          <div className="lg:col-span-5 space-y-3 bg-[#090a16]/80 p-5 sm:p-6 rounded-2xl border border-white/10">
+          <div className="lg:col-span-5 space-y-3 p-5 sm:p-6 rounded-2xl bg-gradient-to-br from-[#1b1e3d] via-[#161936] to-[#12152c] border border-indigo-400/30 shadow-[0_0_34px_-8px_rgba(99,102,241,0.55)] hover:border-indigo-300/50 hover:shadow-[0_0_44px_-6px_rgba(99,102,241,0.75)] transition-shadow duration-300">
             <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider flex items-center gap-2 border-b border-white/10 pb-3">
               <FaCalendarCheck className="text-emerald-400" />
               <span>গুরুত্বপূর্ণ তারিখ ও সময়সূচী</span>

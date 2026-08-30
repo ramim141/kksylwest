@@ -138,7 +138,7 @@ const Navbar = () => {
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
               
               {/* Left: Colored Bullet + Announcement Text */}
-              <div className="flex items-center gap-2 overflow-hidden truncate">
+              <div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
                 <span
                   className={`w-2 h-2 rounded-full shrink-0 ${
                     announcement.badgeType === "urgent"
@@ -150,22 +150,37 @@ const Navbar = () => {
                       : "bg-indigo-400 shadow-sm shadow-indigo-400/50"
                   }`}
                 />
-                <p className="truncate text-xs font-medium text-slate-300">
-                  <span
-                    className={`font-bold ${
-                      announcement.badgeType === "urgent"
-                        ? "text-rose-400"
-                        : announcement.badgeType === "success"
-                        ? "text-emerald-400"
-                        : announcement.badgeType === "amber"
-                        ? "text-amber-300"
-                        : "text-indigo-300"
-                    }`}
-                  >
-                    {announcement.title}
-                  </span>{" "}
-                  — {announcement.message}
-                </p>
+
+                {/* Marquee. Two identical copies sit side by side and the pair
+                    slides left by exactly half its own width, so the moment the
+                    first copy leaves the second is already in its place and the
+                    loop point is invisible. Hover pauses it (see index.css). */}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <div className="flex w-max animate-marquee will-change-transform">
+                    {[0, 1].map((copy) => (
+                      <p
+                        key={copy}
+                        aria-hidden={copy === 1}
+                        className="whitespace-nowrap pr-16 text-xs font-medium text-slate-300"
+                      >
+                        <span
+                          className={`font-bold ${
+                            announcement.badgeType === "urgent"
+                              ? "text-rose-400"
+                              : announcement.badgeType === "success"
+                              ? "text-emerald-400"
+                              : announcement.badgeType === "amber"
+                              ? "text-amber-300"
+                              : "text-indigo-300"
+                          }`}
+                        >
+                          {announcement.title}
+                        </span>{" "}
+                        — {announcement.message}
+                      </p>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               {/* Right: Quick Action Link */}

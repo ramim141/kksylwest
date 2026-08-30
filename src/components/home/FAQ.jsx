@@ -89,6 +89,8 @@ const FAQ = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openIndex, setOpenIndex] = useState(0);
+  const [activeCategoryIndex, setActiveCategoryIndex] = useState(0);
+  const categoryScrollRef = React.useRef(null);
 
   useEffect(() => {
     getFaqs().then((data) => {
@@ -108,6 +110,40 @@ const FAQ = () => {
     });
   }, []);
 
+  const handleCategoryClick = (catId, index) => {
+    setSelectedCategory(catId);
+    setActiveCategoryIndex(index);
+    if (categoryScrollRef.current) {
+      const container = categoryScrollRef.current;
+      const buttons = container.querySelectorAll('button');
+      const targetBtn = buttons[index];
+      if (targetBtn) {
+        const btnLeft = targetBtn.offsetLeft;
+        const btnWidth = targetBtn.offsetWidth;
+        const containerWidth = container.offsetWidth;
+        const targetScrollLeft = btnLeft - (containerWidth / 2) + (btnWidth / 2);
+        
+        container.scrollTo({
+          left: Math.max(0, targetScrollLeft),
+          behavior: 'smooth'
+        });
+      }
+    }
+  };
+
+  const handleScroll = () => {
+    if (!categoryScrollRef.current) return;
+    const container = categoryScrollRef.current;
+    const scrollLeft = container.scrollLeft;
+    const maxScrollLeft = container.scrollWidth - container.clientWidth;
+    
+    if (maxScrollLeft > 0) {
+      const scrollRatio = scrollLeft / maxScrollLeft;
+      const index = Math.round(scrollRatio * (CATEGORIES.length - 1));
+      setActiveCategoryIndex(index);
+    }
+  };
+
   const filteredFAQs = useMemo(() => {
     return faqsList.filter((faq) => {
       const matchCategory = selectedCategory === 'all' || faq.category === selectedCategory;
@@ -124,12 +160,12 @@ const FAQ = () => {
   };
 
   return (
-    <section className="relative w-full px-3 sm:px-6 py-12 sm:py-16 md:py-20 bg-[#0f1124] text-white border-b border-white/[0.08] overflow-hidden">
+    <section className="relative w-full px-3 sm:px-6 py-12 sm:py-16 md:py-20 bg-[#0f1124] text-white border-b border-white/[0.08] overflow-x-clip">
       {/* Background Soft Glow */}
       <div className="pointer-events-none absolute -left-20 top-1/2 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl" />
       <div className="pointer-events-none absolute -right-20 bottom-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
 
-      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 relative z-10">
+      <div className="max-w-7xl mx-auto space-y-8 sm:space-y-10 relative z-10 w-full">
         
         {/* Section Header */}
         <div className="text-center space-y-2 sm:space-y-3 max-w-2xl mx-auto">
@@ -173,26 +209,53 @@ const FAQ = () => {
           </div>
         </div>
 
-        {/* Category Chips */}
-        <div className="flex items-center justify-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#14162b] border border-white/10 shadow-lg">
-            {CATEGORIES.map((cat) => {
-              const Icon = cat.icon;
-              const active = selectedCategory === cat.id;
+        {/* Category Chips & Mobile Dots Slider */}
+        <div className="space-y-2.5 w-full max-w-full">
+          <div 
+            ref={categoryScrollRef}
+            onScroll={handleScroll}
+            className="flex items-center sm:justify-center overflow-x-auto pb-1.5 scrollbar-none px-3 sm:px-0 scroll-smooth w-full max-w-full"
+          >
+            <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-[#14162b] border border-white/10 shadow-lg shrink-0">
+              {CATEGORIES.map((cat, index) => {
+                const Icon = cat.icon;
+                const active = selectedCategory === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => handleCategoryClick(cat.id, index)}
+                    className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+                      active
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-102'
+                        : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <Icon className="text-sm shrink-0" />
+                    <span>{cat.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Mobile Dot-Dot Indicator */}
+          <div className="flex sm:hidden items-center justify-center gap-1.5 pt-0.5">
+            {CATEGORIES.map((cat, idx) => {
+              const isSelected = selectedCategory === cat.id;
+              const isActive = activeCategoryIndex === idx || isSelected;
               return (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setSelectedCategory(cat.id)}
-                  className={`px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
-                    active
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 scale-102'
-                      : 'text-slate-300 hover:text-white hover:bg-white/[0.06]'
+                  onClick={() => handleCategoryClick(cat.id, idx)}
+                  className={`transition-all duration-300 rounded-full cursor-pointer ${
+                    isActive
+                      ? 'w-5 h-1.5 bg-gradient-to-r from-indigo-500 to-emerald-400 shadow-sm shadow-indigo-500/50'
+                      : 'w-1.5 h-1.5 bg-white/20 hover:bg-white/40'
                   }`}
-                >
-                  <Icon className="text-sm shrink-0" />
-                  <span>{cat.name}</span>
-                </button>
+                  aria-label={cat.name}
+                />
               );
             })}
           </div>
@@ -274,7 +337,7 @@ const FAQ = () => {
               </p>
               <button
                 type="button"
-                onClick={() => { setSearchQuery(''); setSelectedCategory('all'); }}
+                onClick={() => { setSearchQuery(''); handleCategoryClick('all', 0); }}
                 className="text-xs text-indigo-400 font-bold underline"
               >
                 সব প্রশ্ন দেখুন

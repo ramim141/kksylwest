@@ -328,35 +328,38 @@ const Contact = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 pt-2">
+              <div className="flex items-center gap-2.5 sm:gap-3 pt-2">
                 <a
                   href="https://www.facebook.com/kishorkanthasylwest"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-3 rounded-xl bg-[#1877f2]/15 hover:bg-[#1877f2]/25 border border-[#1877f2]/30 text-[#1877f2] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
+                  aria-label="Facebook"
+                  className="flex-1 py-2.5 sm:py-3 rounded-xl bg-[#1877f2]/15 hover:bg-[#1877f2]/25 border border-[#1877f2]/30 text-[#1877f2] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
                 >
-                  <FaFacebookF className="text-sm" />
-                  <span>Facebook</span>
+                  <FaFacebookF className="text-base sm:text-sm" />
+                  <span className="hidden sm:inline">Facebook</span>
                 </a>
 
                 <a
                   href="https://wa.me/8801962633662"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-3 rounded-xl bg-[#25d366]/15 hover:bg-[#25d366]/25 border border-[#25d366]/30 text-[#25d366] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
+                  aria-label="WhatsApp"
+                  className="flex-1 py-2.5 sm:py-3 rounded-xl bg-[#25d366]/15 hover:bg-[#25d366]/25 border border-[#25d366]/30 text-[#25d366] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
                 >
-                  <FaWhatsapp className="text-sm" />
-                  <span>WhatsApp</span>
+                  <FaWhatsapp className="text-base sm:text-sm" />
+                  <span className="hidden sm:inline">WhatsApp</span>
                 </a>
 
                 <a
                   href="https://www.youtube.com/@kishorkanthasylwest"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-1 py-3 rounded-xl bg-[#ff0000]/15 hover:bg-[#ff0000]/25 border border-[#ff0000]/30 text-[#ff0000] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
+                  aria-label="YouTube"
+                  className="flex-1 py-2.5 sm:py-3 rounded-xl bg-[#ff0000]/15 hover:bg-[#ff0000]/25 border border-[#ff0000]/30 text-[#ff0000] text-xs font-bold flex items-center justify-center gap-2 transition hover:scale-105"
                 >
-                  <FaYoutube className="text-sm" />
-                  <span>YouTube</span>
+                  <FaYoutube className="text-base sm:text-sm" />
+                  <span className="hidden sm:inline">YouTube</span>
                 </a>
               </div>
             </div>
