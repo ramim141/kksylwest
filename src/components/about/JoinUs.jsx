@@ -209,7 +209,7 @@ const JoinUs = () => {
                     আরও তথ্যের জন্য যোগাযোগ করুন
                   </p>
                   <div className="space-y-2 text-sm text-ink-muted">
-                    <p>📧 info@kishorkhonto.org</p>
+                    <p>📧 kishorkanthasylwest@gmail.com</p>
                     <p>📞 +880 1711-000000</p>
                   </div>
                 </div>

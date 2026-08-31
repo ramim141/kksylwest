@@ -40,7 +40,7 @@ const SITE_SETTINGS = {
     helplinePrimary: "০১৯৬২-৬৩৩৬৬২",
     helplineSecondary: "০১৭৯১-৬২৯৯৯৬",
     whatsappNumber: "০১৭৯১-৬২৯৯৯৬",
-    email: "kkmb.sylhetwest@gmail.com",
+    email: "kishorkanthasylwest@gmail.com",
     officeAddress: "মেহনাজ টাওয়ার (৪র্থ তলা), রিকাবীবাজার, সিলেট-৩১০০",
     officeHours: "শনিবার - বৃহস্পতিবার: সকাল ৯:০০ - রাত ৮:০০",
     facebookUrl: "https://www.facebook.com/kkmb.sylhetwest",

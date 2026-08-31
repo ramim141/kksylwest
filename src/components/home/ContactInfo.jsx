@@ -40,8 +40,7 @@ const ContactInfo = () => {
                 </svg>
               </div>
               <h3 className="mb-2 text-xl font-bold text-ink-strong">ইমেইল</h3>
-              <p className="text-ink-muted">info@kishorkhonto.com</p>
-              <p className="text-ink-muted">support@kishorkhonto.com</p>
+              <p className="text-ink-muted">kishorkanthasylwest@gmail.com</p>
             </div>
           </div>
         </div>

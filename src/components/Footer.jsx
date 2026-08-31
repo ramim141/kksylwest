@@ -256,10 +256,10 @@ const Footer = () => {
               <div className="flex items-center gap-2.5">
                 <FaEnvelope className="text-emerald-400 text-xs shrink-0" />
                 <a
-                  href={`mailto:${contact.email || "kkmb.sylhetwest@gmail.com"}`}
+                  href={`mailto:${contact.email || "kishorkanthasylwest@gmail.com"}`}
                   className="hover:text-emerald-400 transition-colors truncate"
                 >
-                  {contact.email || "kkmb.sylhetwest@gmail.com"}
+                  {contact.email || "kishorkanthasylwest@gmail.com"}
                 </a>
               </div>
             </div>
