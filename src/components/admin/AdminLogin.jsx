@@ -68,11 +68,14 @@ const AdminLogin = () => {
     try {
       setError("");
       setLoading(true);
-      /* Sends the browser to Google and does not come back here — the page
-         is replaced. The effect above picks the session up on return, so
-         `loading` is deliberately left on: it is the last frame drawn before
-         the navigation, and clearing it would only flash the idle button. */
-      await loginWithGoogle();
+      const user = await loginWithGoogle();
+      if (user) {
+        navigate(from, { replace: true });
+        return;
+      }
+      /* null means no popup could be opened and the redirect fallback took
+         over: the page is being replaced, so `loading` stays on rather than
+         flashing the idle button on the way out. */
     } catch (err) {
       console.error(err);
       setError(err.message || "লগইন করতে সমস্যা হয়েছে।");
@@ -115,7 +118,7 @@ const AdminLogin = () => {
           >
             <span className="inline-flex items-center justify-center gap-2.5">
               {!loading && <GoogleMark className="w-5 h-5" />}
-              {loading ? "Google-এ নিয়ে যাওয়া হচ্ছে..." : "Google দিয়ে লগইন করুন"}
+              {loading ? "যাচাই করা হচ্ছে..." : "Google দিয়ে লগইন করুন"}
             </span>
           </Button>
 
