@@ -1,0 +1,5 @@
+# Cloudflare Pages parses these line-by-line; CRLF from a Windows checkout
+# can leave a stray \r on the rule and silently drop it.
+_redirects text eol=lf
+_headers   text eol=lf
+.nvmrc     text eol=lf

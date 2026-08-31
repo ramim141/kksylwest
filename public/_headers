@@ -1,0 +1,19 @@
+# Vite fingerprints every file in /assets with a content hash, so a changed
+# file always arrives under a new name. That makes them safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# index.html carries the <script> tags pointing at those hashed files, so it
+# must never be cached — a stale copy would reference deleted bundles.
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+# Results are updated by the admin panel; revalidate rather than serve stale.
+/results.json
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: SAMEORIGIN
+  Permissions-Policy: geolocation=(), microphone=(), camera=()

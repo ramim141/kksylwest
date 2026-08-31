@@ -1,0 +1,5 @@
+# SPA fallback for Cloudflare Pages.
+# Static assets are matched first; anything left over (/result, /admin/…,
+# /gallery/:id) is a client-side route, so hand it index.html with a 200 —
+# a 302 here would break deep links and lose the URL the visitor typed.
+/*    /index.html   200
