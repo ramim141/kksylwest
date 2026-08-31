@@ -1,10 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, ensureAuth } = useAuth();
   const location = useLocation();
+
+  /* Firebase Auth is loaded on demand so public pages never pay for it.
+     This is one of the two screens that needs the answer, so it asks. */
+  useEffect(() => {
+    ensureAuth();
+  }, [ensureAuth]);
 
   if (loading) {
     return (

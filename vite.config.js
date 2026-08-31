@@ -10,6 +10,11 @@ import react from '@vitejs/plugin-react'
 const vendorChunks = [
   // Router has to be present before anything renders — keep it with React.
   [/node_modules\/(react|react-dom|scheduler|react-router|react-router-dom)\//, 'react-vendor'],
+  /* Sign-in is admin-only and loaded on demand, but this list is matched in
+     order and the Firebase rule below would otherwise swallow it into the
+     chunk every public page downloads. Keeping it separate is worth ~74KB to
+     everyone who never visits /admin. */
+  [/node_modules\/(@firebase|firebase)\/auth/, 'firebase-auth-vendor'],
   // ~300KB, and only reached once a page actually asks for data.
   [/node_modules\/(@firebase|firebase)\//, 'firebase-vendor'],
   // Icon sets: large, and shared by every page.

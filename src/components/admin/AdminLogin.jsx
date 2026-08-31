@@ -1,65 +1,83 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import {
-  HiLockClosed,
-  HiEnvelope,
   HiShieldCheck,
   HiExclamationCircle,
-  HiEye,
-  HiEyeSlash,
   HiArrowLeft,
 } from "react-icons/hi2";
-import { Button, Field } from "./ui";
+import { Button } from "./ui";
+
+/* Google's mark has to be the four-colour original — their branding terms do
+   not allow recolouring it, so it stays inline rather than joining the icon
+   set, which is monochrome and theme-tinted. */
+const GoogleMark = ({ className = "" }) => (
+  <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
+    <path
+      fill="#4285F4"
+      d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z"
+    />
+    <path
+      fill="#EA4335"
+      d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"
+    />
+  </svg>
+);
 
 const AdminLogin = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { loginWithGoogle, currentUser, authError, ensureAuth, adminEmails } =
+    useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = location.state?.from?.pathname || "/admin";
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError("দয়া করে ইমেইল ও পাসওয়ার্ড দুটোই পূরণ করুন।");
-      return;
-    }
+  /* Warms up Firebase Auth while the visitor is still looking at the page,
+     so the first click does not also wait on a 40KB download. It also picks
+     up a session that is already valid, which is what redirects back below. */
+  useEffect(() => {
+    ensureAuth();
+  }, [ensureAuth]);
 
+  /* Covers both routes into a signed-in state: the popup resolving, and a
+     redirect sign-in completing after the page reloaded. */
+  useEffect(() => {
+    if (currentUser) navigate(from, { replace: true });
+  }, [currentUser, from, navigate]);
+
+  /* A rejected account is reported by the provider, not by the click below —
+     the redirect flow has no click left to report to. */
+  useEffect(() => {
+    if (authError) {
+      setError(authError);
+      setLoading(false);
+    }
+  }, [authError]);
+
+  const handleGoogleLogin = async () => {
     try {
       setError("");
       setLoading(true);
-      await login(email, password);
-      navigate(from, { replace: true });
+      const user = await loginWithGoogle();
+      // A null user means the redirect flow took over and the page is leaving.
+      if (user) navigate(from, { replace: true });
     } catch (err) {
       console.error(err);
-      if (
-        err.code === "auth/invalid-credential" ||
-        err.code === "auth/wrong-password" ||
-        err.code === "auth/user-not-found"
-      ) {
-        setError("ইমেইল বা পাসওয়ার্ড মেলেনি। আবার চেষ্টা করুন।");
-      } else if (err.code === "auth/too-many-requests") {
-        setError("অনেকবার ভুল চেষ্টা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।");
-      } else if (err.code === "auth/network-request-failed") {
-        setError("ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না। সংযোগ যাচাই করে আবার চেষ্টা করুন।");
-      } else {
-        setError(err.message || "লগইন করতে সমস্যা হয়েছে।");
-      }
+      setError(err.message || "লগইন করতে সমস্যা হয়েছে।");
     } finally {
       setLoading(false);
     }
   };
-
-  const controlCls = `w-full bg-surface border border-line-soft rounded min-h-[48px]
-    text-ink-strong text-sm placeholder:text-ink-muted/70
-    focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25
-    transition-colors duration-150`;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-surface px-4 py-12">
@@ -86,59 +104,27 @@ const AdminLogin = () => {
             )}
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            <Field label="অ্যাডমিন ইমেইল" htmlFor="admin-email" required>
-              <div className="relative">
-                <HiEnvelope
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-ink-muted pointer-events-none"
-                  aria-hidden="true"
-                />
-                <input
-                  id="admin-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@kishorkantho.org"
-                  autoComplete="username"
-                  autoFocus
-                  required
-                  className={`${controlCls} pl-11 pr-3.5`}
-                />
-              </div>
-            </Field>
+          <Button
+            type="button"
+            tone="neutral"
+            size="lg"
+            block
+            loading={loading}
+            onClick={handleGoogleLogin}
+          >
+            <span className="inline-flex items-center justify-center gap-2.5">
+              {!loading && <GoogleMark className="w-5 h-5" />}
+              {loading ? "যাচাই করা হচ্ছে..." : "Google দিয়ে লগইন করুন"}
+            </span>
+          </Button>
 
-            <Field label="পাসওয়ার্ড" htmlFor="admin-password" required>
-              <div className="relative">
-                <HiLockClosed
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-lg text-ink-muted pointer-events-none"
-                  aria-hidden="true"
-                />
-                <input
-                  id="admin-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                  required
-                  className={`${controlCls} pl-11 pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  aria-label={showPassword ? "পাসওয়ার্ড লুকান" : "পাসওয়ার্ড দেখুন"}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 rounded flex items-center justify-center
-                    text-ink-muted hover:text-ink-strong hover:bg-surface-overlay transition-colors cursor-pointer"
-                >
-                  {showPassword ? <HiEyeSlash className="text-lg" /> : <HiEye className="text-lg" />}
-                </button>
-              </div>
-            </Field>
-
-            <Button type="submit" tone="primary" size="lg" block loading={loading}>
-              {loading ? "যাচাই করা হচ্ছে..." : "লগইন করুন"}
-            </Button>
-          </form>
+          <p className="mt-6 text-[12px] text-ink-muted text-center leading-relaxed">
+            শুধুমাত্র অনুমোদিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করা যাবে
+            <br />
+            <span className="font-mono text-[11px] break-all">
+              {adminEmails.join(", ")}
+            </span>
+          </p>
         </div>
 
         <div className="mt-5 text-center">

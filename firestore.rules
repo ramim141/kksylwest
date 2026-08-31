@@ -1,0 +1,72 @@
+rules_version = '2';
+
+/* Who may write to this project.
+
+   Until now the admin panel authenticated by comparing two strings that Vite
+   inlined into the public bundle, so Firestore saw every visitor as the same
+   anonymous client and had no way to tell an admin from anyone else. Every
+   collection was therefore open to the world for both reading and writing.
+
+   Admin sign-in now goes through Google, so `request.auth` carries a real
+   verified identity and these rules have something to check. The allowlist
+   below must stay in step with ADMIN_EMAILS in src/context/AuthContext.jsx. */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == 'kishorkanthasylwest@gmail.com';
+    }
+
+    /* Content the site exists to publish. Anyone may read it; only the admin
+       panel may change it. */
+    function publicRead() {
+      return true;
+    }
+
+    match /results/{doc}          { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /notices/{doc}          { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /gallery/{doc}          { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /committee/{doc}        { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /hero_slides/{doc}      { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /activities/{doc}       { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /faqs/{doc}             { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /team_structure/{doc}   { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /syllabus/{doc}         { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /upazila_centers/{doc}  { allow read: if publicRead(); allow write: if isAdmin(); }
+
+    /* Exam dates, branding, contact details and the like. The public site
+       renders from these on every page, so they have to be readable. */
+    match /site_settings/{doc}    { allow read: if publicRead(); allow write: if isAdmin(); }
+
+    /* Contact form and chatbot submissions. Visitors post them; nobody but
+       the admin has any reason to read them back. */
+    match /messages/{doc} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    /* Student registrations: names of minors, parents' names, phone numbers
+       and payment references.
+
+       Read is still open, and it should not be. searchAdmitCard() in
+       src/services/firestore.js downloads this entire collection into the
+       browser and filters it client-side, so locking read to the admin would
+       break the admit card portal outright. The query has to be narrowed to a
+       server-side where() first; then this line becomes `if isAdmin()` and the
+       exposure closes. Updating and deleting are admin-only as of now. */
+    match /registrations/{doc} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    /* Anything not named above is closed, so a new collection cannot be born
+       world-writable by accident. */
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
