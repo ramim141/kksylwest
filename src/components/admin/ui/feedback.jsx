@@ -10,50 +10,62 @@ import { Button } from "./primitives";
 
 /* ============================================================
    ADMIN UI KIT — feedback & overlays
-   Replaces the status banner / modal / window.confirm that every
-   tab used to re-implement, so success and failure look the same
-   everywhere and never shove the layout around.
+   Modern, glassmorphic toast messages, modals and confirmations.
    ============================================================ */
 
 /* ---------------------------------------------------------- TOAST */
 const TOAST_TONES = {
-  success: { cls: "bg-primary/12 border-primary/40 text-primary", Icon: HiCheckCircle },
-  error: { cls: "bg-error/12 border-error/40 text-error", Icon: HiExclamationTriangle },
-  info: { cls: "bg-tertiary/12 border-tertiary/40 text-tertiary", Icon: HiInformationCircle },
+  success: {
+    cls: "bg-surface-card/95 border-primary/40 text-primary shadow-primary/10",
+    Icon: HiCheckCircle,
+    iconBg: "bg-primary/20 text-primary border-primary/30",
+  },
+  error: {
+    cls: "bg-surface-card/95 border-error/40 text-error shadow-error/10",
+    Icon: HiExclamationTriangle,
+    iconBg: "bg-error/20 text-error border-error/30",
+  },
+  info: {
+    cls: "bg-surface-card/95 border-tertiary/40 text-tertiary shadow-tertiary/10",
+    Icon: HiInformationCircle,
+    iconBg: "bg-tertiary/20 text-tertiary border-tertiary/30",
+  },
 };
 
-/**
- * Floating status message. Pinned to the viewport instead of sitting in the
- * document flow — a save confirmation should never push the form you just
- * used further down the page.
- *
- * `message` is the { type, text } shape every tab already produces.
- */
 export const Toast = ({ message, onDismiss }) => {
   if (!message) return null;
-  const tone = TOAST_TONES[message.type === "success" ? "success" : message.type === "info" ? "info" : "error"];
-  const { Icon } = tone;
+  const tone =
+    TOAST_TONES[
+      message.type === "success" ? "success" : message.type === "info" ? "info" : "error"
+    ];
+  const { Icon, iconBg } = tone;
 
   return createPortal(
     <div
       role="status"
       aria-live="polite"
-      className="fixed z-[90] bottom-4 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md
-        sm:left-auto sm:right-6 sm:translate-x-0 sm:w-auto sm:min-w-[320px] animate-fade-in-down"
+      className="fixed z-[90] bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md
+        sm:left-auto sm:right-6 sm:translate-x-0 sm:w-auto sm:min-w-[340px] animate-fade-in-down"
     >
       <div
-        className={`flex items-start gap-3 rounded-lg border px-4 py-3.5 shadow-overlay
-          backdrop-blur-xl bg-surface-overlay/95 ${tone.cls}`}
+        className={`flex items-start gap-3.5 rounded-xl border p-4 shadow-2xl
+          backdrop-blur-2xl ${tone.cls}`}
       >
-        <Icon className="text-xl shrink-0 mt-px" />
-        <p className="flex-1 text-sm font-medium leading-relaxed text-ink-strong">{message.text}</p>
+        <span
+          className={`w-9 h-9 rounded-lg shrink-0 flex items-center justify-center text-lg border ${iconBg}`}
+        >
+          <Icon />
+        </span>
+        <p className="flex-1 text-sm font-semibold leading-relaxed text-ink-strong pt-1">
+          {message.text}
+        </p>
         {onDismiss && (
           <button
             type="button"
             onClick={onDismiss}
             aria-label="বন্ধ করুন"
-            className="shrink-0 -mr-1 -mt-1 w-8 h-8 rounded flex items-center justify-center
-              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay transition-colors cursor-pointer"
+            className="shrink-0 -mr-1 -mt-1 w-8 h-8 rounded-lg flex items-center justify-center
+              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer"
           >
             <HiXMark className="text-lg" />
           </button>
@@ -64,10 +76,6 @@ export const Toast = ({ message, onDismiss }) => {
   );
 };
 
-/**
- * Drop-in status state for tabs: `const [msg, notify] = useToast()`.
- * Auto-clears so nobody has to wire a setTimeout per call site.
- */
 export const useToast = (timeout = 4000) => {
   const [message, setMessage] = useState(null);
   const timer = useRef(null);
@@ -93,40 +101,40 @@ export const useToast = (timeout = 4000) => {
 
 /* ---------------------------------------------------------- STATES */
 export const LoadingState = ({ label = "লোড হচ্ছে...", className = "" }) => (
-  <div className={`flex flex-col items-center justify-center gap-3 py-16 px-6 text-center ${className}`}>
-    <span className="w-8 h-8 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />
-    <p className="text-sm text-ink-muted">{label}</p>
+  <div className={`flex flex-col items-center justify-center gap-3.5 py-16 px-6 text-center ${className}`}>
+    <div className="relative">
+      <span className="w-10 h-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin block" />
+      <span className="absolute inset-0 rounded-full bg-primary/10 blur-sm -z-10" />
+    </div>
+    <p className="text-sm font-medium text-ink-muted">{label}</p>
   </div>
 );
 
 export const EmptyState = ({ icon: Icon, title, description, action, className = "" }) => (
   <div
-    className={`flex flex-col items-center justify-center gap-3 py-14 px-6 text-center
-      border border-dashed border-line-soft rounded-lg bg-surface/40 ${className}`}
+    className={`flex flex-col items-center justify-center gap-3.5 py-14 px-6 text-center
+      border border-dashed border-line-soft rounded-xl bg-surface-low/50 backdrop-blur-sm ${className}`}
   >
     {Icon && (
-      <span className="w-14 h-14 rounded-full bg-surface-overlay/60 text-ink-muted flex items-center justify-center text-2xl">
-        <Icon />
-      </span>
+      <div className="relative">
+        <span className="w-14 h-14 rounded-2xl bg-surface-overlay/80 text-ink-muted border border-line-soft flex items-center justify-center text-2xl shadow-inner">
+          <Icon />
+        </span>
+      </div>
     )}
-    <h4 className="text-base font-semibold text-ink-strong">{title}</h4>
+    <h4 className="text-base font-bold text-ink-strong tracking-tight">{title}</h4>
     {description && (
       <p className="text-sm text-ink-muted max-w-sm leading-relaxed">{description}</p>
     )}
-    {action && <div className="pt-1">{action}</div>}
+    {action && <div className="pt-2">{action}</div>}
   </div>
 );
 
 export const Skeleton = ({ className = "" }) => (
-  <div className={`animate-pulse rounded bg-surface-overlay/50 ${className}`} />
+  <div className={`animate-pulse rounded-lg bg-surface-overlay/60 ${className}`} />
 );
 
 /* ---------------------------------------------------------- MODAL */
-/**
- * Overlay dialog with the behaviour the hand-rolled ones were missing:
- * Escape closes, background scroll locks, focus moves in on open and
- * returns to the trigger on close, and the panel scrolls instead of the page.
- */
 export const Modal = ({
   open,
   onClose,
@@ -155,7 +163,6 @@ export const Modal = ({
       }
       if (e.key !== "Tab" || !panelRef.current) return;
 
-      // Keep Tab inside the dialog.
       const focusable = panelRef.current.querySelectorAll(
         'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
       );
@@ -195,7 +202,7 @@ export const Modal = ({
   return createPortal(
     <div
       className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center
-        bg-black/75 backdrop-blur-sm p-0 sm:p-6 animate-fadeIn"
+        bg-black/80 backdrop-blur-md p-0 sm:p-6 animate-fadeIn"
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div
@@ -203,20 +210,22 @@ export const Modal = ({
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === "string" ? title : undefined}
-        className={`w-full ${width} bg-surface-card border border-line-strong/40
-          rounded-t-lg sm:rounded-lg shadow-overlay flex flex-col
-          max-h-[92vh] sm:max-h-[86vh] animate-slideUp`}
+        className={`w-full ${width} bg-surface-card border border-line-strong/50
+          rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col
+          max-h-[92vh] sm:max-h-[88vh] animate-slideUp overflow-hidden`}
       >
-        {/* Header stays put while the body scrolls */}
-        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 py-4 border-b border-line-soft shrink-0">
-          <div className="flex items-start gap-3 min-w-0">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 py-4.5 border-b border-line-soft/80 bg-surface-low/80 shrink-0">
+          <div className="flex items-start gap-3.5 min-w-0">
             {Icon && (
-              <span className="w-10 h-10 rounded shrink-0 bg-primary/12 text-primary flex items-center justify-center text-xl">
+              <span className="w-10 h-10 rounded-xl shrink-0 bg-primary/20 text-primary border border-primary/30 flex items-center justify-center text-xl shadow-sm">
                 <Icon />
               </span>
             )}
             <div className="min-w-0">
-              <h2 className="text-base sm:text-lg font-semibold text-ink-strong leading-snug">{title}</h2>
+              <h2 className="text-base sm:text-lg font-bold text-ink-strong leading-snug tracking-tight">
+                {title}
+              </h2>
               {description && (
                 <p className="text-[13px] text-ink-muted mt-1 leading-relaxed">{description}</p>
               )}
@@ -226,8 +235,8 @@ export const Modal = ({
             type="button"
             onClick={onClose}
             aria-label="বন্ধ করুন"
-            className="shrink-0 w-10 h-10 rounded flex items-center justify-center
-              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay transition-colors cursor-pointer"
+            className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center
+              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer"
           >
             <HiXMark className="text-xl" />
           </button>
@@ -236,7 +245,7 @@ export const Modal = ({
         <div className="flex-1 px-5 py-5 overflow-y-auto sm:px-6 scrollbar-none">{children}</div>
 
         {footer && (
-          <div className="flex flex-wrap items-center justify-end gap-2 px-5 sm:px-6 py-4 border-t border-line-soft shrink-0 bg-surface/40">
+          <div className="flex flex-wrap items-center justify-end gap-2.5 px-5 sm:px-6 py-4 border-t border-line-soft/80 shrink-0 bg-surface-low/80">
             {footer}
           </div>
         )}
@@ -247,14 +256,6 @@ export const Modal = ({
 };
 
 /* ---------------------------------------------------------- CONFIRM */
-/**
- * Replaces window.confirm. Unlike the native dialog this can name the exact
- * record being destroyed, so "are you sure?" is answerable.
- *
- *   const [confirm, confirmUI] = useConfirm();
- *   if (await confirm({ title: "...", body: "..." })) { ... }
- *   return (<>{confirmUI}...</>)
- */
 export const useConfirm = () => {
   const [state, setState] = useState(null);
   const resolver = useRef(null);
@@ -293,7 +294,7 @@ export const useConfirm = () => {
     >
       <p className="text-sm text-ink-body leading-relaxed">{state?.body}</p>
       {state?.detail && (
-        <p className="mt-3 rounded border border-line-soft bg-surface px-3.5 py-2.5 text-[13px] text-ink-muted">
+        <p className="mt-3 rounded-lg border border-line-soft bg-surface-low/80 px-3.5 py-2.5 text-[13px] text-ink-muted font-mono break-all">
           {state.detail}
         </p>
       )}
@@ -302,3 +303,4 @@ export const useConfirm = () => {
 
   return [confirm, ui];
 };
+

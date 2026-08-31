@@ -2,34 +2,29 @@ import React, { forwardRef, useId } from "react";
 
 /* ============================================================
    ADMIN UI KIT — primitives
-   Built on the "Nocturnal Scholar" token layer (src/index.css).
-   Rules this kit enforces so every admin screen agrees:
-     · surfaces   surface → surface-card → surface-overlay
-     · text       ink-strong / ink-body / ink-muted, never below 13px
-     · accent     primary = action, secondary = attention, error = destroy
-     · radius     rounded (controls) · rounded-lg (panels)
-     · hit area   44px for anything a thumb has to find
+   Authoritative, luminous, and tactile control primitives.
    ============================================================ */
 
 /* ---------------------------------------------------------- BUTTON */
 const BTN_TONES = {
   primary:
-    "bg-primary-container text-primary-on hover:bg-primary border border-transparent",
+    "bg-gradient-to-r from-primary-container via-primary to-primary-container text-primary-on hover:brightness-110 shadow-sm shadow-primary/20 border border-primary/40 active:scale-[0.98]",
   secondary:
-    "bg-secondary-container text-secondary-on hover:bg-secondary border border-transparent",
+    "bg-gradient-to-r from-secondary-container via-secondary to-secondary-container text-secondary-on hover:brightness-110 shadow-sm shadow-secondary/20 border border-secondary/40 active:scale-[0.98]",
   neutral:
-    "bg-surface-overlay/70 text-ink-body hover:bg-surface-overlay hover:text-ink-strong border border-line-soft",
+    "bg-surface-card/90 text-ink-body hover:bg-surface-overlay hover:text-ink-strong border border-line-soft hover:border-line-strong/60 active:scale-[0.98]",
   outline:
-    "bg-transparent text-primary hover:bg-primary/10 border border-primary/40",
-  danger: "bg-error/15 text-error hover:bg-error/25 border border-error/35",
+    "bg-transparent text-primary hover:bg-primary/10 border border-primary/50 hover:border-primary active:scale-[0.98]",
+  danger:
+    "bg-gradient-to-r from-error/15 to-error/25 text-error hover:bg-error/30 border border-error/40 hover:border-error/60 active:scale-[0.98]",
   ghost:
-    "bg-transparent text-ink-muted hover:bg-surface-overlay/60 hover:text-ink-strong border border-transparent",
+    "bg-transparent text-ink-muted hover:bg-surface-overlay/70 hover:text-ink-strong border border-transparent active:scale-[0.98]",
 };
 
 const BTN_SIZES = {
-  sm: "min-h-[36px] px-3 text-[13px] gap-1.5",
-  md: "min-h-[44px] px-4 text-sm gap-2",
-  lg: "min-h-[48px] px-5 text-[15px] gap-2",
+  sm: "min-h-[36px] px-3.5 text-[13px] gap-1.5 rounded-lg",
+  md: "min-h-[42px] px-4 text-sm gap-2 rounded-lg",
+  lg: "min-h-[46px] px-5 text-[15px] gap-2.5 rounded-xl",
 };
 
 export const Button = forwardRef(function Button(
@@ -52,15 +47,15 @@ export const Button = forwardRef(function Button(
     <Tag
       ref={ref}
       disabled={Tag === "button" ? disabled || loading : undefined}
-      className={`inline-flex items-center justify-center rounded font-semibold leading-none
-        transition-colors duration-150 cursor-pointer whitespace-nowrap
-        disabled:opacity-45 disabled:cursor-not-allowed
+      className={`inline-flex items-center justify-center font-semibold leading-none
+        transition-all duration-150 cursor-pointer whitespace-nowrap select-none
+        disabled:opacity-45 disabled:cursor-not-allowed disabled:pointer-events-none
         ${BTN_TONES[tone] || BTN_TONES.neutral} ${BTN_SIZES[size] || BTN_SIZES.md}
         ${block ? "w-full" : ""} ${className}`}
       {...rest}
     >
       {loading ? (
-        <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+        <span className="w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin shrink-0" />
       ) : (
         Icon && <Icon className="text-[1.15em] shrink-0" />
       )}
@@ -70,54 +65,55 @@ export const Button = forwardRef(function Button(
   );
 });
 
-/* Icon-only button. `label` is required — it becomes the accessible name. */
+/* Icon-only button */
 export const IconButton = forwardRef(function IconButton(
   { icon: Icon, label, tone = "ghost", size = "md", className = "", ...rest },
   ref
 ) {
-  const box = size === "sm" ? "w-9 h-9" : "w-11 h-11";
+  const box = size === "sm" ? "w-9 h-9 text-base rounded-lg" : "w-10 h-10 text-lg rounded-lg";
   return (
     <button
       ref={ref}
       type="button"
       title={label}
       aria-label={label}
-      className={`inline-flex items-center justify-center rounded shrink-0
-        transition-colors duration-150 cursor-pointer
+      className={`inline-flex items-center justify-center shrink-0
+        transition-all duration-150 cursor-pointer select-none
         disabled:opacity-45 disabled:cursor-not-allowed
         ${BTN_TONES[tone] || BTN_TONES.ghost} ${box} ${className}`}
       {...rest}
     >
-      <Icon className="text-lg" />
+      <Icon />
     </button>
   );
 });
 
 /* ---------------------------------------------------------- CHIP */
 const CHIP_TONES = {
-  primary: "bg-primary/12 text-primary border-primary/30",
-  secondary: "bg-secondary/12 text-secondary border-secondary/30",
-  tertiary: "bg-tertiary/12 text-tertiary border-tertiary/30",
-  error: "bg-error/12 text-error border-error/30",
-  neutral: "bg-surface-overlay/60 text-ink-muted border-line-soft",
+  primary: "bg-primary/15 text-primary border-primary/35 shadow-sm shadow-primary/5",
+  secondary: "bg-secondary/15 text-secondary border-secondary/35 shadow-sm shadow-secondary/5",
+  tertiary: "bg-tertiary/15 text-tertiary border-tertiary/35 shadow-sm shadow-tertiary/5",
+  error: "bg-error/15 text-error border-error/35 shadow-sm shadow-error/5",
+  neutral: "bg-surface-overlay/80 text-ink-muted border-line-soft",
 };
 
 export const Chip = ({ tone = "neutral", icon: Icon, className = "", children }) => (
   <span
-    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1
-      text-[13px] font-semibold leading-none whitespace-nowrap
+    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1
+      text-[12px] sm:text-[13px] font-semibold leading-none whitespace-nowrap
       ${CHIP_TONES[tone] || CHIP_TONES.neutral} ${className}`}
   >
-    {Icon && <Icon className="text-[1.05em] shrink-0" />}
+    {Icon && <Icon className="text-[1.1em] shrink-0" />}
     {children}
   </span>
 );
 
 /* ---------------------------------------------------------- PANEL */
-/* Level 1 surface: tonal lift + ghost outline, no shadow. */
 export const Panel = ({ as: Tag = "section", padded = true, className = "", children, ...rest }) => (
   <Tag
-    className={`bg-surface-card border border-line-soft rounded-lg ${padded ? "p-5 sm:p-6" : ""} ${className}`}
+    className={`bg-surface-card/90 backdrop-blur-sm border border-line-soft/80 rounded-xl shadow-sm hover:border-line-soft transition-all duration-200 ${
+      padded ? "p-5 sm:p-6" : ""
+    } ${className}`}
     {...rest}
   >
     {children}
@@ -125,13 +121,12 @@ export const Panel = ({ as: Tag = "section", padded = true, className = "", chil
 );
 
 const ICON_TONES = {
-  primary: "bg-primary/12 text-primary",
-  secondary: "bg-secondary/12 text-secondary",
-  tertiary: "bg-tertiary/12 text-tertiary",
-  error: "bg-error/12 text-error",
+  primary: "bg-gradient-to-br from-primary/20 via-primary/10 to-transparent text-primary border-primary/30",
+  secondary: "bg-gradient-to-br from-secondary/20 via-secondary/10 to-transparent text-secondary border-secondary/30",
+  tertiary: "bg-gradient-to-br from-tertiary/20 via-tertiary/10 to-transparent text-tertiary border-tertiary/30",
+  error: "bg-gradient-to-br from-error/20 via-error/10 to-transparent text-error border-error/30",
 };
 
-/* Title row inside a Panel. Sits above a hairline rule. */
 export const PanelHeader = ({
   icon: Icon,
   title,
@@ -141,12 +136,12 @@ export const PanelHeader = ({
   className = "",
 }) => (
   <div
-    className={`flex flex-wrap items-start justify-between gap-3 border-b border-line-soft pb-4 mb-5 ${className}`}
+    className={`flex flex-wrap items-start justify-between gap-3.5 border-b border-line-soft/70 pb-4 mb-5 ${className}`}
   >
-    <div className="flex items-start gap-3 min-w-0">
+    <div className="flex items-start gap-3.5 min-w-0">
       {Icon && (
         <span
-          className={`w-10 h-10 rounded shrink-0 flex items-center justify-center text-xl ${
+          className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-xl border shadow-sm ${
             ICON_TONES[tone] || ICON_TONES.primary
           }`}
         >
@@ -154,7 +149,7 @@ export const PanelHeader = ({
         </span>
       )}
       <div className="min-w-0">
-        <h3 className="text-base font-semibold text-ink-strong leading-snug">{title}</h3>
+        <h3 className="text-base font-bold text-ink-strong leading-snug tracking-tight">{title}</h3>
         {hint && <p className="text-[13px] text-ink-muted mt-1 leading-relaxed">{hint}</p>}
       </div>
     </div>
@@ -163,12 +158,11 @@ export const PanelHeader = ({
 );
 
 /* ---------------------------------------------------------- FORM CONTROLS */
-const CONTROL = `w-full bg-surface border border-line-soft rounded text-ink-strong text-sm
-   placeholder:text-ink-muted/70
-   focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25
-   disabled:opacity-50 transition-colors duration-150`;
+const CONTROL = `w-full bg-surface-low/80 border border-line-soft/80 rounded-lg text-ink-strong text-sm
+   placeholder:text-ink-muted/60
+   focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 focus:bg-surface
+   disabled:opacity-50 transition-all duration-150`;
 
-/* Label + control + hint/error, wired together for screen readers. */
 export const Field = ({ label, hint, error, required, htmlFor, className = "", children }) => (
   <div className={`space-y-1.5 ${className}`}>
     {label && (
@@ -183,15 +177,17 @@ export const Field = ({ label, hint, error, required, htmlFor, className = "", c
     )}
     {children}
     {error ? (
-      <p className="text-[13px] text-error leading-snug">{error}</p>
+      <p className="text-[12px] sm:text-[13px] text-error font-medium leading-snug flex items-center gap-1 mt-1">
+        <span>⚠</span> {error}
+      </p>
     ) : (
-      hint && <p className="text-[13px] text-ink-muted leading-snug">{hint}</p>
+      hint && <p className="text-[12px] sm:text-[13px] text-ink-muted leading-snug">{hint}</p>
     )}
   </div>
 );
 
 export const Input = forwardRef(function Input({ className = "", ...rest }, ref) {
-  return <input ref={ref} className={`${CONTROL} min-h-[44px] px-3.5 ${className}`} {...rest} />;
+  return <input ref={ref} className={`${CONTROL} min-h-[42px] px-3.5 ${className}`} {...rest} />;
 });
 
 export const Textarea = forwardRef(function Textarea({ className = "", rows = 3, ...rest }, ref) {
@@ -209,7 +205,7 @@ export const Select = forwardRef(function Select({ className = "", children, ...
   return (
     <select
       ref={ref}
-      className={`${CONTROL} min-h-[44px] px-3.5 pr-9 cursor-pointer ${className}`}
+      className={`${CONTROL} min-h-[42px] px-3.5 pr-9 cursor-pointer ${className}`}
       {...rest}
     >
       {children}
@@ -217,20 +213,20 @@ export const Select = forwardRef(function Select({ className = "", children, ...
   );
 });
 
-/* Labelled switch. The whole row is the hit target. */
+/* Labelled switch */
 export const Toggle = ({ checked, onChange, label, hint, disabled, className = "" }) => {
   const id = useId();
   return (
     <label
       htmlFor={id}
       className={`flex items-center justify-between gap-4 min-h-[44px] px-4 py-2.5
-        bg-surface border border-line-soft rounded cursor-pointer
-        hover:border-line-strong/50 transition-colors
+        bg-surface-low/70 border border-line-soft/80 rounded-lg cursor-pointer
+        hover:border-line-strong/50 hover:bg-surface-low transition-all
         ${disabled ? "opacity-50 cursor-not-allowed" : ""} ${className}`}
     >
       <span className="min-w-0">
         <span className="block text-sm font-semibold text-ink-body">{label}</span>
-        {hint && <span className="block text-[13px] text-ink-muted mt-0.5 leading-snug">{hint}</span>}
+        {hint && <span className="block text-[12px] sm:text-[13px] text-ink-muted mt-0.5 leading-snug">{hint}</span>}
       </span>
       <span className="relative shrink-0">
         <input
@@ -274,8 +270,9 @@ export const SearchInput = ({ value, onChange, placeholder = "খুঁজুন
       value={value}
       onChange={onChange}
       placeholder={placeholder}
-      className={`${CONTROL} min-h-[44px] pl-11 pr-3.5 [&::-webkit-search-cancel-button]:appearance-none`}
+      className={`${CONTROL} min-h-[42px] pl-11 pr-3.5 [&::-webkit-search-cancel-button]:appearance-none`}
       {...rest}
     />
   </div>
 );
+

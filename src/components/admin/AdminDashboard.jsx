@@ -204,11 +204,18 @@ const AdminDashboard = () => {
   const num = (v) => (v == null ? "—" : v);
 
   return (
-    <div className="min-h-screen bg-surface text-ink-body font-sans antialiased">
+    <div className="min-h-screen bg-surface text-ink-body font-sans antialiased relative selection:bg-primary/25 selection:text-ink-strong">
+      {/* Background ambient gradient washes for depth */}
+      <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden">
+        <div className="absolute -top-40 right-0 w-[500px] h-[500px] bg-primary/[0.035] rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-1/4 w-[600px] h-[600px] bg-secondary/[0.02] rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 right-1/4 w-[600px] h-[600px] bg-tertiary/[0.025] rounded-full blur-3xl" />
+      </div>
+
       <a
         href="#admin-content"
         className="sr-only focus:not-sr-only focus:fixed focus:z-[100] focus:top-4 focus:left-4
-          focus:rounded focus:bg-primary-container focus:px-4 focus:py-2.5 focus:text-primary-on focus:font-semibold"
+          focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2.5 focus:text-primary-on focus:font-semibold focus:shadow-lg"
       >
         সরাসরি মূল কনটেন্টে যান
       </a>
@@ -218,27 +225,35 @@ const AdminDashboard = () => {
         <div
           onClick={() => setMobileMenuOpen(false)}
           aria-hidden="true"
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden animate-fadeIn"
+          className="fixed inset-0 z-40 bg-black/80 backdrop-blur-sm lg:hidden animate-fadeIn"
         />
       )}
 
       {/* ==================== SIDEBAR ==================== */}
       <aside
         aria-label="অ্যাডমিন নেভিগেশন"
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-surface-low border-r border-line-soft
-          transition-[width,transform] duration-200 ease-out
-          ${sidebarOpen ? "w-[264px]" : "w-[76px]"}
-          ${mobileMenuOpen ? "translate-x-0 w-[264px]" : "-translate-x-full lg:translate-x-0"}`}
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-surface-low/95 backdrop-blur-2xl border-r border-line-soft/80
+          transition-[width,transform] duration-200 ease-out shadow-2xl lg:shadow-none
+          ${sidebarOpen ? "w-[268px]" : "w-[78px]"}
+          ${mobileMenuOpen ? "translate-x-0 w-[268px]" : "-translate-x-full lg:translate-x-0"}`}
       >
-        {/* Brand */}
-        <div className="h-16 flex items-center gap-2 px-4 border-b border-line-soft shrink-0">
-          <span className="w-9 h-9 rounded shrink-0 bg-primary-container text-primary-on flex items-center justify-center text-lg">
-            <HiShieldCheck />
-          </span>
+        {/* Brand Header */}
+        <div className="h-16 flex items-center gap-3 px-4 border-b border-line-soft/80 shrink-0 bg-surface-low/50">
+          <div className="relative">
+            <span className="w-10 h-10 rounded-xl shrink-0 bg-gradient-to-br from-primary via-primary-container to-emerald-700 text-primary-on flex items-center justify-center text-xl shadow-md shadow-primary/20">
+              <HiShieldCheck />
+            </span>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-primary border-2 border-surface-low" />
+          </div>
+
           {(sidebarOpen || mobileMenuOpen) && (
             <div className="flex-1 min-w-0 leading-tight">
-              <span className="block text-sm font-semibold text-ink-strong truncate">কিশোরকণ্ঠ</span>
-              <span className="block text-[12px] text-ink-muted truncate">অ্যাডমিন প্যানেল</span>
+              <span className="block text-sm font-bold text-ink-strong tracking-tight truncate">
+                কিশোরকণ্ঠ
+              </span>
+              <span className="block text-[11px] font-medium text-ink-muted uppercase tracking-wider truncate">
+                কন্ট্রোল প্যানেল
+              </span>
             </div>
           )}
 
@@ -247,12 +262,12 @@ const AdminDashboard = () => {
             onClick={() => setSidebarOpen((v) => !v)}
             aria-label={sidebarOpen ? "সাইডবার ছোট করুন" : "সাইডবার বড় করুন"}
             title={sidebarOpen ? "সাইডবার ছোট করুন" : "সাইডবার বড় করুন"}
-            className={`hidden lg:flex w-9 h-9 rounded items-center justify-center shrink-0
-              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay transition-colors cursor-pointer
+            className={`hidden lg:flex w-8 h-8 rounded-lg items-center justify-center shrink-0
+              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer
               ${sidebarOpen ? "" : "mx-auto"}`}
           >
             <HiChevronDoubleLeft
-              className={`text-lg transition-transform duration-200 ${sidebarOpen ? "" : "rotate-180"}`}
+              className={`text-base transition-transform duration-200 ${sidebarOpen ? "" : "rotate-180"}`}
             />
           </button>
 
@@ -260,22 +275,22 @@ const AdminDashboard = () => {
             type="button"
             onClick={() => setMobileMenuOpen(false)}
             aria-label="মেনু বন্ধ করুন"
-            className="lg:hidden w-9 h-9 rounded flex items-center justify-center shrink-0 text-ink-muted hover:text-ink-strong cursor-pointer"
+            className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center shrink-0 text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer"
           >
             <HiXMark className="text-xl" />
           </button>
         </div>
 
-        {/* Sections */}
+        {/* Navigation Sections */}
         <nav className="flex-1 px-3 py-4 space-y-5 overflow-x-hidden overflow-y-auto scrollbar-slim">
           {NAV_GROUPS.map(({ group, items }) => (
             <div key={group} className="space-y-1">
               {sidebarOpen || mobileMenuOpen ? (
-                <p className="px-3 pb-1 text-[12px] font-semibold text-ink-muted/80 tracking-wide">
+                <p className="px-3 pb-1 text-[11px] font-bold text-ink-muted/70 uppercase tracking-wider">
                   {group}
                 </p>
               ) : (
-                <div className="mx-3 my-2 h-px bg-line-soft" aria-hidden="true" />
+                <div className="mx-2 my-2.5 h-px bg-line-soft/60" aria-hidden="true" />
               )}
 
               {items.map((tab) => {
@@ -291,43 +306,43 @@ const AdminDashboard = () => {
                     onClick={() => goToTab(tab.id)}
                     aria-current={isActive ? "page" : undefined}
                     title={!expanded ? tab.label : undefined}
-                    className={`relative w-full flex items-center gap-3 rounded min-h-[44px] px-3
-                      text-sm font-medium text-left transition-colors duration-150 cursor-pointer
+                    className={`relative w-full flex items-center gap-3 rounded-xl min-h-[42px] px-3
+                      text-[13.5px] font-medium text-left transition-all duration-150 cursor-pointer select-none
                       ${expanded ? "" : "justify-center"}
                       ${
                         isActive
-                          ? "bg-primary/12 text-primary font-semibold"
+                          ? "bg-gradient-to-r from-primary/18 via-primary/10 to-transparent text-primary font-bold shadow-sm shadow-primary/5"
                           : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/60"
                       }`}
                   >
-                    {/* Active rail — reads at a glance even when collapsed */}
+                    {/* Glowing active indicator bar */}
                     {isActive && (
                       <span
                         aria-hidden="true"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-0.5 rounded-r-full bg-primary"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-1 rounded-r-full bg-primary shadow-sm shadow-primary"
                       />
                     )}
-                    <Icon className="text-lg shrink-0" />
+                    <Icon className={`text-lg shrink-0 ${isActive ? "text-primary" : "text-ink-muted"}`} />
                     {expanded && <span className="flex-1 min-w-0 truncate">{tab.label}</span>}
                     {expanded && badge && (
                       <span
-                        className={`shrink-0 rounded-full px-2 py-0.5 text-[12px] font-semibold leading-none ${
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold leading-none font-bangla-number shadow-sm ${
                           badge.tone === "error"
-                            ? "bg-error/15 text-error"
+                            ? "bg-error/20 text-error border border-error/30"
                             : badge.tone === "primary"
-                            ? "bg-primary/15 text-primary"
-                            : "bg-surface-overlay/70 text-ink-muted"
+                            ? "bg-primary/20 text-primary border border-primary/30"
+                            : "bg-surface-overlay text-ink-muted"
                         }`}
                       >
                         {badge.text}
                       </span>
                     )}
-                    {/* Collapsed: a dot is enough to say "something is waiting" */}
+                    {/* Collapsed: dot indicator */}
                     {!expanded && badge && (
                       <span
                         aria-hidden="true"
-                        className={`absolute top-2 right-2 w-2 h-2 rounded-full ${
-                          badge.tone === "error" ? "bg-error" : "bg-primary"
+                        className={`absolute top-2 right-2 w-2.5 h-2.5 rounded-full ring-2 ring-surface-low ${
+                          badge.tone === "error" ? "bg-error animate-pulse" : "bg-primary"
                         }`}
                       />
                     )}
@@ -338,24 +353,28 @@ const AdminDashboard = () => {
           ))}
         </nav>
 
-        {/* Signed-in admin */}
-        <div className="p-3 border-t border-line-soft shrink-0">
+        {/* Signed-in Admin Profile Footer */}
+        <div className="p-3 border-t border-line-soft/80 shrink-0 bg-surface-low/60">
           <div
-            className={`flex items-center gap-2.5 rounded bg-surface-card border border-line-soft p-2.5 ${
+            className={`flex items-center gap-3 rounded-xl bg-surface-card/80 border border-line-soft/80 p-2.5 shadow-sm ${
               sidebarOpen || mobileMenuOpen ? "" : "justify-center"
             }`}
           >
-            <span className="w-8 h-8 rounded shrink-0 bg-primary-container text-primary-on flex items-center justify-center text-sm font-semibold">
-              {currentUser?.email ? currentUser.email.charAt(0).toUpperCase() : "A"}
-            </span>
+            <div className="relative shrink-0">
+              <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/30 via-primary/15 to-transparent border border-primary/40 text-primary flex items-center justify-center text-sm font-bold shadow-inner">
+                {currentUser?.email ? currentUser.email.charAt(0).toUpperCase() : "A"}
+              </span>
+              <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary ring-2 ring-surface-card" />
+            </div>
+
             {(sidebarOpen || mobileMenuOpen) && (
               <div className="flex-1 min-w-0 leading-tight">
-                <p className="text-[13px] font-semibold text-ink-strong truncate">
+                <p className="text-[13px] font-bold text-ink-strong truncate">
                   {currentUser?.email ? currentUser.email.split("@")[0] : "Admin"}
                 </p>
-                <p className="text-[12px] text-primary flex items-center gap-1.5 mt-0.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary" aria-hidden="true" />
-                  অনলাইন
+                <p className="text-[11px] text-primary flex items-center gap-1.5 mt-0.5 font-medium">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" aria-hidden="true" />
+                  সক্রিয় অ্যাডমিন
                 </p>
               </div>
             )}
@@ -366,57 +385,67 @@ const AdminDashboard = () => {
       {/* ==================== WORKSPACE ==================== */}
       <div
         className={`flex flex-col min-h-screen transition-[padding] duration-200 ${
-          sidebarOpen ? "lg:pl-[264px]" : "lg:pl-[76px]"
+          sidebarOpen ? "lg:pl-[268px]" : "lg:pl-[78px]"
         }`}
       >
-        <header className="sticky top-0 z-30 h-16 shrink-0 bg-surface/90 backdrop-blur-xl border-b border-line-soft px-4 sm:px-6 flex items-center gap-3">
+        {/* Sticky Header Topbar */}
+        <header className="sticky top-0 z-30 h-16 shrink-0 bg-surface/90 backdrop-blur-2xl border-b border-line-soft/80 px-4 sm:px-6 flex items-center gap-3 shadow-sm">
           <button
             type="button"
             onClick={() => setMobileMenuOpen(true)}
             aria-label="মেনু খুলুন"
-            className="lg:hidden w-11 h-11 -ml-2 rounded flex items-center justify-center shrink-0 text-ink-muted hover:text-ink-strong hover:bg-surface-overlay transition-colors cursor-pointer"
+            className="lg:hidden w-10 h-10 -ml-1.5 rounded-lg flex items-center justify-center shrink-0 text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer"
           >
             <HiBars3 className="text-xl" />
           </button>
 
-          {/* Breadcrumb — driven by the registry, never hand-maintained */}
+          {/* Breadcrumb navigation */}
           <nav aria-label="ব্রেডক্রাম্ব" className="min-w-0 flex items-center gap-2 text-[13px]">
             <button
               type="button"
               onClick={() => goToTab("overview")}
-              className="text-ink-muted hover:text-ink-body transition-colors cursor-pointer shrink-0"
+              className={`rounded-lg px-2.5 py-1 transition-colors cursor-pointer shrink-0 font-medium ${
+                activeTab === "overview"
+                  ? "bg-primary/15 text-primary font-bold"
+                  : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/50"
+              }`}
             >
               ড্যাশবোর্ড
             </button>
             {activeTab !== "overview" && (
               <>
-                <span className="text-ink-muted/50 shrink-0" aria-hidden="true">
+                <span className="text-ink-muted/40 shrink-0" aria-hidden="true">
                   /
                 </span>
-                <span className="hidden sm:inline text-ink-muted shrink-0">{current.group}</span>
-                <span className="hidden sm:inline text-ink-muted/50 shrink-0" aria-hidden="true">
+                <span className="hidden sm:inline text-ink-muted shrink-0 text-[12px] uppercase tracking-wider">
+                  {current.group}
+                </span>
+                <span className="hidden sm:inline text-ink-muted/40 shrink-0" aria-hidden="true">
                   /
                 </span>
-                <span className="font-semibold text-ink-strong truncate">{current.label}</span>
+                <span className="font-bold text-ink-strong bg-surface-card/80 border border-line-soft/80 rounded-lg px-2.5 py-1 truncate shadow-sm">
+                  {current.label}
+                </span>
               </>
             )}
           </nav>
 
           <div className="flex-1" />
 
-          {/* Jump-to */}
+          {/* Jump-to Search bar button */}
           <button
             type="button"
             onClick={() => setPaletteOpen(true)}
-            className="hidden md:flex items-center gap-2 min-h-[38px] px-3 rounded border border-line-soft
-              bg-surface-card text-ink-muted hover:text-ink-body hover:border-line-strong/50 transition-colors cursor-pointer"
+            className="hidden md:flex items-center gap-2.5 min-h-[38px] px-3.5 rounded-xl border border-line-soft/80
+              bg-surface-card/80 backdrop-blur-sm text-ink-muted hover:text-ink-strong hover:border-line-strong/60 transition-all cursor-pointer shadow-sm group"
           >
-            <HiMagnifyingGlass className="text-base" />
+            <HiMagnifyingGlass className="text-base group-hover:text-primary transition-colors" />
             <span className="text-[13px]">সেকশন খুঁজুন</span>
-            <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[12px] font-medium">
+            <kbd className="rounded-md border border-line-soft bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted shadow-sm">
               Ctrl K
             </kbd>
           </button>
+
           <IconButton
             icon={HiMagnifyingGlass}
             label="সেকশন খুঁজুন"
@@ -424,21 +453,29 @@ const AdminDashboard = () => {
             className="md:hidden"
           />
 
-          {/* Connection state */}
-          <span
-            className="hidden xl:inline-flex items-center gap-2 rounded-full border border-line-soft bg-surface-card px-3 py-1.5 text-[12px] text-ink-muted"
+          {/* Database live connection state indicator */}
+          <div
+            className="hidden xl:inline-flex items-center gap-2 rounded-full border border-line-soft/80 bg-surface-card/80 px-3.5 py-1.5 text-[12px] text-ink-muted shadow-sm"
             title={
               isFirebaseConfigured()
                 ? "Firestore ডেটাবেজের সাথে সরাসরি সংযুক্ত"
                 : "Firebase কনফিগার করা নেই — পরিবর্তন সংরক্ষণ হবে না"
             }
           >
-            <span
-              aria-hidden="true"
-              className={`w-2 h-2 rounded-full ${isFirebaseConfigured() ? "bg-primary" : "bg-secondary"}`}
-            />
-            {isFirebaseConfigured() ? "ডেটাবেজ সংযুক্ত" : "লোকাল মোড"}
-          </span>
+            <span className="relative flex h-2.5 w-2.5">
+              {isFirebaseConfigured() && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              )}
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  isFirebaseConfigured() ? "bg-primary" : "bg-secondary"
+                }`}
+              />
+            </span>
+            <span className="font-medium">
+              {isFirebaseConfigured() ? "লাইভ ডেটাবেজ" : "লোকাল মোড"}
+            </span>
+          </div>
 
           <Button
             as={Link}
@@ -450,7 +487,7 @@ const AdminDashboard = () => {
             iconRight={HiArrowTopRightOnSquare}
             className="hidden sm:inline-flex"
           >
-            ওয়েবসাইট
+            মূল সাইট
           </Button>
 
           <Button size="sm" tone="danger" icon={HiArrowRightOnRectangle} onClick={handleLogout}>
@@ -458,6 +495,7 @@ const AdminDashboard = () => {
           </Button>
         </header>
 
+        {/* Main Body Canvas */}
         <main
           id="admin-content"
           className="flex-1 w-full max-w-[1400px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6"
@@ -475,7 +513,7 @@ const AdminDashboard = () => {
                   onClick={fetchStats}
                   loading={statsState === "loading"}
                 >
-                  হালনাগাদ করুন
+                  তথ্য রিফ্রেশ
                 </Button>
               ) : null
             }
@@ -484,17 +522,17 @@ const AdminDashboard = () => {
           {activeTab === "overview" ? (
             <div className="space-y-6 animate-fadeIn">
               {statsState === "partial" && (
-                <div className="flex items-start gap-3 rounded-lg border border-secondary/35 bg-secondary/10 px-4 py-3.5">
+                <div className="flex items-start gap-3 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3.5 shadow-sm">
                   <HiExclamationTriangle className="text-xl text-secondary shrink-0 mt-px" />
                   <p className="text-sm text-ink-body leading-relaxed">
                     কিছু তথ্য ডেটাবেজ থেকে আনা যায়নি — নিচে “—” চিহ্নিত সংখ্যাগুলো অসম্পূর্ণ।
-                    ইন্টারনেট সংযোগ যাচাই করে আবার হালনাগাদ করুন।
+                    ইন্টারনেট সংযোগ যাচাই করে আবার রিফ্রেশ করুন।
                   </p>
                 </div>
               )}
 
-              {/* Counts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {/* Main Metric Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
                 <StatCard
                   icon={HiAcademicCap}
                   tone="primary"
@@ -507,7 +545,7 @@ const AdminDashboard = () => {
                       <Chip tone="secondary">{stats.pendingRegistrations} পেন্ডিং</Chip>
                     ) : stats.pendingRegistrations === 0 ? (
                       <Chip tone="primary" icon={HiCheckCircle}>
-                        সব যাচাই হয়েছে
+                        সব যাচাইকৃত
                       </Chip>
                     ) : null
                   }
@@ -543,95 +581,132 @@ const AdminDashboard = () => {
                 />
               </div>
 
-              {/* What needs a decision today */}
+              {/* Pending Action Required Cards */}
               {(stats.pendingRegistrations > 0 || stats.unreadMessages > 0) && (
                 <Panel>
-                  <h2 className="text-base font-semibold text-ink-strong mb-4">আপনার অপেক্ষায়</h2>
-                  <div className="space-y-2.5">
+                  <div className="flex items-center justify-between gap-3 mb-4">
+                    <h2 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-secondary animate-ping" />
+                      আপনার অপেক্ষায় (জরুরি অ্যাকশন)
+                    </h2>
+                    <span className="text-[12px] font-semibold text-secondary px-2.5 py-0.5 rounded-full bg-secondary/10 border border-secondary/20">
+                      পদক্ষেপ প্রয়োজন
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
                     {stats.pendingRegistrations > 0 && (
                       <button
                         type="button"
                         onClick={() => goToTab("registrations")}
-                        className="w-full flex items-center gap-3.5 rounded border border-line-soft bg-surface p-4 text-left hover:border-primary/40 hover:bg-surface-overlay/40 transition-colors cursor-pointer"
+                        className="group w-full flex items-center gap-4 rounded-xl border border-secondary/30 bg-gradient-to-r from-secondary/10 via-surface-low to-surface p-4 text-left hover:border-secondary/60 hover:shadow-lg transition-all cursor-pointer"
                       >
-                        <span className="w-10 h-10 rounded shrink-0 bg-primary/12 text-primary flex items-center justify-center text-xl">
+                        <span className="w-11 h-11 rounded-xl shrink-0 bg-secondary/20 text-secondary border border-secondary/30 flex items-center justify-center text-2xl shadow-sm group-hover:scale-105 transition-transform">
                           <HiAcademicCap />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block text-sm font-semibold text-ink-strong">
-                            {stats.pendingRegistrations} টি আবেদন যাচাইয়ের অপেক্ষায়
+                          <span className="block text-sm sm:text-base font-bold text-ink-strong">
+                            {stats.pendingRegistrations} টি নতুন আবেদন যাচাইয়ের অপেক্ষায়
                           </span>
                           <span className="block text-[13px] text-ink-muted mt-0.5">
-                            অনুমোদন দিলে শিক্ষার্থীরা রোল ও প্রবেশপত্র পাবে
+                            অনুমোদন দিলে শিক্ষার্থীরা রোল ও প্রবেশপত্র সংগ্রহ করতে পারবে
                           </span>
                         </span>
-                        <HiArrowSmallRight className="text-xl text-ink-muted shrink-0" />
+                        <div className="w-8 h-8 rounded-lg bg-surface-overlay/80 text-secondary flex items-center justify-center group-hover:translate-x-1 transition-transform shrink-0">
+                          <HiArrowSmallRight className="text-xl" />
+                        </div>
                       </button>
                     )}
+
                     {stats.unreadMessages > 0 && (
                       <button
                         type="button"
                         onClick={() => goToTab("messages")}
-                        className="w-full flex items-center gap-3.5 rounded border border-line-soft bg-surface p-4 text-left hover:border-primary/40 hover:bg-surface-overlay/40 transition-colors cursor-pointer"
+                        className="group w-full flex items-center gap-4 rounded-xl border border-error/30 bg-gradient-to-r from-error/10 via-surface-low to-surface p-4 text-left hover:border-error/60 hover:shadow-lg transition-all cursor-pointer"
                       >
-                        <span className="w-10 h-10 rounded shrink-0 bg-error/12 text-error flex items-center justify-center text-xl">
+                        <span className="w-11 h-11 rounded-xl shrink-0 bg-error/20 text-error border border-error/30 flex items-center justify-center text-2xl shadow-sm group-hover:scale-105 transition-transform">
                           <HiEnvelope />
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block text-sm font-semibold text-ink-strong">
-                            {stats.unreadMessages} টি অপঠিত মেসেজ
+                          <span className="block text-sm sm:text-base font-bold text-ink-strong">
+                            {stats.unreadMessages} টি নতুন অপঠিত মেসেজ
                           </span>
                           <span className="block text-[13px] text-ink-muted mt-0.5">
                             কন্টাক্ট ফর্ম ও চ্যাটবট থেকে আসা প্রশ্ন
                           </span>
                         </span>
-                        <HiArrowSmallRight className="text-xl text-ink-muted shrink-0" />
+                        <div className="w-8 h-8 rounded-lg bg-surface-overlay/80 text-error flex items-center justify-center group-hover:translate-x-1 transition-transform shrink-0">
+                          <HiArrowSmallRight className="text-xl" />
+                        </div>
                       </button>
                     )}
                   </div>
                 </Panel>
               )}
 
-              {/* Everything else, one hop away */}
+              {/* Quick Jump / All Modules Navigation Hub */}
               <Panel>
-                <h2 className="text-base font-semibold text-ink-strong mb-1">সব সেকশন</h2>
-                <p className="text-[13px] text-ink-muted mb-5">
-                  যেকোনো সময়{" "}
-                  <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[12px]">
-                    Ctrl
-                  </kbd>{" "}
-                  +{" "}
-                  <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[12px]">
-                    K
-                  </kbd>{" "}
-                  চেপে সরাসরি যেকোনো সেকশনে যেতে পারবেন।
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
+                  <h2 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight">
+                    সকল কন্ট্রোল মডিউল
+                  </h2>
+                  <p className="text-[12px] text-ink-muted">
+                    কমান্ড প্যালেট:{" "}
+                    <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[11px] font-mono text-ink-strong">
+                      Ctrl + K
+                    </kbd>
+                  </p>
+                </div>
+                <p className="text-[13px] text-ink-muted mb-6">
+                  ওয়েবসাইটের প্রতিটি বিভাগ পরিচালনার জন্য নির্দিষ্ট মডিউলে প্রবেশ করুন।
                 </p>
 
-                <div className="space-y-5">
+                <div className="space-y-6">
                   {NAV_GROUPS.filter((g) => g.items.some((i) => i.id !== "overview")).map(
                     ({ group, items }) => (
                       <div key={group}>
-                        <p className="text-[13px] font-semibold text-ink-muted mb-2.5">{group}</p>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary/70" />
+                          <p className="text-[12px] font-bold text-ink-muted uppercase tracking-wider">
+                            {group}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
                           {items
                             .filter((i) => i.id !== "overview")
                             .map((item) => {
                               const Icon = item.icon;
+                              const badge = badgeFor(item.id);
                               return (
                                 <button
                                   key={item.id}
                                   type="button"
                                   onClick={() => goToTab(item.id)}
-                                  className="flex items-center gap-2.5 rounded border border-line-soft bg-surface
-                                    min-h-[52px] px-3 py-2.5 text-left cursor-pointer
-                                    hover:border-primary/40 hover:bg-surface-overlay/40 transition-colors"
+                                  className="group flex items-center gap-3 rounded-xl border border-line-soft/80 bg-surface-low/70
+                                    min-h-[56px] px-3.5 py-3 text-left cursor-pointer select-none
+                                    hover:border-primary/50 hover:bg-surface-card hover:-translate-y-0.5 hover:shadow-md transition-all"
                                 >
-                                  <span className="w-8 h-8 rounded shrink-0 bg-surface-overlay/60 text-ink-muted flex items-center justify-center text-base">
+                                  <span className="w-9 h-9 rounded-lg shrink-0 bg-surface-overlay/80 text-ink-muted group-hover:text-primary group-hover:bg-primary/15 border border-line-soft/50 group-hover:border-primary/30 flex items-center justify-center text-lg transition-all">
                                     <Icon />
                                   </span>
-                                  <span className="text-[13px] font-semibold text-ink-body leading-snug">
-                                    {item.label}
-                                  </span>
+                                  <div className="flex-1 min-w-0">
+                                    <span className="block text-[13px] font-bold text-ink-strong leading-snug group-hover:text-primary transition-colors truncate">
+                                      {item.label}
+                                    </span>
+                                  </div>
+                                  {badge && (
+                                    <span
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold leading-none font-bangla-number ${
+                                        badge.tone === "error"
+                                          ? "bg-error/20 text-error"
+                                          : badge.tone === "primary"
+                                          ? "bg-primary/20 text-primary"
+                                          : "bg-surface-overlay text-ink-muted"
+                                      }`}
+                                    >
+                                      {badge.text}
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
@@ -664,3 +739,4 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
+

@@ -5,10 +5,8 @@ import { NAV_ITEMS } from "./navConfig";
 
 /* ============================================================
    JUMP-TO PALETTE  (Ctrl/⌘ + K)
-   Sixteen sections is more than a sidebar can surface at a glance,
-   so this gives every one of them a one-keystroke path. Matches on
-   the Bengali label, the longer title, and English keywords —
-   admins who think "result" and admins who think "ফলাফল" both land.
+   Modern Spotlight / Raycast-style command palette with instant
+   filtering and keyboard navigation.
    ============================================================ */
 
 const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
@@ -25,7 +23,6 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
     );
   }, [query]);
 
-  // Reset to a clean slate each time it opens.
   useEffect(() => {
     if (open) {
       setQuery("");
@@ -38,7 +35,6 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
 
   useEffect(() => setCursor(0), [query]);
 
-  // Lock the page behind the overlay.
   useEffect(() => {
     if (!open) return undefined;
     const { overflow } = document.body.style;
@@ -48,7 +44,6 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
     };
   }, [open]);
 
-  // Keep the highlighted row in view when arrowing past the fold.
   useEffect(() => {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: "nearest" });
   }, [cursor]);
@@ -74,40 +69,42 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[95] bg-black/75 backdrop-blur-sm flex items-start justify-center p-4 pt-[10vh] animate-fadeIn"
+      className="fixed inset-0 z-[95] bg-black/80 backdrop-blur-md flex items-start justify-center p-4 pt-[8vh] sm:pt-[12vh] animate-fadeIn"
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
         role="dialog"
         aria-modal="true"
         aria-label="সেকশন খুঁজুন"
-        className="w-full max-w-xl bg-surface-card border border-line-strong/40 rounded-lg shadow-overlay overflow-hidden animate-slideUp"
+        className="w-full max-w-xl bg-surface-card/95 backdrop-blur-2xl border border-line-strong/50 rounded-2xl shadow-2xl overflow-hidden animate-slideUp"
         onKeyDown={handleKeyDown}
       >
-        <div className="flex items-center gap-3 px-4 border-b border-line-soft">
-          <HiMagnifyingGlass className="text-xl text-ink-muted shrink-0" />
+        <div className="flex items-center gap-3.5 px-4.5 py-1 border-b border-line-soft/80 bg-surface-low/60">
+          <HiMagnifyingGlass className="text-xl text-primary shrink-0" />
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="সেকশন খুঁজুন — যেমন রেজাল্ট, notice, whatsapp..."
+            placeholder="সেকশন খুঁজুন — যেমন রেজাল্ট, নোটিশ, হোয়াটসঅ্যাপ..."
             aria-label="সেকশন খুঁজুন"
-            className="flex-1 bg-transparent py-4 text-sm text-ink-strong placeholder:text-ink-muted/70 focus:outline-none"
+            className="flex-1 bg-transparent py-4 text-sm sm:text-base text-ink-strong placeholder:text-ink-muted/60 focus:outline-none"
           />
-          <kbd className="hidden sm:block shrink-0 rounded border border-line-soft bg-surface px-2 py-1 text-[12px] font-medium text-ink-muted">
+          <kbd className="hidden sm:block shrink-0 rounded-md border border-line-soft bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink-muted shadow-sm">
             Esc
           </kbd>
         </div>
 
-        <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-2 scrollbar-none">
+        <div ref={listRef} className="max-h-[55vh] overflow-y-auto p-2 scrollbar-none space-y-1">
           {results.length === 0 ? (
-            <p className="px-3 py-8 text-center text-sm text-ink-muted">
-              “{query}” নামে কোনো সেকশন পাওয়া যায়নি।
-            </p>
+            <div className="py-12 px-4 text-center">
+              <p className="text-sm font-semibold text-ink-strong">কোনো সেকশন পাওয়া যায়নি</p>
+              <p className="text-[13px] text-ink-muted mt-1">“{query}” দিয়ে অন্য কোনো শব্দ অনুসন্ধান করুন।</p>
+            </div>
           ) : (
             results.map((item, i) => {
               const Icon = item.icon;
               const active = i === cursor;
+              const isCurrent = item.id === activeId;
               return (
                 <button
                   key={item.id}
@@ -118,43 +115,56 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
                     onSelect(item.id);
                     onClose();
                   }}
-                  className={`w-full flex items-center gap-3 rounded px-3 py-2.5 text-left cursor-pointer transition-colors ${
-                    active ? "bg-primary/12" : "hover:bg-surface-overlay/50"
+                  className={`w-full flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-left cursor-pointer transition-all duration-150 select-none ${
+                    active
+                      ? "bg-gradient-to-r from-primary/18 via-primary/10 to-transparent border border-primary/30 shadow-sm"
+                      : "hover:bg-surface-overlay/50 border border-transparent"
                   }`}
                 >
                   <span
-                    className={`w-9 h-9 rounded shrink-0 flex items-center justify-center text-lg ${
-                      active ? "bg-primary/20 text-primary" : "bg-surface-overlay/60 text-ink-muted"
+                    className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center text-lg border transition-all ${
+                      active
+                        ? "bg-primary/25 text-primary border-primary/40 shadow-sm"
+                        : "bg-surface-overlay/70 text-ink-muted border-line-soft/50"
                     }`}
                   >
                     <Icon />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-ink-strong truncate">
-                      {item.label}
-                      {item.id === activeId && (
-                        <span className="ml-2 text-[12px] font-medium text-primary">• বর্তমান</span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-ink-strong truncate">
+                        {item.label}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-[11px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-full border border-primary/30">
+                          বর্তমান
+                        </span>
                       )}
                     </span>
-                    <span className="block text-[13px] text-ink-muted truncate">{item.group}</span>
+                    <span className="block text-[12px] text-ink-muted truncate mt-0.5 font-medium">
+                      {item.group}
+                    </span>
                   </span>
-                  {active && <HiArrowSmallRight className="text-lg text-primary shrink-0" />}
+                  {active && <HiArrowSmallRight className="text-lg text-primary shrink-0 animate-pulse" />}
                 </button>
               );
             })
           )}
         </div>
 
-        <div className="hidden sm:flex items-center gap-4 px-4 py-2.5 border-t border-line-soft bg-surface/50 text-[12px] text-ink-muted">
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5">↑</kbd>
-            <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5">↓</kbd>
-            নির্বাচন
-          </span>
-          <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5">Enter</kbd>
-            খুলুন
-          </span>
+        <div className="hidden sm:flex items-center justify-between px-4.5 py-3 border-t border-line-soft/80 bg-surface-low/80 text-[12px] text-ink-muted">
+          <div className="flex items-center gap-4">
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[11px]">↑</kbd>
+              <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[11px]">↓</kbd>
+              নির্বাচন
+            </span>
+            <span className="flex items-center gap-1.5">
+              <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[11px]">Enter</kbd>
+              খুলুন
+            </span>
+          </div>
+          <span className="text-[11px] text-ink-muted/80">কিশোরকণ্ঠ অ্যাডমিন কন্ট্রোল</span>
         </div>
       </div>
     </div>,
@@ -163,3 +173,4 @@ const CommandPalette = ({ open, onClose, onSelect, activeId }) => {
 };
 
 export default CommandPalette;
+

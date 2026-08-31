@@ -5,12 +5,11 @@ import {
   HiShieldCheck,
   HiExclamationCircle,
   HiArrowLeft,
+  HiLockClosed,
 } from "react-icons/hi2";
 import { Button } from "./ui";
 
-/* Google's mark has to be the four-colour original — their branding terms do
-   not allow recolouring it, so it stays inline rather than joining the icon
-   set, which is monochrome and theme-tinted. */
+/* Google's four-colour SVG mark */
 const GoogleMark = ({ className = "" }) => (
   <svg className={className} viewBox="0 0 48 48" aria-hidden="true">
     <path
@@ -42,21 +41,14 @@ const AdminLogin = () => {
 
   const from = location.state?.from?.pathname || "/admin";
 
-  /* Warms up Firebase Auth while the visitor is still looking at the page,
-     so the first click does not also wait on a 40KB download. It also picks
-     up a session that is already valid, which is what redirects back below. */
   useEffect(() => {
     ensureAuth();
   }, [ensureAuth]);
 
-  /* Covers both routes into a signed-in state: the popup resolving, and a
-     redirect sign-in completing after the page reloaded. */
   useEffect(() => {
     if (currentUser) navigate(from, { replace: true });
   }, [currentUser, from, navigate]);
 
-  /* A rejected account is reported by the provider, not by the click below —
-     the redirect flow has no click left to report to. */
   useEffect(() => {
     if (authError) {
       setError(authError);
@@ -68,14 +60,7 @@ const AdminLogin = () => {
     try {
       setError("");
       setLoading(true);
-      const user = await loginWithGoogle();
-      if (user) {
-        navigate(from, { replace: true });
-        return;
-      }
-      /* null means no popup could be opened and the redirect fallback took
-         over: the page is being replaced, so `loading` stays on rather than
-         flashing the idle button on the way out. */
+      await loginWithGoogle();
     } catch (err) {
       console.error(err);
       setError(err.message || "লগইন করতে সমস্যা হয়েছে।");
@@ -84,30 +69,45 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface px-4 py-12">
-      <div className="w-full max-w-[420px]">
-        <div className="bg-surface-card border border-line-soft rounded-lg p-7 sm:p-9">
-          {/* Identity */}
+    <div className="min-h-screen flex items-center justify-center bg-surface px-4 py-12 relative overflow-hidden selection:bg-primary/25 selection:text-ink-strong">
+      {/* Dynamic ambient gradient background lighting */}
+      <div className="absolute -top-40 -left-40 w-[600px] h-[600px] bg-primary/[0.06] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-40 -right-40 w-[600px] h-[600px] bg-tertiary/[0.05] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/[0.02] rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-[440px] relative z-10 animate-fade-in-up">
+        <div className="bg-surface-card/90 backdrop-blur-2xl border border-line-soft/80 rounded-2xl p-7 sm:p-10 shadow-2xl shadow-black/50 relative overflow-hidden">
+          {/* Subtle top luminous line */}
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-80" />
+
+          {/* Identity Header */}
           <div className="flex flex-col items-center text-center mb-8">
-            <span className="w-14 h-14 rounded-lg bg-primary-container text-primary-on flex items-center justify-center text-3xl mb-4">
-              <HiShieldCheck />
-            </span>
-            <h1 className="text-xl font-semibold text-ink-strong">অ্যাডমিন লগইন</h1>
-            <p className="text-[13px] text-ink-muted mt-1.5 leading-relaxed">
-              কিশোরকণ্ঠ মেধাবৃত্তি কন্ট্রোল প্যানেল
+            <div className="relative mb-5">
+              <span className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-primary-container to-emerald-700 text-primary-on flex items-center justify-center text-3xl shadow-lg shadow-primary/25">
+                <HiShieldCheck />
+              </span>
+              <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-surface-card border-2 border-primary/40 flex items-center justify-center text-[10px] text-primary">
+                <HiLockClosed />
+              </span>
+            </div>
+
+            <h1 className="text-2xl font-bold text-ink-strong tracking-tight">অ্যাডমিন প্রবেশদ্বার</h1>
+            <p className="text-[13.5px] text-ink-muted mt-1.5 leading-relaxed font-normal">
+              কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা কন্ট্রোল প্যানেল
             </p>
           </div>
 
-          {/* aria-live so a screen reader announces the failure without a re-focus */}
+          {/* Error Message */}
           <div aria-live="polite">
             {error && (
-              <div className="mb-6 flex items-start gap-3 rounded border border-error/40 bg-error/12 px-4 py-3.5 animate-fade-in-down">
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-error/40 bg-error/12 px-4 py-3.5 animate-fade-in-down shadow-sm">
                 <HiExclamationCircle className="text-xl text-error shrink-0 mt-px" />
                 <p className="text-[13px] text-ink-body leading-relaxed">{error}</p>
               </div>
             )}
           </div>
 
+          {/* Login Action Button */}
           <Button
             type="button"
             tone="neutral"
@@ -115,28 +115,36 @@ const AdminLogin = () => {
             block
             loading={loading}
             onClick={handleGoogleLogin}
+            className="border-line-strong/50 hover:border-primary/50 shadow-md transition-all duration-200"
           >
-            <span className="inline-flex items-center justify-center gap-2.5">
+            <span className="inline-flex items-center justify-center gap-3">
               {!loading && <GoogleMark className="w-5 h-5" />}
-              {loading ? "যাচাই করা হচ্ছে..." : "Google দিয়ে লগইন করুন"}
+              <span className="font-bold tracking-wide">
+                {loading ? "Google-এ নিয়ে যাওয়া হচ্ছে..." : "Google দিয়ে লগইন করুন"}
+              </span>
             </span>
           </Button>
 
-          <p className="mt-6 text-[12px] text-ink-muted text-center leading-relaxed">
-            শুধুমাত্র অনুমোদিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করা যাবে
-            <br />
-            <span className="font-mono text-[11px] break-all">
-              {adminEmails.join(", ")}
-            </span>
-          </p>
+          {/* Authorized Admin Notice */}
+          <div className="mt-7 pt-6 border-t border-line-soft/80 text-center">
+            <p className="text-[12px] text-ink-muted leading-relaxed mb-2 font-medium">
+              শুধুমাত্র অনুমোদিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করা যাবে
+            </p>
+            <div className="inline-block max-w-full">
+              <span className="inline-block font-mono text-[11px] text-primary/90 bg-primary/10 border border-primary/25 rounded-full px-3 py-1 break-all">
+                {adminEmails.join(", ")}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="mt-5 text-center">
+        {/* Back Link */}
+        <div className="mt-6 text-center">
           <Link
             to="/"
-            className="inline-flex items-center gap-1.5 text-[13px] text-ink-muted hover:text-primary transition-colors"
+            className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-ink-muted hover:text-primary transition-all duration-200 hover:-translate-x-0.5"
           >
-            <HiArrowLeft className="text-sm" />
+            <HiArrowLeft className="text-base" />
             মূল ওয়েবসাইটে ফিরে যান
           </Link>
         </div>
