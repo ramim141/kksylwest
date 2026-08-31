@@ -19,15 +19,6 @@ export const ADMIN_EMAILS = ["kishorkanthasylwest@gmail.com"];
 const isAdminEmail = (email) =>
   typeof email === "string" && ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
-/* The popup cannot open at all in these cases — in-app browsers, strict
-   blockers, most mobile webviews. Redirect is the documented fallback.
-   A popup the user closed themselves is not in this list: that was a
-   deliberate cancel, and bouncing them through a redirect would be rude. */
-const POPUP_FALLBACK_CODES = [
-  "auth/popup-blocked",
-  "auth/operation-not-supported-in-environment",
-];
-
 const describeAuthError = (err) => {
   switch (err?.code) {
     case "auth/popup-closed-by-user":
@@ -103,17 +94,27 @@ export const AuthProvider = ({ children }) => {
     })();
   }, []);
 
+  /* Redirect rather than a popup.
+
+     signInWithPopup hung after the account was chosen. The popup reports its
+     result by calling postMessage on window.opener, and Google's sign-in page
+     sends its own Cross-Origin-Opener-Policy, which puts the popup in a
+     separate browsing context group and severs that handle. Nothing we send
+     from our own origin can undo it — the severance comes from their page —
+     so the promise simply never settled and the button spun forever.
+
+     A redirect has no second window, so there is no opener to lose. It also
+     behaves on mobile and inside in-app browsers, where popups were already
+     unreliable. The cost is one full page load, which for a login used a few
+     times a day is not a cost worth optimising. */
   const loginWithGoogle = useCallback(async () => {
     setAuthError("");
     ensureAuth();
 
     const auth = await getFirebaseAuth();
-    const {
-      GoogleAuthProvider,
-      signInWithPopup,
-      signInWithRedirect,
-      signOut,
-    } = await import("firebase/auth");
+    const { GoogleAuthProvider, signInWithRedirect } = await import(
+      "firebase/auth"
+    );
 
     const provider = new GoogleAuthProvider();
     /* Without this Google silently reuses whichever account the browser
@@ -121,23 +122,11 @@ export const AuthProvider = ({ children }) => {
        enough to be worth the extra tap. */
     provider.setCustomParameters({ prompt: "select_account" });
 
-    let result;
-    try {
-      result = await signInWithPopup(auth, provider);
-    } catch (err) {
-      if (POPUP_FALLBACK_CODES.includes(err.code)) {
-        await signInWithRedirect(auth, provider);
-        return null; // the page navigates away; onAuthStateChanged finishes it
-      }
-      throw err;
-    }
-
-    if (!isAdminEmail(result.user.email)) {
-      await signOut(auth).catch(() => {});
-      throw new Error(notAllowedMessage(result.user.email));
-    }
-
-    return result.user;
+    /* Navigates away. The account check happens in onAuthStateChanged when
+       the browser comes back, which is the only place that can see the
+       result of a redirect. */
+    await signInWithRedirect(auth, provider);
+    return null;
   }, [ensureAuth]);
 
   const logout = useCallback(async () => {

@@ -68,13 +68,14 @@ const AdminLogin = () => {
     try {
       setError("");
       setLoading(true);
-      const user = await loginWithGoogle();
-      // A null user means the redirect flow took over and the page is leaving.
-      if (user) navigate(from, { replace: true });
+      /* Sends the browser to Google and does not come back here — the page
+         is replaced. The effect above picks the session up on return, so
+         `loading` is deliberately left on: it is the last frame drawn before
+         the navigation, and clearing it would only flash the idle button. */
+      await loginWithGoogle();
     } catch (err) {
       console.error(err);
       setError(err.message || "লগইন করতে সমস্যা হয়েছে।");
-    } finally {
       setLoading(false);
     }
   };
@@ -114,7 +115,7 @@ const AdminLogin = () => {
           >
             <span className="inline-flex items-center justify-center gap-2.5">
               {!loading && <GoogleMark className="w-5 h-5" />}
-              {loading ? "যাচাই করা হচ্ছে..." : "Google দিয়ে লগইন করুন"}
+              {loading ? "Google-এ নিয়ে যাওয়া হচ্ছে..." : "Google দিয়ে লগইন করুন"}
             </span>
           </Button>
 
