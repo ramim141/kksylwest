@@ -22,7 +22,8 @@ import {
   HiArrowTopRightOnSquare,
 } from "react-icons/hi2";
 import { FaCrown, FaMedal, FaAward, FaGraduationCap } from "react-icons/fa";
-import { getAllResults } from "../../services/firestore";
+import { getAllResults, filterResultsByYear } from "../../services/firestore";
+import ResultsPendingNotice from "./ResultsPendingNotice";
 import {
   Reveal,
   RevealGroup,
@@ -33,7 +34,7 @@ import {
   SkeletonFilterBar,
   SkeletonTable,
 } from "../common";
-import { useExamYear } from "../../context/ExamYearContext";
+import { useResultVisibility } from "../../context/ExamYearContext";
 
 const CLASSES = [
   "সকল শ্রেণি",
@@ -55,7 +56,7 @@ const SCHOLARSHIP_GRADES = [
 const PAGE_SIZE = 50;
 
 const MeritLeaderboard = () => {
-  const examYear = useExamYear();
+  const { examYear, meritListYear } = useResultVisibility();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedClass, setSelectedClass] = useState("সকল শ্রেণি");
@@ -94,9 +95,18 @@ const MeritLeaderboard = () => {
     setCurrentPage(1);
   }, [selectedClass, selectedGrade, searchQuery]);
 
+  /* Everything below works from one session's results. getAllResults()
+     returns every year at once — it is shared with the admin screens, which
+     need exactly that — so the narrowing happens here. Without it the list
+     mixed every session ever uploaded under a single heading. */
+  const yearResults = useMemo(
+    () => filterResultsByYear(results, meritListYear),
+    [results, meritListYear]
+  );
+
   // Filter and Sort Merit List
   const filteredMeritList = useMemo(() => {
-    let list = [...results];
+    let list = [...yearResults];
 
     // Filter by class
     if (selectedClass !== "সকল শ্রেণি") {
@@ -130,19 +140,19 @@ const MeritLeaderboard = () => {
       if (!isTalentA && isTalentB) return 1;
       return (parseInt(a.roll) || 0) - (parseInt(b.roll) || 0);
     });
-  }, [results, selectedClass, selectedGrade, searchQuery]);
+  }, [yearResults, selectedClass, selectedGrade, searchQuery]);
 
   // Quick summary counts
   const talentpoolCount = useMemo(() => {
-    return results.filter((r) => (r.category || "").includes("ট্যালেন্ট")).length;
+    return yearResults.filter((r) => (r.category || "").includes("ট্যালেন্ট")).length;
   }, [results]);
 
   const generalCount = useMemo(() => {
-    return results.filter((r) => (r.category || "").includes("সাধারণ")).length;
+    return yearResults.filter((r) => (r.category || "").includes("সাধারণ")).length;
   }, [results]);
 
   const totalSchools = useMemo(() => {
-    return new Set(results.map((r) => r.school).filter(Boolean)).size;
+    return new Set(yearResults.map((r) => r.school).filter(Boolean)).size;
   }, [results]);
 
   // Top 3 Podium Students
@@ -177,6 +187,19 @@ const MeritLeaderboard = () => {
     setSelectedStudentModal(null);
   };
 
+  /* No session selected means the admin has not released a list yet. Checked
+     before the skeleton so an empty page never flashes a loading state for
+     data that is not coming. */
+  if (!meritListYear) {
+    return (
+      <ResultsPendingNotice
+        year={examYear}
+        title={`${examYear} সালের মেধা তালিকা এখনো প্রকাশিত হয়নি`}
+        description="পরীক্ষার ফলাফল যাচাই ও চূড়ান্ত হওয়ার পর মেধা তালিকা প্রকাশ করা হবে।"
+      />
+    );
+  }
+
   if (loading) {
     return (
       <SkeletonRegion
@@ -203,7 +226,7 @@ const MeritLeaderboard = () => {
         <div className="text-center space-y-3 max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs sm:text-sm font-bold uppercase tracking-wider shadow-sm">
             <HiTrophy className="text-base text-amber-400" />
-            <span>অফিসিয়াল মেধা লিডারবোর্ড {examYear}</span>
+            <span>অফিসিয়াল মেধা লিডারবোর্ড {meritListYear}</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tight leading-tight">

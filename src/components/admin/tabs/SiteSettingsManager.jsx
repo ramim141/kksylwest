@@ -40,6 +40,7 @@ import {
   getBrandingSettings,
   saveBrandingSettings,
   DEFAULT_BRANDING_SETTINGS,
+  getResultYearStats,
 } from "../../../services/firestore";
 import { uploadToImgBB, isImgBBConfigured } from "../../../services/imgbb";
 import kkmLogoDefault from "../../../assets/images/KKM LOGO.png";
@@ -97,6 +98,9 @@ const SiteSettingsManager = () => {
   const [statsList, setStatsList] = useState(DEFAULT_IMPACT_STATS);
   const [contactData, setContactData] = useState(DEFAULT_CONTACT_SETTINGS);
   const [datesData, setDatesData] = useState(DEFAULT_IMPORTANT_DATES);
+  /* Drives the merit-list dropdown below: only sessions that actually hold
+     results can be put on display, so the year is picked rather than typed. */
+  const [resultYears, setResultYears] = useState({ years: [], counts: {} });
   const [admitData, setAdmitData] = useState(DEFAULT_ADMIT_CARD_SETTINGS);
   const [brandingData, setBrandingData] = useState(DEFAULT_BRANDING_SETTINGS);
 
@@ -134,6 +138,16 @@ const SiteSettingsManager = () => {
         getAdmitCardSettings(),
         getBrandingSettings(),
       ]);
+
+      /* Not in the Promise.all above: it reads the whole results collection,
+         and a failure there should not cost the admin every other setting on
+         this screen. */
+      try {
+        const stats = await getResultYearStats();
+        if (stats) setResultYears({ years: stats.years || [], counts: stats.counts || {} });
+      } catch (err) {
+        console.warn("Result year stats unavailable:", err);
+      }
 
       if (contentData) {
         setFormData({
@@ -1022,6 +1036,70 @@ const SiteSettingsManager = () => {
             <HiSparkles className="text-primary text-lg mt-0.5 shrink-0" />
             <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
               <span className="font-bold text-ink-strong">চলতি শিক্ষাবর্ষ (Exam Year):</span> এখানে যে বছর (যেমন: <strong>২০২৬</strong>) সেট করে সংরক্ষণ করবেন, পুরো ওয়েবসাইটের সব পেজে স্বয়ংক্রিয়ভাবে সেই বছরটি দৃশ্যমান হবে।
+            </div>
+          </div>
+
+          {/* ============================================================
+              RESULT VISIBILITY — what the public may see, and for which
+              session. Kept apart from Exam Year on purpose: registration
+              for the coming session runs long before its results exist,
+              so the year on display is usually the previous one.
+              ============================================================ */}
+          <div className="p-4 bg-surface rounded-lg border border-amber-500/40 space-y-4">
+            <div className="flex items-start gap-3">
+              <HiSparkles className="text-amber-500 text-lg mt-0.5 shrink-0" />
+              <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
+                <span className="font-bold text-ink-strong">ফলাফল প্রকাশ নিয়ন্ত্রণ:</span>{" "}
+                পরীক্ষা হওয়ার আগে ফলাফল বা মেধা তালিকা যেন কেউ দেখতে না পারে,
+                তা এখান থেকে নিয়ন্ত্রণ করুন। দুটি সেটিং আলাদা — চাইলে আগে ফলাফল
+                সার্চ খুলে পরে মেধা তালিকা প্রকাশ করতে পারবেন।
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Search gate */}
+              <div>
+                <label className="block text-[13px] font-bold text-ink-body mb-1.5">
+                  ফলাফল সার্চ (/search) চালু আছে?
+                </label>
+                <select
+                  value={datesData.resultsPublished ? "yes" : "no"}
+                  onChange={(e) =>
+                    setDatesData({ ...datesData, resultsPublished: e.target.value === "yes" })
+                  }
+                  className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
+                >
+                  <option value="no">🔒 বন্ধ — "ফলাফল এখনো প্রকাশিত হয়নি" দেখাবে</option>
+                  <option value="yes">✅ চালু — রোল দিয়ে ফলাফল খোঁজা যাবে</option>
+                </select>
+                <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
+                  বন্ধ থাকলে নোটিশে চলতি শিক্ষাবর্ষ ({datesData.examYear}) দেখানো হবে।
+                </p>
+              </div>
+
+              {/* Merit list year */}
+              <div>
+                <label className="block text-[13px] font-bold text-ink-body mb-1.5">
+                  মেধা তালিকায় কোন সালের ফলাফল দেখাবে?
+                </label>
+                <select
+                  value={datesData.meritListYear || ""}
+                  onChange={(e) => setDatesData({ ...datesData, meritListYear: e.target.value })}
+                  className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
+                >
+                  <option value="">🔒 কোনোটিই নয় — "এখনো প্রকাশিত হয়নি" দেখাবে</option>
+                  {resultYears.years.map((y) => (
+                    <option key={y} value={y}>
+                      🏆 {y} ({resultYears.counts[y] || 0} জন)
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
+                  {resultYears.years.length === 0
+                    ? "এখনো কোনো সালের ফলাফল আপলোড করা হয়নি।"
+                    : "যে সালের ফলাফল আপলোড করা আছে শুধু সেগুলোই এখানে আসে।"}
+                </p>
+              </div>
             </div>
           </div>
 

@@ -1277,6 +1277,43 @@ export const DEFAULT_IMPORTANT_DATES = {
   prizeDistributionDate: "২০২৬-১১-২০",
   prizeDistributionDateBn: "২০ নভেম্বর ২০২৬",
   activeCountdownTarget: "examDate", // 'registrationDeadline' | 'examDate' | 'resultPublishDate'
+
+  /* Which session's merit list the public sees. Empty means none is ready —
+     the leaderboard then shows a "not published yet" notice instead. This is
+     deliberately separate from examYear: registration for 2026 can be open
+     while the list on display is still 2024's, because the 2026 exam has not
+     been sat yet. */
+  meritListYear: "",
+
+  /* Whether /search will look a roll number up at all. Off until the results
+     for examYear are announced. Separate from meritListYear so the two can be
+     published in either order. */
+  resultsPublished: false,
+};
+
+/* Results carry their year as a string, and it reaches us in whichever
+   numeral set it was uploaded with. Compare on the digits alone so "২০২৪"
+   and "2024" are the same session. */
+export const normalizeYear = (year) =>
+  String(year ?? "")
+    .trim()
+    .replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+
+/**
+ * Narrows a result set to one session.
+ *
+ * Records with no `year` at all are kept: results.json, the offline
+ * fallback, is a single-year snapshot whose rows never carried the field,
+ * and dropping them would empty the leaderboard whenever Firestore is
+ * unreachable.
+ */
+export const filterResultsByYear = (results, year) => {
+  const target = normalizeYear(year);
+  if (!target) return [];
+  return (results || []).filter((r) => {
+    const rowYear = normalizeYear(r?.year);
+    return !rowYear || rowYear === target;
+  });
 };
 
 const uncached_getImportantDates = async () => {

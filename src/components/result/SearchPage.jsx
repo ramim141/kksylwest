@@ -4,8 +4,11 @@ import SearchForm from "./SearchForm";
 import ResultCard from "./ResultCard";
 import { searchResultByRoll } from "../../services/firestore";
 import { SkeletonRegion, SkeletonResultCard } from "../common";
+import ResultsPendingNotice from "./ResultsPendingNotice";
+import { useResultVisibility } from "../../context/ExamYearContext";
 
 const SearchPage = () => {
+  const { examYear, resultsPublished } = useResultVisibility();
   const [searchParams, setSearchParams] = useSearchParams();
   const [inputRoll, setInputRoll] = useState(searchParams.get("roll") || "");
   const [result, setResult] = useState(null);
@@ -15,6 +18,9 @@ const SearchPage = () => {
   const performSearch = async (rollToSearch) => {
     const cleanRoll = rollToSearch.trim();
     if (!cleanRoll) return;
+    /* The notice below replaces the form, but /search?roll=123 skips the form
+       entirely and calls straight through — so the gate is repeated here. */
+    if (!resultsPublished) return;
 
     setLoading(true);
     setError("");
@@ -68,6 +74,18 @@ const SearchPage = () => {
   };
 
   const handlePrint = () => window.print();
+
+  /* Results are not out yet. Returned before any of the search state is
+     rendered, so there is no form to type into and no query to fire. */
+  if (!resultsPublished) {
+    return (
+      <ResultsPendingNotice
+        year={examYear}
+        title={`${examYear} সালের ফলাফল এখনো প্রকাশিত হয়নি`}
+        description="ফলাফল ঘোষণা করা হলে রোল নম্বর দিয়ে এখান থেকেই মার্কশিট দেখা ও ডাউনলোড করা যাবে।"
+      />
+    );
+  }
 
   const resetSearch = () => {
     setResult(null);
