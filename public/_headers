@@ -13,6 +13,10 @@
   Cache-Control: public, max-age=0, must-revalidate
 
 /*
+  # Firebase's Google sign-in popup needs the opener relationship preserved;
+  # without this header Chrome blocks the window.closed read the SDK depends
+  # on and the sign-in never completes. Matches vite.config.js for dev.
+  Cross-Origin-Opener-Policy: same-origin-allow-popups
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN

@@ -27,12 +27,28 @@ const vendorChunks = [
   [/node_modules\/xlsx/, 'xlsx-vendor'],
 ]
 
+/* Firebase's signInWithPopup polls `window.closed` on the window it opened.
+   Google's sign-in page sends its own COOP header, and when our page sends
+   none Chrome severs the opener relationship and refuses that read — the
+   sign-in promise then never settles and the console fills with
+   "Cross-Origin-Opener-Policy policy would block the window.closed call".
+   `same-origin-allow-popups` keeps the handle to popups we open ourselves
+   while still isolating the page from cross-origin openers.
+   Cloudflare serves the same header from public/_headers. */
+const authPopupHeaders = {
+  "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
+};
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
   server: {
     // Honour an externally assigned port (falls back to Vite's default 5173)
     port: process.env.PORT ? Number(process.env.PORT) : undefined,
+    headers: authPopupHeaders,
+  },
+  preview: {
+    headers: authPopupHeaders,
   },
   build: {
     // Every browser this site supports has had these for years; not
