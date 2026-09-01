@@ -43,6 +43,30 @@ const GUARDIAN_RELATIONS = [
   "অন্যান্য অভিভাবক",
 ];
 
+/* Same list the public form offers, so an offline entry lands in the same
+   bucket as an online one and the upazila-wise reports stay comparable. */
+const UPAZILAS = [
+  "দক্ষিণ সুরমা থানা",
+  "মোগলাবাজার থানা",
+  "ফেঞ্চুগঞ্জ উপজেলা",
+  "বিশ্বনাথ উপজেলা",
+  "ওসমানীনগর উপজেলা",
+  "সদর উপজেলা",
+  "বালাগঞ্জ উপজেলা",
+  "অন্যান্য",
+];
+
+/* "Cash/School" is stored verbatim because the public form and the existing
+   records already use that exact string; changing it would split one bucket
+   into two in every fee report. */
+const PAYMENT_METHODS = [
+  { value: "Cash/School", label: "নগদ টাকা (হাতে জমা)", online: false },
+  { value: "bKash", label: "বিকাশ", online: true },
+  { value: "Nagad", label: "নগদ (Nagad)", online: true },
+  { value: "Rocket", label: "রকেট", online: true },
+  { value: "Bank", label: "ব্যাংক জমা", online: true },
+];
+
 const RegistrationManager = () => {
   const [registrations, setRegistrations] = useState([]);
   const [confirm, confirmUI] = useConfirm();
@@ -95,8 +119,15 @@ const RegistrationManager = () => {
     examTime: "সকাল ১০:০০ টা - ১১:৩০ টা",
     roomNo: "",
     status: "approved", // Approved immediately for offline forms
+
+    // Fee collection
     paymentMethod: "Cash/School",
     feeAmount: "২০০ টাকা",
+    collectedBy: "",
+    receiptNo: "",
+    senderNumber: "",
+    trxId: "",
+
     adminNote: "অফলাইন ফরম পূরণকৃত ও অনুমোদিত",
   });
 
@@ -160,6 +191,14 @@ const RegistrationManager = () => {
     const rejected = registrations.filter((r) => r.status === "rejected").length;
     return { total, pending, approved, rejected };
   }, [registrations]);
+
+  /* Cash handed over in person has no transaction to record; every other
+     method does, so the sender/TrxID rows only appear for those. */
+  const isOfflinePaymentOnline = useMemo(
+    () =>
+      PAYMENT_METHODS.find((pm) => pm.value === offlineForm.paymentMethod)?.online ?? false,
+    [offlineForm.paymentMethod]
+  );
 
   const handleOpenModal = (student) => {
     setSelectedStudent(student);
@@ -310,7 +349,11 @@ const RegistrationManager = () => {
 
         photoUrl: finalPhotoUrl,
         paymentMethod: offlineForm.paymentMethod,
-        feeAmount: offlineForm.feeAmount,
+        feeAmount: offlineForm.feeAmount.trim(),
+        collectedBy: offlineForm.collectedBy.trim(),
+        receiptNo: offlineForm.receiptNo.trim(),
+        senderNumber: offlineForm.senderNumber.trim(),
+        trxId: offlineForm.trxId.trim(),
         status: offlineForm.status,
         assignedRoll: offlineForm.assignedRoll.trim(),
         examCenter: offlineForm.examCenter.trim(),
@@ -362,6 +405,13 @@ const RegistrationManager = () => {
         status: "approved",
         paymentMethod: "Cash/School",
         feeAmount: "২০০ টাকা",
+        /* Cleared with the rest: a stack of paper forms can each have been
+           collected by a different person, so carrying the last name over
+           would quietly credit the money to the wrong one. */
+        collectedBy: "",
+        receiptNo: "",
+        senderNumber: "",
+        trxId: "",
         adminNote: "অফলাইন ফরম পূরণকৃত ও অনুমোদিত",
       });
       setOfflinePhotoFile(null);
@@ -789,11 +839,11 @@ ${admitUrl}
           =================================================================== */}
       {isAddModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-3 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
           onClick={() => setIsAddModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-3xl bg-surface border border-line-soft rounded-lg p-5 sm:p-7 shadow-overlay space-y-5 max-h-[92vh] overflow-y-auto scrollbar-none overlay-enter"
+            className="relative w-full max-w-5xl bg-surface border border-line-soft rounded-lg p-4 sm:p-5 shadow-overlay space-y-3 max-h-[96vh] overflow-y-auto scrollbar-none overlay-enter"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -815,70 +865,64 @@ ${admitUrl}
               </button>
             </div>
 
-            <form onSubmit={handleAddOfflineSubmit} className="space-y-4">
+            <form onSubmit={handleAddOfflineSubmit} className="space-y-3">
               
               {/* SECTION 1: PERSONAL DETAILS */}
-              <div className="space-y-3 p-3.5 bg-surface-lowest/80 rounded-lg border border-line-soft">
+              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-line-soft">
                 <span className="text-[13px] font-bold text-primary uppercase tracking-wider block">
                   ১. পরীক্ষার্থীর ব্যক্তিগত তথ্য
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      পরীক্ষার্থীর নাম (বাংলায়) <span className="text-tertiary">*</span>
+                {/* Eight fields in two rows on a wide screen; the modal is
+                    sized so this section never needs its own scroll. */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                      পরীক্ষার্থীর নাম (বাংলায়) <span className="text-tertiary">*</span>
                     </label>
                     <input
                       type="text"
                       name="nameBn"
                       value={offlineForm.nameBn}
                       onChange={handleOfflineInputChange}
-                      placeholder="নাম বাংলায়"
+                      placeholder="নাম বাংলায়"
                       required
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      Name (English - Capital)
-                    </label>
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">Name (English - Capital)</label>
                     <input
                       type="text"
                       name="nameEn"
                       value={offlineForm.nameEn}
                       onChange={handleOfflineInputChange}
                       placeholder="KAZI SHAFAYAT..."
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 uppercase"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 uppercase"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      লিঙ্গ
-                    </label>
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">লিঙ্গ</label>
                     <select
                       name="gender"
                       value={offlineForm.gender}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     >
                       <option value="ছাত্র">👨‍🎓 ছাত্র</option>
                       <option value="ছাত্রী">👩‍🎓 ছাত্রী</option>
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      ধর্ম
-                    </label>
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">ধর্ম</label>
                     <select
                       name="religion"
                       value={offlineForm.religion}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     >
                       {RELIGIONS.map((rel) => (
                         <option key={rel} value={rel}>
@@ -888,22 +932,20 @@ ${admitUrl}
                     </select>
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      মোবাইল নম্বর
-                    </label>
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">মোবাইল নম্বর</label>
                     <input
                       type="tel"
                       name="mobile"
                       value={offlineForm.mobile}
                       onChange={handleOfflineInputChange}
                       placeholder="017XXXXXXXX"
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-mono"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-primary mb-1 flex items-center gap-1">
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-primary mb-0.5 flex items-center gap-1">
                       <FaWhatsapp /> WhatsApp নম্বর
                     </label>
                     <input
@@ -912,50 +954,44 @@ ${admitUrl}
                       value={offlineForm.whatsappNumber}
                       onChange={handleOfflineInputChange}
                       placeholder="017XXXXXXXX"
-                      className="w-full px-3 py-2 bg-surface border border-primary/40 rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-primary/40 rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      পিতার নাম
-                    </label>
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">পিতার নাম</label>
                     <input
                       type="text"
                       name="fatherName"
                       value={offlineForm.fatherName}
                       onChange={handleOfflineInputChange}
                       placeholder="পিতার নাম"
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     />
                   </div>
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      মাতার নাম
-                    </label>
+
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">মাতার নাম</label>
                     <input
                       type="text"
                       name="motherName"
                       value={offlineForm.motherName}
                       onChange={handleOfflineInputChange}
                       placeholder="মাতার নাম"
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     />
                   </div>
                 </div>
               </div>
-
               {/* SECTION 2: ACADEMIC & ADDRESS */}
-              <div className="space-y-3 p-3.5 bg-surface-lowest/80 rounded-lg border border-line-soft">
+              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-line-soft">
                 <span className="text-[13px] font-bold text-tertiary uppercase tracking-wider block">
                   ২. শিক্ষাগত ও ঠিকানার তথ্য
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
                       শিক্ষা প্রতিষ্ঠানের নাম <span className="text-tertiary">*</span>
                     </label>
                     <input
@@ -965,19 +1001,19 @@ ${admitUrl}
                       onChange={handleOfflineInputChange}
                       placeholder="স্কুল / মাদ্রাসার নাম"
                       required
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
                       শ্রেণি
                     </label>
                     <select
                       name="studentClass"
                       value={offlineForm.studentClass}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-bold"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-bold"
                     >
                       {CLASSES.map((cls) => (
                         <option key={cls} value={cls}>
@@ -988,7 +1024,7 @@ ${admitUrl}
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
                       শাখা / ক্লাস রোল
                     </label>
                     <div className="flex gap-1.5">
@@ -998,7 +1034,7 @@ ${admitUrl}
                         value={offlineForm.section}
                         onChange={handleOfflineInputChange}
                         placeholder="শাখা"
-                        className="w-1/2 px-2.5 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                        className="w-1/2 px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
                       />
                       <input
                         type="text"
@@ -1006,13 +1042,30 @@ ${admitUrl}
                         value={offlineForm.classRoll}
                         onChange={handleOfflineInputChange}
                         placeholder="রোল"
-                        className="w-1/2 px-2.5 py-2 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono"
+                        className="w-1/2 px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+                  {/* Without this the offline entry silently kept the default
+                      upazila, which skewed every upazila-wise report. */}
+                  <div className="min-w-0">
+                    <label className="block text-[13px] text-ink-muted">উপজেলা / থানা *</label>
+                    <select
+                      name="upazila"
+                      value={offlineForm.upazila}
+                      onChange={handleOfflineInputChange}
+                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                    >
+                      {UPAZILAS.map((u) => (
+                        <option key={u} value={u}>
+                          {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-[13px] text-ink-muted">গ্রাম</label>
                     <input
@@ -1074,15 +1127,15 @@ ${admitUrl}
               </div>
 
               {/* SECTION 3: EXAM ROLL & CENTER ASSIGNMENT */}
-              <div className="space-y-3 p-3.5 bg-primary-900/20 rounded-lg border border-primary/30">
+              <div className="space-y-2.5 p-3 bg-primary-900/20 rounded-lg border border-primary/30">
                 <span className="text-[13px] font-bold text-secondary uppercase tracking-wider block">
                   ৩. অফিস কর্তৃক রোল ও কেন্দ্র বরাদ্দ (Exam Roll & Center)
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      🔢 পরীক্ষার রোল নম্বর (Exam Roll) <span className="text-primary font-normal">(পরেও এডিট করা যাবে)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="min-w-0">
+                    <label title="পরেও এডিট করা যাবে" className="block text-[13px] font-bold text-ink-body mb-0.5">
+                      🔢 পরীক্ষার রোল (Exam Roll)
                     </label>
                     <input
                       type="text"
@@ -1090,12 +1143,12 @@ ${admitUrl}
                       value={offlineForm.assignedRoll}
                       onChange={handleOfflineInputChange}
                       placeholder="যেমন: ১০৫০২"
-                      className="w-full px-3 py-2 bg-surface-lowest border border-primary/60 rounded text-primary-300 font-mono font-semibold text-sm focus:outline-none focus:border-primary/40"
+                      className="w-full px-3 py-1.5 bg-surface-lowest border border-primary/60 rounded text-primary-300 font-mono font-semibold text-sm focus:outline-none focus:border-primary/40"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
+                  <div className="min-w-0 lg:col-span-2">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
                       🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
                     </label>
                     <input
@@ -1103,16 +1156,31 @@ ${admitUrl}
                       name="examCenter"
                       value={offlineForm.examCenter}
                       onChange={handleOfflineInputChange}
-                      placeholder="সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
-                      className="w-full px-3 py-2 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
+                      placeholder="সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
+                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
                     />
+                  </div>
+
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                      স্ট্যাটাস
+                    </label>
+                    <select
+                      name="status"
+                      value={offlineForm.status}
+                      onChange={handleOfflineInputChange}
+                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-primary text-[13px] font-bold"
+                    >
+                      <option value="approved">✓ অনুমোদিত (Approved)</option>
+                      <option value="pending">⏳ অপেক্ষমাণ (Pending)</option>
+                    </select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      📅 পরীক্ষার তারিখ ও সময়
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                  <div className="min-w-0 lg:col-span-2">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                      📅 পরীক্ষার তারিখ ও সময়
                     </label>
                     <input
                       type="text"
@@ -1120,45 +1188,147 @@ ${admitUrl}
                       value={offlineForm.examDate}
                       onChange={handleOfflineInputChange}
                       placeholder="২৪ অক্টোবর ২০২৫ (শুক্রবার)"
-                      className="w-full px-3 py-2 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px]"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-1">
-                      স্ট্যাটাস
+                  {/* Optional Photo Attachment */}
+                  <div className="min-w-0 lg:col-span-2">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                      পাসপোর্ট সাইজ ছবি আপলোড (ঐচ্ছিক)
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleOfflinePhotoSelect}
+                        className="flex-1 min-w-0 text-[13px] text-ink-muted file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-[13px] file:font-bold file:bg-primary-container file:text-ink-strong hover:file:bg-primary-container cursor-pointer"
+                      />
+                      {offlinePhotoPreview && (
+                        <img
+                          src={offlinePhotoPreview}
+                          alt="Preview"
+                          className="w-10 h-12 shrink-0 rounded object-cover border border-primary/40"
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 4: REGISTRATION FEE COLLECTION */}
+              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-secondary/30">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] font-bold text-secondary uppercase tracking-wider">
+                    ৪. রেজিস্ট্রেশন ফি আদায়
+                  </span>
+                  <span className="text-[12px] text-ink-muted">
+                    এই তথ্য ড্যাশবোর্ডের “ফি আদায়ের হিসাব”-এ যোগ হবে
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      💰 কীভাবে দিয়েছে
                     </label>
                     <select
-                      name="status"
-                      value={offlineForm.status}
+                      name="paymentMethod"
+                      value={offlineForm.paymentMethod}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-2 bg-surface-lowest border border-line-soft rounded text-primary text-[13px] font-bold"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
                     >
-                      <option value="approved">✓ অনুমোদিত (Approved)</option>
-                      <option value="pending">⏳ অপেক্ষমান (Pending)</option>
+                      {PAYMENT_METHODS.map((pm) => (
+                        <option key={pm.value} value={pm.value}>
+                          {pm.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
-                </div>
 
-                {/* Optional Photo Attachment */}
-                <div className="pt-2">
-                  <label className="block text-[13px] font-bold text-ink-body mb-1">
-                    পাসপোর্ট সাইজ ছবি আপলোড (ঐচ্ছিক)
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleOfflinePhotoSelect}
-                    className="text-[13px] text-ink-muted file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-[13px] file:font-bold file:bg-primary-container file:text-ink-strong hover:file:bg-primary-container cursor-pointer"
-                  />
-                  {offlinePhotoPreview && (
-                    <img
-                      src={offlinePhotoPreview}
-                      alt="Preview"
-                      className="w-12 h-14 mt-2 rounded object-cover border border-primary/40"
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      ফি-এর পরিমাণ
+                    </label>
+                    <input
+                      type="text"
+                      name="feeAmount"
+                      value={offlineForm.feeAmount}
+                      onChange={handleOfflineInputChange}
+                      placeholder="২০০ টাকা"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
                     />
+                  </div>
+
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      🧑 কার কাছে জমা
+                    </label>
+                    <input
+                      type="text"
+                      name="collectedBy"
+                      value={offlineForm.collectedBy}
+                      onChange={handleOfflineInputChange}
+                      placeholder="যিনি টাকা নিয়েছেন তাঁর নাম"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                    />
+                  </div>
+
+                  <div className="min-w-0">
+                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      🧾 রশিদ নম্বর
+                    </label>
+                    <input
+                      type="text"
+                      name="receiptNo"
+                      value={offlineForm.receiptNo}
+                      onChange={handleOfflineInputChange}
+                      placeholder="যেমন: ১০২৪"
+                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
+                    />
+                  </div>
+
+                  {/* Mobile-banking fields sit in the same row rather than a
+                      block of their own: a second grid added a row to the
+                      section whenever a non-cash method was picked, which is
+                      what pushed the form into a scroll. */}
+                  {isOfflinePaymentOnline && (
+                    <>
+                      <div className="min-w-0">
+                        <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      প্রেরকের নম্বর
+                        </label>
+                        <input
+                          type="tel"
+                          name="senderNumber"
+                          value={offlineForm.senderNumber}
+                          onChange={handleOfflineInputChange}
+                          placeholder="017XXXXXXXX"
+                          className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
+                        />
+                      </div>
+
+                      <div className="min-w-0">
+                        <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
+                      TrxID <span className="text-tertiary">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="trxId"
+                          value={offlineForm.trxId}
+                          onChange={handleOfflineInputChange}
+                          placeholder="8F3KD92LA"
+                          required
+                          className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono uppercase focus:outline-none focus:border-primary/40"
+                        />
+                      </div>
+                    </>
                   )}
                 </div>
+
+                {/* Mobile-banking rows only matter when the money did not come in
+                    as cash. Asking for a TrxID on a cash entry would just train
+                    people to type junk into a field the fee report checks. */}
               </div>
 
               {/* Action Buttons */}
@@ -1198,7 +1368,7 @@ ${admitUrl}
           =================================================================== */}
       {selectedStudent && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-3 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
           onClick={() => setSelectedStudent(null)}
         >
           <div

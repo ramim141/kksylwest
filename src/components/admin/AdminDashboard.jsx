@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { isFirebaseConfigured } from "../../firebase/config";
@@ -11,19 +11,14 @@ import {
   HiMagnifyingGlass,
   HiChevronDoubleLeft,
   HiArrowPath,
-  HiExclamationTriangle,
-  HiAcademicCap,
-  HiDocumentChartBar,
-  HiEnvelope,
-  HiBell,
-  HiCheckCircle,
-  HiArrowSmallRight,
 } from "react-icons/hi2";
 
 import { NAV_GROUPS, NAV_INDEX } from "./navConfig";
 import CommandPalette from "./CommandPalette";
-import { Button, IconButton, Chip, Panel, useConfirm } from "./ui";
-import { PageHeader, StatCard } from "./ui/layout";
+import Overview from "./overview/Overview";
+import { toBn, useOverviewData } from "./overview/useOverviewData";
+import { Button, IconButton, useConfirm } from "./ui";
+import { PageHeader } from "./ui/layout";
 
 import ResultManager from "./tabs/ResultManager";
 import NoticeManager from "./tabs/NoticeManager";
@@ -40,15 +35,6 @@ import RegistrationManager from "./tabs/RegistrationManager";
 import UpazilaCenterManager from "./tabs/UpazilaCenterManager";
 import AnnouncementManager from "./tabs/AnnouncementManager";
 import WhatsAppBroadcaster from "./tabs/WhatsAppBroadcaster";
-
-import {
-  getAllResults,
-  getNotices,
-  getGalleryItems,
-  getCommitteeMembers,
-  getMessages,
-  getRegistrations,
-} from "../../services/firestore";
 
 const TAB_VIEWS = {
   registrations: RegistrationManager,
@@ -70,17 +56,6 @@ const TAB_VIEWS = {
 
 const SIDEBAR_KEY = "kk-admin-sidebar-open";
 
-const EMPTY_STATS = {
-  results: null,
-  notices: null,
-  gallery: null,
-  committee: null,
-  messages: null,
-  unreadMessages: null,
-  registrations: null,
-  pendingRegistrations: null,
-};
-
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -99,52 +74,11 @@ const AdminDashboard = () => {
     window.localStorage.setItem(SIDEBAR_KEY, String(sidebarOpen));
   }, [sidebarOpen]);
 
-  /* ------------------------------------------------ metrics */
-  const [stats, setStats] = useState(EMPTY_STATS);
-  const [statsState, setStatsState] = useState("loading"); // loading | ready | partial
-
-  const fetchStats = useCallback(async () => {
-    setStatsState("loading");
-    const [results, notices, gallery, committee, messages, regs] = await Promise.allSettled([
-      getAllResults(),
-      getNotices(),
-      getGalleryItems("all"),
-      getCommitteeMembers(),
-      getMessages(),
-      getRegistrations(),
-    ]);
-
-    // A failed fetch stays null and renders as "—". Showing a made-up number
-    // here would mean the dashboard quietly lies whenever Firestore is down.
-    const len = (r) => (r.status === "fulfilled" && Array.isArray(r.value) ? r.value.length : null);
-    const list = (r) => (r.status === "fulfilled" && Array.isArray(r.value) ? r.value : null);
-
-    const msgList = list(messages);
-    const regList = list(regs);
-    const settled = [results, notices, gallery, committee, messages, regs];
-
-    // A promise can also "succeed" with undefined when a collection is missing.
-    // That still leaves a blank number on screen, so it counts as partial too.
-    const incomplete = settled.some(
-      (r) => r.status === "rejected" || !Array.isArray(r.value)
-    );
-
-    setStats({
-      results: len(results),
-      notices: len(notices),
-      gallery: len(gallery),
-      committee: len(committee),
-      messages: msgList ? msgList.length : null,
-      unreadMessages: msgList ? msgList.filter((m) => !m.isRead).length : null,
-      registrations: regList ? regList.length : null,
-      pendingRegistrations: regList ? regList.filter((r) => r.status === "pending").length : null,
-    });
-    setStatsState(incomplete ? "partial" : "ready");
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+  /* ------------------------------------------------ metrics
+     One read serves both surfaces: the overview panels and the badges
+     that tell the sidebar where work is waiting. */
+  const { counts, data: overviewData, state: statsState, lastUpdated, refresh: fetchStats } =
+    useOverviewData();
 
   /* ------------------------------------------------ keyboard */
   useEffect(() => {
@@ -189,19 +123,19 @@ const AdminDashboard = () => {
 
   /* Badges come from live counts, so the sidebar shows where work is waiting. */
   const badgeFor = (id) => {
-    if (id === "registrations" && stats.pendingRegistrations > 0)
-      return { text: `${stats.pendingRegistrations} নতুন`, tone: "primary" };
-    if (id === "messages" && stats.unreadMessages > 0)
-      return { text: `${stats.unreadMessages}`, tone: "error" };
-    if (id === "results" && stats.results > 0)
-      return { text: `${stats.results}`, tone: "neutral" };
-    if (id === "notices" && stats.notices > 0) return { text: `${stats.notices}`, tone: "neutral" };
+    if (id === "registrations" && counts.pendingRegistrations > 0)
+      return { text: `${toBn(counts.pendingRegistrations)} নতুন`, tone: "primary" };
+    if (id === "messages" && counts.unreadMessages > 0)
+      return { text: toBn(counts.unreadMessages), tone: "error" };
+    if (id === "results" && counts.results > 0)
+      return { text: toBn(counts.results), tone: "neutral" };
+    if (id === "notices" && counts.notices > 0)
+      return { text: toBn(counts.notices), tone: "neutral" };
     return null;
   };
 
   const current = NAV_INDEX[activeTab] || NAV_INDEX.overview;
   const ActiveView = TAB_VIEWS[activeTab];
-  const num = (v) => (v == null ? "—" : v);
 
   return (
     <div className="min-h-screen bg-surface text-ink-body font-sans antialiased relative selection:bg-primary/25 selection:text-ink-strong">
@@ -520,203 +454,13 @@ const AdminDashboard = () => {
           />
 
           {activeTab === "overview" ? (
-            <div className="space-y-6 animate-fadeIn">
-              {statsState === "partial" && (
-                <div className="flex items-start gap-3 rounded-xl border border-secondary/40 bg-secondary/10 px-4 py-3.5 shadow-sm">
-                  <HiExclamationTriangle className="text-xl text-secondary shrink-0 mt-px" />
-                  <p className="text-sm text-ink-body leading-relaxed">
-                    কিছু তথ্য ডেটাবেজ থেকে আনা যায়নি — নিচে “—” চিহ্নিত সংখ্যাগুলো অসম্পূর্ণ।
-                    ইন্টারনেট সংযোগ যাচাই করে আবার রিফ্রেশ করুন।
-                  </p>
-                </div>
-              )}
-
-              {/* Main Metric Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
-                <StatCard
-                  icon={HiAcademicCap}
-                  tone="primary"
-                  value={num(stats.registrations)}
-                  label="মোট অনলাইন আবেদন"
-                  loading={statsState === "loading"}
-                  onClick={() => goToTab("registrations")}
-                  badge={
-                    stats.pendingRegistrations > 0 ? (
-                      <Chip tone="secondary">{stats.pendingRegistrations} পেন্ডিং</Chip>
-                    ) : stats.pendingRegistrations === 0 ? (
-                      <Chip tone="primary" icon={HiCheckCircle}>
-                        সব যাচাইকৃত
-                      </Chip>
-                    ) : null
-                  }
-                />
-                <StatCard
-                  icon={HiDocumentChartBar}
-                  tone="secondary"
-                  value={num(stats.results)}
-                  label="প্রকাশিত ফলাফল"
-                  loading={statsState === "loading"}
-                  onClick={() => goToTab("results")}
-                />
-                <StatCard
-                  icon={HiEnvelope}
-                  tone="tertiary"
-                  value={num(stats.messages)}
-                  label="ইনবক্সে মোট মেসেজ"
-                  loading={statsState === "loading"}
-                  onClick={() => goToTab("messages")}
-                  badge={
-                    stats.unreadMessages > 0 ? (
-                      <Chip tone="error">{stats.unreadMessages} অপঠিত</Chip>
-                    ) : null
-                  }
-                />
-                <StatCard
-                  icon={HiBell}
-                  tone="primary"
-                  value={num(stats.notices)}
-                  label="প্রকাশিত নোটিশ"
-                  loading={statsState === "loading"}
-                  onClick={() => goToTab("notices")}
-                />
-              </div>
-
-              {/* Pending Action Required Cards */}
-              {(stats.pendingRegistrations > 0 || stats.unreadMessages > 0) && (
-                <Panel>
-                  <div className="flex items-center justify-between gap-3 mb-4">
-                    <h2 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight flex items-center gap-2">
-                      <span className="w-2.5 h-2.5 rounded-full bg-secondary animate-ping" />
-                      আপনার অপেক্ষায় (জরুরি অ্যাকশন)
-                    </h2>
-                    <span className="text-[12px] font-semibold text-secondary px-2.5 py-0.5 rounded-full bg-secondary/10 border border-secondary/20">
-                      পদক্ষেপ প্রয়োজন
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {stats.pendingRegistrations > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => goToTab("registrations")}
-                        className="group w-full flex items-center gap-4 rounded-xl border border-secondary/30 bg-gradient-to-r from-secondary/10 via-surface-low to-surface p-4 text-left hover:border-secondary/60 hover:shadow-lg transition-all cursor-pointer"
-                      >
-                        <span className="w-11 h-11 rounded-xl shrink-0 bg-secondary/20 text-secondary border border-secondary/30 flex items-center justify-center text-2xl shadow-sm group-hover:scale-105 transition-transform">
-                          <HiAcademicCap />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-sm sm:text-base font-bold text-ink-strong">
-                            {stats.pendingRegistrations} টি নতুন আবেদন যাচাইয়ের অপেক্ষায়
-                          </span>
-                          <span className="block text-[13px] text-ink-muted mt-0.5">
-                            অনুমোদন দিলে শিক্ষার্থীরা রোল ও প্রবেশপত্র সংগ্রহ করতে পারবে
-                          </span>
-                        </span>
-                        <div className="w-8 h-8 rounded-lg bg-surface-overlay/80 text-secondary flex items-center justify-center group-hover:translate-x-1 transition-transform shrink-0">
-                          <HiArrowSmallRight className="text-xl" />
-                        </div>
-                      </button>
-                    )}
-
-                    {stats.unreadMessages > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => goToTab("messages")}
-                        className="group w-full flex items-center gap-4 rounded-xl border border-error/30 bg-gradient-to-r from-error/10 via-surface-low to-surface p-4 text-left hover:border-error/60 hover:shadow-lg transition-all cursor-pointer"
-                      >
-                        <span className="w-11 h-11 rounded-xl shrink-0 bg-error/20 text-error border border-error/30 flex items-center justify-center text-2xl shadow-sm group-hover:scale-105 transition-transform">
-                          <HiEnvelope />
-                        </span>
-                        <span className="flex-1 min-w-0">
-                          <span className="block text-sm sm:text-base font-bold text-ink-strong">
-                            {stats.unreadMessages} টি নতুন অপঠিত মেসেজ
-                          </span>
-                          <span className="block text-[13px] text-ink-muted mt-0.5">
-                            কন্টাক্ট ফর্ম ও চ্যাটবট থেকে আসা প্রশ্ন
-                          </span>
-                        </span>
-                        <div className="w-8 h-8 rounded-lg bg-surface-overlay/80 text-error flex items-center justify-center group-hover:translate-x-1 transition-transform shrink-0">
-                          <HiArrowSmallRight className="text-xl" />
-                        </div>
-                      </button>
-                    )}
-                  </div>
-                </Panel>
-              )}
-
-              {/* Quick Jump / All Modules Navigation Hub */}
-              <Panel>
-                <div className="flex flex-wrap items-center justify-between gap-3 mb-1">
-                  <h2 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight">
-                    সকল কন্ট্রোল মডিউল
-                  </h2>
-                  <p className="text-[12px] text-ink-muted">
-                    কমান্ড প্যালেট:{" "}
-                    <kbd className="rounded border border-line-soft bg-surface px-1.5 py-0.5 text-[11px] font-mono text-ink-strong">
-                      Ctrl + K
-                    </kbd>
-                  </p>
-                </div>
-                <p className="text-[13px] text-ink-muted mb-6">
-                  ওয়েবসাইটের প্রতিটি বিভাগ পরিচালনার জন্য নির্দিষ্ট মডিউলে প্রবেশ করুন।
-                </p>
-
-                <div className="space-y-6">
-                  {NAV_GROUPS.filter((g) => g.items.some((i) => i.id !== "overview")).map(
-                    ({ group, items }) => (
-                      <div key={group}>
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary/70" />
-                          <p className="text-[12px] font-bold text-ink-muted uppercase tracking-wider">
-                            {group}
-                          </p>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
-                          {items
-                            .filter((i) => i.id !== "overview")
-                            .map((item) => {
-                              const Icon = item.icon;
-                              const badge = badgeFor(item.id);
-                              return (
-                                <button
-                                  key={item.id}
-                                  type="button"
-                                  onClick={() => goToTab(item.id)}
-                                  className="group flex items-center gap-3 rounded-xl border border-line-soft/80 bg-surface-low/70
-                                    min-h-[56px] px-3.5 py-3 text-left cursor-pointer select-none
-                                    hover:border-primary/50 hover:bg-surface-card hover:-translate-y-0.5 hover:shadow-md transition-all"
-                                >
-                                  <span className="w-9 h-9 rounded-lg shrink-0 bg-surface-overlay/80 text-ink-muted group-hover:text-primary group-hover:bg-primary/15 border border-line-soft/50 group-hover:border-primary/30 flex items-center justify-center text-lg transition-all">
-                                    <Icon />
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <span className="block text-[13px] font-bold text-ink-strong leading-snug group-hover:text-primary transition-colors truncate">
-                                      {item.label}
-                                    </span>
-                                  </div>
-                                  {badge && (
-                                    <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold leading-none font-bangla-number ${
-                                        badge.tone === "error"
-                                          ? "bg-error/20 text-error"
-                                          : badge.tone === "primary"
-                                          ? "bg-primary/20 text-primary"
-                                          : "bg-surface-overlay text-ink-muted"
-                                      }`}
-                                    >
-                                      {badge.text}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              </Panel>
-            </div>
+            <Overview
+              data={overviewData}
+              state={statsState}
+              lastUpdated={lastUpdated}
+              goToTab={goToTab}
+              badgeFor={badgeFor}
+            />
           ) : (
             ActiveView && (
               <div className="animate-fadeIn">
