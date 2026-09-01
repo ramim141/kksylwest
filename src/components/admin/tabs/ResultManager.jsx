@@ -30,6 +30,7 @@ import {
   addCustomResultYear,
   renameResultYear,
   deleteResultYear,
+  canonicalYear,
 } from "../../../services/firestore";
 import * as XLSX from "xlsx";
 import { Button, Chip, IconButton, Input, SubTabs, Toast, useConfirm } from "../ui";
@@ -117,7 +118,16 @@ const ResultManager = () => {
         getResultYearStats(),
       ]);
       setResultsList(allRes || []);
-      if (stats.years && stats.years.length > 0) setAvailableYears(stats.years);
+      const years = stats.years || [];
+      if (years.length > 0) {
+        setAvailableYears(years);
+        /* A filter left pointing at a session that does not exist -- one that
+           was deleted, or a fresh database whose first upload is 2026 -- shows
+           an empty table with no way back, so snap to the newest session. */
+        const has = (value) => years.some((y) => canonicalYear(y) === canonicalYear(value));
+        if (dbYearFilter !== "all" && !has(dbYearFilter)) setDbYearFilter(years[0]);
+        if (!has(deleteYear)) setDeleteYear(years[0]);
+      }
       setArchivedYears(stats.archived || []);
       setYearCounts(stats.counts || {});
     } catch (err) {
@@ -427,6 +437,16 @@ const ResultManager = () => {
   const handleBatchUpload = async () => {
     if (!parsedData || parsedData.length === 0) return;
 
+    /* The year is typed by hand here, so fold "2026" and its Bengali
+       spelling into the one form every other screen looks the session up
+       by -- otherwise the upload lands in a session the panel cannot list,
+       filter or delete. */
+    const uploadYear = canonicalYear(examYear);
+    if (!uploadYear) {
+      showToast("অনুগ্রহ করে শিক্ষাবর্ষ লিখুন!", "error");
+      return;
+    }
+
     setUploading(true);
     setProgress(0);
     setStatusMessage(null);
@@ -434,21 +454,23 @@ const ResultManager = () => {
     try {
       const formattedList = parsedData.map((student) => ({
         ...student,
-        year: examYear,
+        year: uploadYear,
       }));
 
       await batchUploadResults(
         formattedList,
-        examYear,
+        uploadYear,
         (percent, processed, total) => {
           setProgress(percent);
           setProgressInfo({ processed, total });
         }
       );
 
-      showToast(`সাফল্যের সাথে মোট ${parsedData.length} জন শিক্ষার্থীর রেজাল্ট আপলোড সম্পন্ন হয়েছে! (${examYear} সেশন)`);
+      showToast(`সাফল্যের সাথে মোট ${parsedData.length} জন শিক্ষার্থীর রেজাল্ট আপলোড সম্পন্ন হয়েছে! (${uploadYear} সেশন)`);
       // Switch back to database tab and refresh
-      setDbYearFilter(examYear);
+      setExamYear(uploadYear);
+      setDbYearFilter(uploadYear);
+      setDeleteYear(uploadYear);
       loadDatabaseResults();
     } catch (err) {
       console.error(err);
@@ -462,7 +484,7 @@ const ResultManager = () => {
     const ok = await confirm({
       title: `${deleteYear} শিক্ষাবর্ষের সব ফলাফল মুছে ফেলবেন?`,
       body: "এই শিক্ষাবর্ষে আপলোড করা প্রতিটি শিক্ষার্থীর ফলাফল একসাথে মুছে যাবে। কাজটি ফেরানো যাবে না — মুছে ফেলার আগে এক্সেল এক্সপোর্ট করে রাখা নিরাপদ।",
-      detail: `${resultsList.length} টি ফলাফল রেকর্ড মুছে যাবে`,
+      detail: `${yearCounts[deleteYear] || 0} টি ফলাফল রেকর্ড মুছে যাবে`,
       confirmLabel: "সব মুছে ফেলুন",
     });
     if (!ok) return;
@@ -472,6 +494,7 @@ const ResultManager = () => {
 
     try {
       const res = await clearResultsByYear(deleteYear);
+      await refreshYears();
       showToast(`মোট ${res.deleted} জন শিক্ষার্থীর ডাটা সফলভাবে মুছে ফেলা হয়েছে! (${deleteYear})`);
       loadDatabaseResults();
     } catch (err) {
@@ -809,11 +832,20 @@ const ResultManager = () => {
                 </label>
                 <input
                   type="text"
+                  list="kkmb-session-years"
                   value={examYear}
                   onChange={(e) => setExamYear(e.target.value)}
                   className="w-full px-4 py-3 bg-surface border border-line-soft rounded text-ink-strong font-mono font-bold text-sm"
                   placeholder="যেমন: ২০২৫"
                 />
+                <datalist id="kkmb-session-years">
+                  {availableYears.map((yr) => (
+                    <option key={yr} value={yr} />
+                  ))}
+                </datalist>
+                <span className="block mt-1 text-[12px] text-ink-muted">
+                  নতুন শিক্ষাবর্ষ লিখলে সেটি আপলোডের পরেই তালিকায় যুক্ত হবে।
+                </span>
               </div>
 
               <div>
@@ -1127,13 +1159,19 @@ const ResultManager = () => {
               <HiTrash /> ডেঞ্জার জোন: নির্দিষ্ট শিক্ষাবর্ষের সকল ফলাফল মুছে ফেলুন
             </h4>
             <div className="flex flex-col sm:flex-row items-center gap-3">
-              <input
-                type="text"
+              {/* A typed year had to match the stored spelling exactly, so a
+                  session could sit in the list and still refuse to be wiped. */}
+              <select
                 value={deleteYear}
                 onChange={(e) => setDeleteYear(e.target.value)}
-                placeholder="যেমন: ২০২৫"
-                className="w-full sm:w-48 px-3.5 py-2.5 bg-surface border border-error/30 rounded text-ink-strong font-mono font-bold text-[13px]"
-              />
+                className="w-full sm:w-64 px-3.5 py-2.5 bg-surface border border-error/30 rounded text-ink-strong font-mono font-bold text-[13px]"
+              >
+                {availableYears.map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr} শিক্ষাবর্ষ ({yearCounts[yr] || 0})
+                  </option>
+                ))}
+              </select>
               <button
                 type="button"
                 onClick={handleClearBatch}

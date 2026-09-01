@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   HiTrash,
   HiPencilSquare,
@@ -7,6 +7,7 @@ import {
   HiMagnifyingGlass,
   HiArrowDownTray,
   HiCheck,
+  HiHashtag,
 } from "react-icons/hi2";
 import { FaWhatsapp, FaUserPlus } from "react-icons/fa";
 import {
@@ -14,6 +15,8 @@ import {
   addRegistration,
   updateRegistrationStatus,
   deleteRegistration,
+  bulkAssignRolls,
+  getExamCenters,
 } from "../../../services/firestore";
 import { uploadToImgBB } from "../../../services/imgbb";
 import { Button, EmptyState, Toast, useConfirm } from "../ui";
@@ -26,6 +29,32 @@ const CLASSES = [
   "৯ম শ্রেণি",
   "১০ম শ্রেণি",
 ];
+
+/* Class-wise roll blocks. The roll alone tells you which class sat the exam:
+   4th starts at 40101, 5th at 50101 ... 9th at 90101, and class 10 keeps the
+   same five-digit width by starting at 10101. Keyed off CLASSES so the
+   Bengali labels live in exactly one place. */
+const CLASS_ROLL_START = {
+  [CLASSES[0]]: 40101,
+  [CLASSES[1]]: 50101,
+  [CLASSES[2]]: 60101,
+  [CLASSES[3]]: 70101,
+  [CLASSES[4]]: 80101,
+  [CLASSES[5]]: 90101,
+  [CLASSES[6]]: 10101,
+};
+
+/* Rolls are stored in ASCII digits: the admit-card link and searchAdmitCard
+   both compare them raw, so a Bengali-digit roll would never match. */
+const toAsciiDigits = (value) =>
+  String(value ?? "").replace(/[\u09e6-\u09ef]/g, (d) =>
+    String(d.charCodeAt(0) - 0x09e6)
+  );
+
+const rollNumberOf = (value) => {
+  const digits = toAsciiDigits(value).replace(/[^0-9]/g, "");
+  return digits ? parseInt(digits, 10) : NaN;
+};
 
 const RELIGIONS = [
   "ইসলাম",
@@ -56,17 +85,6 @@ const UPAZILAS = [
   "অন্যান্য",
 ];
 
-/* "Cash/School" is stored verbatim because the public form and the existing
-   records already use that exact string; changing it would split one bucket
-   into two in every fee report. */
-const PAYMENT_METHODS = [
-  { value: "Cash/School", label: "নগদ টাকা (হাতে জমা)", online: false },
-  { value: "bKash", label: "বিকাশ", online: true },
-  { value: "Nagad", label: "নগদ (Nagad)", online: true },
-  { value: "Rocket", label: "রকেট", online: true },
-  { value: "Bank", label: "ব্যাংক জমা", online: true },
-];
-
 const RegistrationManager = () => {
   const [registrations, setRegistrations] = useState([]);
   const [confirm, confirmUI] = useConfirm();
@@ -77,6 +95,8 @@ const RegistrationManager = () => {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedStudent, setSelectedStudent] = useState(null); // Edit Modal view
   const [statusMessage, setStatusMessage] = useState(null);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [examCenters, setExamCenters] = useState([]);
 
   // Offline registration modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -120,13 +140,12 @@ const RegistrationManager = () => {
     roomNo: "",
     status: "approved", // Approved immediately for offline forms
 
-    // Fee collection
+    /* Offline forms are paid in cash at the desk, so the fee is recorded as
+       such without asking. "Cash/School" is stored verbatim because the public
+       form and every existing record use that exact string — changing it would
+       split one bucket into two in the dashboard fee report. */
     paymentMethod: "Cash/School",
-    feeAmount: "২০০ টাকা",
-    collectedBy: "",
-    receiptNo: "",
-    senderNumber: "",
-    trxId: "",
+    feeAmount: "১৫০ টাকা",
 
     adminNote: "অফলাইন ফরম পূরণকৃত ও অনুমোদিত",
   });
@@ -156,6 +175,11 @@ const RegistrationManager = () => {
 
   useEffect(() => {
     loadData();
+    /* The centre list is maintained on its own tab; a failure to read it
+       only costs the dropdown its options, so it must not block the page. */
+    getExamCenters()
+      .then((list) => setExamCenters(list || []))
+      .catch((err) => console.warn("Exam centre list unavailable:", err));
   }, []);
 
   // Filtered registrations
@@ -192,21 +216,120 @@ const RegistrationManager = () => {
     return { total, pending, approved, rejected };
   }, [registrations]);
 
-  /* Cash handed over in person has no transaction to record; every other
-     method does, so the sender/TrxID rows only appear for those. */
-  const isOfflinePaymentOnline = useMemo(
-    () =>
-      PAYMENT_METHODS.find((pm) => pm.value === offlineForm.paymentMethod)?.online ?? false,
-    [offlineForm.paymentMethod]
+  /* Next free roll inside a class's own block. Blocks are 10k wide, so a
+     stray legacy roll (e.g. 100001) can't drag the counter out of range. */
+  const nextRollFor = useCallback(
+    (studentClass) => {
+      const start = CLASS_ROLL_START[studentClass];
+      if (!start) return "";
+      const blockEnd = Math.floor(start / 10000) * 10000 + 9999;
+      const used = registrations
+        .filter((r) => r.studentClass === studentClass)
+        .map((r) => rollNumberOf(r.assignedRoll))
+        .filter((n) => Number.isFinite(n) && n >= start && n <= blockEnd);
+      return String(used.length ? Math.max(...used) + 1 : start);
+    },
+    [registrations]
   );
+
+  /* Who a one-click run would touch: everyone in the current filter still
+     without a roll, oldest application first. Rejected ones are skipped -- a
+     roll on its own is enough to publish an admit card (searchAdmitCard). */
+  const bulkTargets = useMemo(
+    () =>
+      filteredList
+        .filter((r) => !String(r.assignedRoll || "").trim() && r.status !== "rejected")
+        .sort(
+          (a, b) =>
+            (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0) ||
+            String(a.trackingId || "").localeCompare(String(b.trackingId || ""))
+        ),
+    [filteredList]
+  );
+
+  /* Active centres, plus whatever the record already carries: a centre that
+     was later closed (or typed by hand before this list existed) must still
+     show as the current value instead of silently switching to another. */
+  const centerOptions = useCallback(
+    (current) => {
+      const names = examCenters
+        .filter((c) => c.isActive !== false)
+        .map((c) => c.name)
+        .filter(Boolean);
+      const value = (current || "").trim();
+      if (value && !names.includes(value)) return [value, ...names];
+      return names;
+    },
+    [examCenters]
+  );
+
+  const handleBulkAssignRolls = async () => {
+    if (selectedClass === "all") {
+      setStatusMessage({
+        type: "error",
+        text: "এক ক্লিকে রোল বরাদ্দ করতে হলে আগে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন!",
+      });
+      return;
+    }
+    if (bulkTargets.length === 0) {
+      setStatusMessage({
+        type: "error",
+        text: "এই ফিল্টারে রোল বরাদ্দের অপেক্ষায় থাকা কোনো শিক্ষার্থী নেই।",
+      });
+      return;
+    }
+
+    const firstRoll = Number(nextRollFor(selectedClass));
+    const lastRoll = firstRoll + bulkTargets.length - 1;
+
+    const ok = await confirm({
+      tone: "primary",
+      confirmLabel: "রোল বরাদ্দ করুন",
+      title: `${selectedClass} — এক ক্লিকে রোল বরাদ্দ`,
+      body: `${bulkTargets.length} জন শিক্ষার্থীকে আবেদনের ক্রম অনুসারে রোল দেওয়া হবে। যাদের রোল আগেই বরাদ্দ আছে এবং যারা বাতিলকৃত, তারা বাদ থাকবে। স্ট্যাটাস ও কেন্দ্র অপরিবর্তিত থাকবে।`,
+      detail: `রোল: ${firstRoll} - ${lastRoll}`,
+    });
+    if (!ok) return;
+
+    setBulkAssigning(true);
+    try {
+      const assignments = bulkTargets.map((st, i) => ({
+        id: st.id,
+        assignedRoll: String(firstRoll + i),
+      }));
+      await bulkAssignRolls(assignments);
+
+      const rollById = new Map(assignments.map((a) => [a.id, a.assignedRoll]));
+      setRegistrations((prev) =>
+        prev.map((r) =>
+          rollById.has(r.id) ? { ...r, assignedRoll: rollById.get(r.id) } : r
+        )
+      );
+      setStatusMessage({
+        type: "success",
+        text: `${selectedClass}-এর ${assignments.length} জন শিক্ষার্থীর রোল (${firstRoll} - ${lastRoll}) সফলভাবে বরাদ্দ হয়েছে!`,
+      });
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({
+        type: "error",
+        text: "রোল বরাদ্দ করতে ব্যর্থ হয়েছে: " + err.message,
+      });
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
+
+  const defaultExamCenter = () =>
+    examCenters.find((c) => c.isActive !== false)?.name || "";
 
   const handleOpenModal = (student) => {
     setSelectedStudent(student);
     setAssignData({
       status: student.status || "approved",
       adminNote: student.adminNote || "",
-      assignedRoll: student.assignedRoll || "",
-      examCenter: student.examCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+      assignedRoll: student.assignedRoll || nextRollFor(student.studentClass),
+      examCenter: student.examCenter || defaultExamCenter(),
       examDate: student.examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
       examTime: student.examTime || "সকাল ১০:০০ টা - ১১:৩০ টা",
       roomNo: student.roomNo || "",
@@ -275,7 +398,33 @@ const RegistrationManager = () => {
   // Handle Adding New Offline Registration
   const handleOfflineInputChange = (e) => {
     const { name, value } = e.target;
-    setOfflineForm((prev) => ({ ...prev, [name]: value }));
+    setOfflineForm((prev) => {
+      /* Changing the class re-suggests the roll, but never overwrites one the
+         admin typed in by hand. */
+      if (name === "studentClass") {
+        const handTyped =
+          prev.assignedRoll.trim() && prev.assignedRoll !== nextRollFor(prev.studentClass);
+        return {
+          ...prev,
+          studentClass: value,
+          assignedRoll: handTyped ? prev.assignedRoll : nextRollFor(value),
+        };
+      }
+      return { ...prev, [name]: value };
+    });
+  };
+
+  const openAddModal = () => {
+    setOfflineForm((prev) => ({
+      ...prev,
+      assignedRoll: prev.assignedRoll.trim() || nextRollFor(prev.studentClass),
+      /* Pick up the managed list rather than the name this form was seeded
+         with, which may since have been renamed or closed. */
+      examCenter: centerOptions(prev.examCenter).includes(prev.examCenter)
+        ? prev.examCenter
+        : defaultExamCenter(),
+    }));
+    setIsAddModalOpen(true);
   };
 
   const handleOfflinePhotoSelect = (e) => {
@@ -350,10 +499,6 @@ const RegistrationManager = () => {
         photoUrl: finalPhotoUrl,
         paymentMethod: offlineForm.paymentMethod,
         feeAmount: offlineForm.feeAmount.trim(),
-        collectedBy: offlineForm.collectedBy.trim(),
-        receiptNo: offlineForm.receiptNo.trim(),
-        senderNumber: offlineForm.senderNumber.trim(),
-        trxId: offlineForm.trxId.trim(),
         status: offlineForm.status,
         assignedRoll: offlineForm.assignedRoll.trim(),
         examCenter: offlineForm.examCenter.trim(),
@@ -404,14 +549,7 @@ const RegistrationManager = () => {
         roomNo: "",
         status: "approved",
         paymentMethod: "Cash/School",
-        feeAmount: "২০০ টাকা",
-        /* Cleared with the rest: a stack of paper forms can each have been
-           collected by a different person, so carrying the last name over
-           would quietly credit the money to the wrong one. */
-        collectedBy: "",
-        receiptNo: "",
-        senderNumber: "",
-        trxId: "",
+        feeAmount: "১৫০ টাকা",
         adminNote: "অফলাইন ফরম পূরণকৃত ও অনুমোদিত",
       });
       setOfflinePhotoFile(null);
@@ -446,7 +584,7 @@ const RegistrationManager = () => {
     const trackingIdStr = student.trackingId || "";
 
     const baseUrl = window.location.origin;
-    const cleanRollUrl = assignedRollNum.toString().replace(/[০-৯]/g, (d) => "0123456789"["০১২৩৪৫৬৭৮৯".indexOf(d)] || d);
+    const cleanRollUrl = toAsciiDigits(assignedRollNum);
     const admitUrl = `${baseUrl}/admit-card?id=${cleanRollUrl}`;
 
     const msg = `আসসালামু আলাইকুম ${student.nameBn || "শিক্ষার্থী"}! 🎉
@@ -569,7 +707,24 @@ ${admitUrl}
   return (
     <div className="space-y-6 animate-fadeIn font-sans text-ink-strong">
       <div className="flex flex-wrap justify-end gap-2">
-        <Button tone="primary" icon={FaUserPlus} onClick={() => setIsAddModalOpen(true)}>
+        <Button
+          tone="secondary"
+          icon={HiHashtag}
+          loading={bulkAssigning}
+          disabled={selectedClass !== "all" && bulkTargets.length === 0}
+          title={
+            selectedClass === "all"
+              ? "প্রথমে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন"
+              : `${selectedClass}: ${bulkTargets.length} জনের রোল বরাদ্দ হবে`
+          }
+          onClick={handleBulkAssignRolls}
+        >
+          <span>
+            এক ক্লিকে রোল বরাদ্দ
+            {selectedClass !== "all" ? ` (${bulkTargets.length})` : ""}
+          </span>
+        </Button>
+        <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
           অফলাইন নতুন রেজিস্ট্রেশন
         </Button>
         <Button tone="neutral" icon={HiArrowDownTray} onClick={exportToCSV}>
@@ -684,7 +839,7 @@ ${admitUrl}
                   সব ফিল্টার মুছুন
                 </Button>
               ) : (
-                <Button tone="primary" icon={FaUserPlus} onClick={() => setIsAddModalOpen(true)}>
+                <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
                   অফলাইন নতুন রেজিস্ট্রেশন
                 </Button>
               )
@@ -1151,14 +1306,19 @@ ${admitUrl}
                     <label className="block text-[13px] font-bold text-ink-body mb-0.5">
                       🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
                     </label>
-                    <input
-                      type="text"
+                    <select
                       name="examCenter"
                       value={offlineForm.examCenter}
                       onChange={handleOfflineInputChange}
-                      placeholder="সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
                       className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
-                    />
+                    >
+                      <option value="">কেন্দ্র নির্বাচন করুন</option>
+                      {centerOptions(offlineForm.examCenter).map((name) => (
+                        <option key={name} value={name}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="min-w-0">
@@ -1214,121 +1374,6 @@ ${admitUrl}
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* SECTION 4: REGISTRATION FEE COLLECTION */}
-              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-secondary/30">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="text-[13px] font-bold text-secondary uppercase tracking-wider">
-                    ৪. রেজিস্ট্রেশন ফি আদায়
-                  </span>
-                  <span className="text-[12px] text-ink-muted">
-                    এই তথ্য ড্যাশবোর্ডের “ফি আদায়ের হিসাব”-এ যোগ হবে
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-                  <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      💰 কীভাবে দিয়েছে
-                    </label>
-                    <select
-                      name="paymentMethod"
-                      value={offlineForm.paymentMethod}
-                      onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
-                    >
-                      {PAYMENT_METHODS.map((pm) => (
-                        <option key={pm.value} value={pm.value}>
-                          {pm.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      ফি-এর পরিমাণ
-                    </label>
-                    <input
-                      type="text"
-                      name="feeAmount"
-                      value={offlineForm.feeAmount}
-                      onChange={handleOfflineInputChange}
-                      placeholder="২০০ টাকা"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      🧑 কার কাছে জমা
-                    </label>
-                    <input
-                      type="text"
-                      name="collectedBy"
-                      value={offlineForm.collectedBy}
-                      onChange={handleOfflineInputChange}
-                      placeholder="যিনি টাকা নিয়েছেন তাঁর নাম"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      🧾 রশিদ নম্বর
-                    </label>
-                    <input
-                      type="text"
-                      name="receiptNo"
-                      value={offlineForm.receiptNo}
-                      onChange={handleOfflineInputChange}
-                      placeholder="যেমন: ১০২৪"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
-                    />
-                  </div>
-
-                  {/* Mobile-banking fields sit in the same row rather than a
-                      block of their own: a second grid added a row to the
-                      section whenever a non-cash method was picked, which is
-                      what pushed the form into a scroll. */}
-                  {isOfflinePaymentOnline && (
-                    <>
-                      <div className="min-w-0">
-                        <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      প্রেরকের নম্বর
-                        </label>
-                        <input
-                          type="tel"
-                          name="senderNumber"
-                          value={offlineForm.senderNumber}
-                          onChange={handleOfflineInputChange}
-                          placeholder="017XXXXXXXX"
-                          className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
-                        />
-                      </div>
-
-                      <div className="min-w-0">
-                        <label className="block text-[13px] font-bold text-ink-body mb-0.5 truncate">
-                      TrxID <span className="text-tertiary">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="trxId"
-                          value={offlineForm.trxId}
-                          onChange={handleOfflineInputChange}
-                          placeholder="8F3KD92LA"
-                          required
-                          className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono uppercase focus:outline-none focus:border-primary/40"
-                        />
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Mobile-banking rows only matter when the money did not come in
-                    as cash. Asking for a TrxID on a cash entry would just train
-                    people to type junk into a field the fee report checks. */}
               </div>
 
               {/* Action Buttons */}
@@ -1490,15 +1535,25 @@ ${admitUrl}
                 <label className="block text-[13px] font-bold text-ink-body mb-1">
                   🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
                 </label>
-                <input
-                  type="text"
+                <select
                   value={assignData.examCenter}
                   onChange={(e) =>
                     setAssignData((prev) => ({ ...prev, examCenter: e.target.value }))
                   }
-                  placeholder="যেমন: সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
                   className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
-                />
+                >
+                  <option value="">কেন্দ্র নির্বাচন করুন</option>
+                  {centerOptions(assignData.examCenter).map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                {examCenters.length === 0 && (
+                  <span className="block mt-1 text-[12px] text-ink-muted">
+                    কোনো কেন্দ্র যুক্ত করা হয়নি — সাইডবারের "পরীক্ষা কেন্দ্র" ট্যাব থেকে যুক্ত করুন।
+                  </span>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">

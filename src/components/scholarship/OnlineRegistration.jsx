@@ -68,40 +68,13 @@ const GUARDIAN_RELATIONS = [
   "অন্যান্য অভিভাবক",
 ];
 
-const PAYMENT_METHODS = [
-  {
-    id: "bKash",
-    name: "বিকাশ",
-    type: "Personal",
-    number: "01791629996",
-    displayNumber: "01791-629996",
-    badgeColor: "bg-tertiary-container/15 text-tertiary border-tertiary/30",
-  },
-  {
-    id: "Nagad",
-    name: "নগদ",
-    type: "Personal",
-    number: "01791629996",
-    displayNumber: "01791-629996",
-    badgeColor: "bg-secondary-container/15 text-secondary border-secondary/30",
-  },
-  {
-    id: "Rocket",
-    name: "রকেট",
-    type: "Personal",
-    number: "01791629996",
-    displayNumber: "01791-629996",
-    badgeColor: "bg-tertiary-container/15 text-tertiary border-tertiary/30",
-  },
-  {
-    id: "Cash/School",
-    name: "ক্যাশ / প্রতিনিধি",
-    type: "School/Rep",
-    number: "",
-    displayNumber: "স্কুল বা ফোরাম প্রতিনিধি",
-    badgeColor: "bg-primary-container/15 text-primary border-primary/30",
-  },
-];
+/* Registration fee and the single channel it is accepted through: bKash
+   send money to the number below. The method id is stored on every record
+   verbatim, because the dashboard fee report groups by it. */
+const REGISTRATION_FEE = "১৫০ টাকা";
+const PAYMENT_METHOD_ID = "bKash";
+const PAYMENT_SEND_NUMBER = "01317993107";
+const PAYMENT_SEND_NUMBER_DISPLAY = "01317-993107";
 
 const OnlineRegistration = () => {
   const examYear = useExamYear();
@@ -138,7 +111,7 @@ const OnlineRegistration = () => {
 
     // Photo & Payment
     photoUrl: "",
-    paymentMethod: "bKash",
+    paymentMethod: PAYMENT_METHOD_ID,
     senderNumber: "",
     trxId: "",
   });
@@ -239,15 +212,13 @@ const OnlineRegistration = () => {
         return false;
       }
     } else if (step === 3) {
-      if (formData.paymentMethod !== "Cash/School") {
-        if (!formData.senderNumber.trim()) {
-          setSubmitError("অনুগ্রহ করে যে নম্বর থেকে ফি পাঠিয়েছেন সেই প্রেরক নম্বর লিখুন।");
-          return false;
-        }
-        if (!formData.trxId.trim()) {
-          setSubmitError("অনুগ্রহ করে পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন।");
-          return false;
-        }
+      if (!formData.senderNumber.trim()) {
+        setSubmitError("অনুগ্রহ করে যে নম্বর থেকে ফি পাঠিয়েছেন সেই প্রেরক নম্বর লিখুন।");
+        return false;
+      }
+      if (!formData.trxId.trim()) {
+        setSubmitError("অনুগ্রহ করে পেমেন্ট ট্রানজেকশন আইডি (TrxID) প্রদান করুন।");
+        return false;
       }
     }
     return true;
@@ -325,7 +296,7 @@ const OnlineRegistration = () => {
         paymentMethod: formData.paymentMethod,
         senderNumber: formData.senderNumber.trim(),
         trxId: formData.trxId.trim(),
-        feeAmount: "২০০ টাকা",
+        feeAmount: REGISTRATION_FEE,
         status: "pending", // Pending admin review & manual roll assignment
         assignedRoll: "",
         examCenter: "",
@@ -549,7 +520,7 @@ const OnlineRegistration = () => {
                     district: "সিলেট",
                     presentAddress: "",
                     photoUrl: "",
-                    paymentMethod: "bKash",
+                    paymentMethod: PAYMENT_METHOD_ID,
                     senderNumber: "",
                     trxId: "",
                   });
@@ -1091,7 +1062,7 @@ const OnlineRegistration = () => {
                         <span className="text-[10px] font-bold text-secondary uppercase tracking-wider block">
                           রেজিস্ট্রেশন ফি
                         </span>
-                        <span className="text-xl font-black text-white">২০০ টাকা</span>
+                        <span className="text-xl font-black text-white">{REGISTRATION_FEE}</span>
                       </div>
                       <span className="px-2.5 py-1 rounded-full bg-primary-container/20 text-primary-300 text-xs font-bold border border-primary/30">
                         Send Money (ব্যক্তিগত)
@@ -1100,15 +1071,15 @@ const OnlineRegistration = () => {
 
                     <div className="space-y-1.5">
                       <span className="text-xs text-ink-muted font-medium block">
-                        বিকাশ / নগদ / রকেট সেন্ড মানি নম্বর:
+                        বিকাশ (bKash) সেন্ড মানি নম্বর:
                       </span>
                       <div className="flex items-center justify-between p-2.5 rounded bg-surface-card/80 border border-line-soft">
                         <span className="text-base sm:text-lg font-black font-mono text-secondary tracking-wider">
-                          01791-629996
+                          {PAYMENT_SEND_NUMBER_DISPLAY}
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleCopyPaymentNumber("01791629996")}
+                          onClick={() => handleCopyPaymentNumber(PAYMENT_SEND_NUMBER)}
                           className="px-3 py-1 rounded bg-primary-container hover:bg-primary-container text-white text-xs font-bold flex items-center gap-1 transition active:scale-95 cursor-pointer"
                         >
                           {copiedPaymentNumber ? <HiCheck /> : <HiClipboardDocumentCheck />}
@@ -1118,63 +1089,38 @@ const OnlineRegistration = () => {
                     </div>
                   </div>
 
-                  {/* Payment Method Selector */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-ink-body">
-                      পেমেন্ট মেথড নির্বাচন করুন
-                    </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {PAYMENT_METHODS.map((pm) => (
-                        <button
-                          key={pm.id}
-                          type="button"
-                          onClick={() => setFormData((prev) => ({ ...prev, paymentMethod: pm.id }))}
-                          className={`py-2 px-3 rounded text-xs font-bold border transition-all cursor-pointer truncate ${
-                            formData.paymentMethod === pm.id
-                              ? "bg-primary-container text-white border-primary/40"
-                              : "bg-surface-lowest text-ink-body border-line-soft"
-                          }`}
-                        >
-                          {pm.name}
-                        </button>
-                      ))}
+                  {/* Sender Number & TrxID */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-ink-body">
+                        প্রেরক মোবাইল নম্বর (যেখান থেকে পাঠিয়েছেন) <span className="text-tertiary">*</span>
+                      </label>
+                      <input
+                        type="tel"
+                        name="senderNumber"
+                        value={formData.senderNumber}
+                        onChange={handleInputChange}
+                        placeholder="01XXXXXXXXX"
+                        required
+                        className="w-full px-3.5 py-2.5 rounded bg-surface-lowest border border-line-soft text-xs sm:text-sm text-white focus:outline-none focus:border-primary/40 font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-ink-body">
+                        ট্রানজেকশন আইডি (TrxID) <span className="text-tertiary">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="trxId"
+                        value={formData.trxId}
+                        onChange={handleInputChange}
+                        placeholder="উদা: BL98A2K5X"
+                        required
+                        className="w-full px-3.5 py-2.5 rounded bg-surface-lowest border border-line-soft text-xs sm:text-sm text-white focus:outline-none focus:border-primary/40 font-mono uppercase"
+                      />
                     </div>
                   </div>
-
-                  {/* Sender Number & TrxID */}
-                  {formData.paymentMethod !== "Cash/School" && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-ink-body">
-                          প্রেরক মোবাইল নম্বর (যেখান থেকে পাঠিয়েছেন) <span className="text-tertiary">*</span>
-                        </label>
-                        <input
-                          type="tel"
-                          name="senderNumber"
-                          value={formData.senderNumber}
-                          onChange={handleInputChange}
-                          placeholder="01XXXXXXXXX"
-                          required
-                          className="w-full px-3.5 py-2.5 rounded bg-surface-lowest border border-line-soft text-xs sm:text-sm text-white focus:outline-none focus:border-primary/40 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="block text-xs font-bold text-ink-body">
-                          ট্রানজেকশন আইডি (TrxID) <span className="text-tertiary">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="trxId"
-                          value={formData.trxId}
-                          onChange={handleInputChange}
-                          placeholder="উদা: BL98A2K5X"
-                          required
-                          className="w-full px-3.5 py-2.5 rounded bg-surface-lowest border border-line-soft text-xs sm:text-sm text-white focus:outline-none focus:border-primary/40 font-mono uppercase"
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {/* Important Notice */}
                   <div className="p-3 rounded bg-secondary-container/10 border border-secondary/30 text-secondary text-xs font-medium space-y-1">
