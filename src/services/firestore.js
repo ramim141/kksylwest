@@ -31,6 +31,7 @@ export const COLLECTIONS = {
   SYLLABUS: "syllabus",
   REGISTRATIONS: "registrations",
   UPAZILA_CENTERS: "upazila_centers",
+  EXAM_CENTERS: "exam_centers",
 };
 
 // ==================== 1. RESULT SERVICES ====================
@@ -141,15 +142,19 @@ export const batchUploadResults = async (resultsList, year, onProgress) => {
     const batch = writeBatch(db);
 
     chunk.forEach((student) => {
-      // Document ID: roll_year or auto id
-      const docId = `${student.roll}_${student.year || year || new Date().getFullYear()}`;
+      const rowYear =
+        canonicalYear(student.year || year) ||
+        canonicalYear(new Date().getFullYear());
+      // Document ID: roll_year, so re-uploading a sheet overwrites instead
+      // of doubling the session up under a second spelling of the year.
+      const docId = `${student.roll}_${rowYear}`;
       const docRef = doc(db, COLLECTIONS.RESULTS, docId);
 
       batch.set(
         docRef,
         {
           ...student,
-          year: student.year || year || new Date().getFullYear().toString(),
+          year: rowYear,
           uploadedAt: serverTimestamp(),
         },
         { merge: true }
@@ -172,17 +177,20 @@ export const batchUploadResults = async (resultsList, year, onProgress) => {
 export const clearResultsByYear = async (year) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
 
-  let q = collection(db, COLLECTIONS.RESULTS);
-  if (year && year !== "all") {
-    q = query(q, where("year", "==", year.toString()));
-  }
+  /* Read the whole collection and match on the canonical year rather than
+     querying one spelling: a delete that leaves half a session behind is
+     worse than a slightly heavier read on a rare admin action. */
+  const snapshot = await getDocs(collection(db, COLLECTIONS.RESULTS));
+  const target = year && year !== "all" ? canonicalYear(year) : null;
+  const docs = target
+    ? snapshot.docs.filter((d) => canonicalYear(d.data().year) === target)
+    : snapshot.docs;
 
-  const snapshot = await getDocs(q);
-  const total = snapshot.docs.length;
+  const total = docs.length;
   const chunkSize = 400;
 
   for (let i = 0; i < total; i += chunkSize) {
-    const chunk = snapshot.docs.slice(i, i + chunkSize);
+    const chunk = docs.slice(i, i + chunkSize);
     const batch = writeBatch(db);
     chunk.forEach((d) => batch.delete(d.ref));
     await batch.commit();
@@ -198,7 +206,8 @@ export const addSingleResult = async (studentData) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
 
   const cleanRoll = studentData.roll?.toString().trim();
-  const year = studentData.year || new Date().getFullYear().toString();
+  const year =
+    canonicalYear(studentData.year) || canonicalYear(new Date().getFullYear());
   const docId = `${cleanRoll}_${year}`;
   const docRef = doc(db, COLLECTIONS.RESULTS, docId);
 
@@ -1055,6 +1064,31 @@ export const updateRegistrationStatus = async (
   });
 };
 
+/**
+ * Writes a roll number onto many registrations at once.
+ * Only touches assignedRoll, so a bulk run can never wipe the exam
+ * centre/date an admin already tuned on an individual record.
+ */
+export const bulkAssignRolls = async (assignments = []) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  if (!assignments.length) return 0;
+
+  /* Firestore caps a batch at 500 writes; chunk so a big class still goes
+     through in one click. */
+  const CHUNK = 400;
+  for (let i = 0; i < assignments.length; i += CHUNK) {
+    const batch = writeBatch(db);
+    assignments.slice(i, i + CHUNK).forEach(({ id, assignedRoll }) => {
+      batch.update(doc(db, COLLECTIONS.REGISTRATIONS, id), {
+        assignedRoll: String(assignedRoll),
+        reviewedAt: serverTimestamp(),
+      });
+    });
+    await batch.commit();
+  }
+  return assignments.length;
+};
+
 export const deleteRegistration = async (id) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
   await deleteDoc(doc(db, COLLECTIONS.REGISTRATIONS, id));
@@ -1180,6 +1214,91 @@ export const updateUpazilaCenter = async (id, upazilaData) => {
   });
 };
 
+/* ==================== EXAM CENTRES ====================
+
+   Where the exam is actually sat. Until now this was free text typed into
+   the approval modal for every applicant, so one centre could be spelled
+   four ways and no report could group by it. Registrations still store the
+   centre's name (the admit card and every existing record read that field),
+   but the name now comes from this list.
+   ==================================================================== */
+
+/* Seeded on first use so the dropdown is never empty. Only the centre the
+   code already defaulted to is listed — the rest are the admin's to add. */
+export const DEFAULT_EXAM_CENTERS = [
+  {
+    name: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+    address: "দরগাহ গেইট, সিলেট সদর",
+    upazila: "সদর উপজেলা",
+    roomInfo: "",
+    isActive: true,
+    orderIndex: 1,
+  },
+];
+
+const uncached_getExamCenters = async () => {
+  if (isFirebaseConfigured()) {
+    try {
+      const q = query(
+        collection(db, COLLECTIONS.EXAM_CENTERS),
+        orderBy("orderIndex", "asc")
+      );
+      const snapshot = await getDocs(q);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+      }
+    } catch (error) {
+      console.warn("Firestore getExamCenters fallback:", error);
+    }
+  }
+  return [];
+};
+
+export const addExamCenter = async (centerData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const docRef = await addDoc(collection(db, COLLECTIONS.EXAM_CENTERS), {
+    ...centerData,
+    name: String(centerData.name || "").trim(),
+    isActive: centerData.isActive !== false,
+    orderIndex: Number(centerData.orderIndex) || 1,
+    createdAt: serverTimestamp(),
+  });
+  return docRef.id;
+};
+
+export const updateExamCenter = async (id, centerData) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await updateDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id), {
+    ...centerData,
+    name: String(centerData.name || "").trim(),
+    isActive: centerData.isActive !== false,
+    orderIndex: Number(centerData.orderIndex) || 1,
+    updatedAt: serverTimestamp(),
+  });
+};
+
+export const deleteExamCenter = async (id) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  await deleteDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id));
+};
+
+/** Writes the defaults, but only into an empty collection. */
+export const seedDefaultExamCenters = async () => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const existing = await uncached_getExamCenters();
+  if (existing.length > 0) return existing.length;
+
+  const batch = writeBatch(db);
+  DEFAULT_EXAM_CENTERS.forEach((center) => {
+    batch.set(doc(collection(db, COLLECTIONS.EXAM_CENTERS)), {
+      ...center,
+      createdAt: serverTimestamp(),
+    });
+  });
+  await batch.commit();
+  return DEFAULT_EXAM_CENTERS.length;
+};
+
 export const deleteUpazilaCenter = async (id) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
   await deleteDoc(doc(db, COLLECTIONS.UPAZILA_CENTERS, id));
@@ -1297,7 +1416,26 @@ export const DEFAULT_IMPORTANT_DATES = {
 export const normalizeYear = (year) =>
   String(year ?? "")
     .trim()
-    .replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+    .replace(/[\u09e6-\u09ef]/g, (d) => d.charCodeAt(0) - 0x09e6);
+
+const BENGALI_DIGITS = "\u09e6\u09e7\u09e8\u09e9\u09ea\u09eb\u09ec\u09ed\u09ee\u09ef";
+
+/* The one spelling a session is stored under. Years are typed by hand in
+   three different places, so "2026", " ২০২৬" and "২০২৬" all have to end up
+   as the same session — otherwise an upload lands in a year the panel can
+   neither list, filter nor delete. */
+export const canonicalYear = (year) =>
+  normalizeYear(year)
+    .replace(/[^0-9]/g, "")
+    .replace(/[0-9]/g, (d) => BENGALI_DIGITS[Number(d)]);
+
+/* Both numeral sets for one session, for querying records written before
+   years were canonicalized. */
+export const yearSpellings = (year) => {
+  const bn = canonicalYear(year);
+  const en = normalizeYear(bn);
+  return Array.from(new Set([bn, en].filter(Boolean)));
+};
 
 /**
  * Narrows a result set to one session.
@@ -1339,17 +1477,29 @@ const uncached_getImportantDates = async () => {
   return DEFAULT_IMPORTANT_DATES;
 };
 
+/* Merges into whatever is cached rather than replacing it: the dates and
+   the result-publication switch are saved by two separate buttons now, so a
+   wholesale write would drop the fields the other one owns. */
+const mergeLocalDates = (payload) => {
+  try {
+    const saved = localStorage.getItem(LOCAL_IMPORTANT_DATES_KEY);
+    const previous = saved ? JSON.parse(saved) : {};
+    localStorage.setItem(
+      LOCAL_IMPORTANT_DATES_KEY,
+      JSON.stringify({ ...previous, ...payload })
+    );
+  } catch (e) {
+    console.warn("localStorage important dates write error:", e);
+  }
+};
+
 export const saveImportantDates = async (datesData) => {
   const payload = {
     ...datesData,
     updatedAt: new Date().toISOString(),
   };
 
-  try {
-    localStorage.setItem(LOCAL_IMPORTANT_DATES_KEY, JSON.stringify(payload));
-  } catch (e) {
-    console.warn("localStorage saveImportantDates error:", e);
-  }
+  mergeLocalDates(payload);
 
   if (isFirebaseConfigured()) {
     try {
@@ -1364,6 +1514,38 @@ export const saveImportantDates = async (datesData) => {
       );
     } catch (err) {
       console.warn("Firestore saveImportantDates fallback:", err);
+    }
+  }
+
+  return payload;
+};
+
+/**
+ * Saves only the result-publication switches.
+ *
+ * Publication is flipped on results night, often while the date fields on
+ * the same screen are half-edited. Writing just these two keys means the
+ * button can never publish a date the admin was still typing — or, worse,
+ * carry an unsaved change to the switches into a plain date save.
+ */
+export const saveResultVisibility = async ({ resultsPublished, meritListYear }) => {
+  const payload = {
+    resultsPublished: !!resultsPublished,
+    meritListYear: meritListYear || "",
+    updatedAt: new Date().toISOString(),
+  };
+
+  mergeLocalDates(payload);
+
+  if (isFirebaseConfigured()) {
+    try {
+      await setDoc(
+        doc(db, COLLECTIONS.SITE_SETTINGS, "important_dates"),
+        { ...payload, serverUpdatedAt: serverTimestamp() },
+        { merge: true }
+      );
+    } catch (err) {
+      console.warn("Firestore saveResultVisibility fallback:", err);
     }
   }
 
@@ -1665,26 +1847,16 @@ const uncached_getArchivedResultYears = async () => {
 export const setResultYearArchived = async (year, isArchived) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
 
-  const targetEng = String(year).trim().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
+  const target = canonicalYear(year);
   const current = (await readYearSettings()).archived || [];
 
-  // Remove existing entries with the same numeric value
-  const filtered = current.filter((y) => {
-    const yEng = String(y).trim().replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d));
-    return yEng !== targetEng;
-  });
+  // Drop any entry for the same session, whichever numerals it was saved in
+  const filtered = current.filter((y) => canonicalYear(y) !== target);
+  if (isArchived) filtered.push(target);
 
-  if (isArchived) {
-    // Save in standard Bengali format
-    const bnYear = targetEng.replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[d]);
-    filtered.push(bnYear);
-  }
-
-  const archived = filtered.sort((a, b) => {
-    const numA = parseInt(a.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
-    const numB = parseInt(b.replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d))) || 0;
-    return numB - numA;
-  });
+  const archived = filtered.sort(
+    (a, b) => (Number(normalizeYear(b)) || 0) - (Number(normalizeYear(a)) || 0)
+  );
 
   const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC);
   await setDoc(docRef, { archived, updatedAt: serverTimestamp() }, { merge: true });
@@ -1713,22 +1885,25 @@ const uncached_getResultYearStats = async () => {
       ]);
 
       snapshot.docs.forEach((d) => {
-        const y = d.data().year;
-        if (y) counts[y.toString()] = (counts[y.toString()] || 0) + 1;
+        const y = canonicalYear(d.data().year);
+        if (y) counts[y] = (counts[y] || 0) + 1;
       });
 
       if (settingsSnap.exists()) {
         const data = settingsSnap.data();
-        if (Array.isArray(data.custom)) custom = data.custom.map(String);
-        if (Array.isArray(data.archived)) archived = data.archived.map(String);
+        if (Array.isArray(data.custom)) custom = data.custom.map(canonicalYear).filter(Boolean);
+        if (Array.isArray(data.archived))
+          archived = data.archived.map(canonicalYear).filter(Boolean);
       }
     } catch (error) {
       console.warn("Firestore getResultYearStats fallback:", error);
     }
   }
 
+  /* Newest session first, compared as numbers: a mix of numeral sets sorts
+     by codepoint otherwise, which puts 2026 below 2025. */
   const years = Array.from(new Set([...Object.keys(counts), ...custom])).sort(
-    (a, b) => b.localeCompare(a)
+    (a, b) => (Number(normalizeYear(b)) || 0) - (Number(normalizeYear(a)) || 0)
   );
 
   return { years, counts, custom, archived };
@@ -1737,7 +1912,7 @@ const uncached_getResultYearStats = async () => {
 /** Registers a session that has no results yet. */
 export const addCustomResultYear = async (year) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  const clean = String(year).trim();
+  const clean = canonicalYear(year);
   if (!clean) throw new Error("শিক্ষাবর্ষ লিখুন!");
 
   const { years, custom } = await getResultYearStats();
@@ -1759,8 +1934,8 @@ export const addCustomResultYear = async (year) => {
  */
 export const renameResultYear = async (oldYear, newYear) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  const from = String(oldYear).trim();
-  const to = String(newYear).trim();
+  const from = canonicalYear(oldYear);
+  const to = canonicalYear(newYear);
   if (!to) throw new Error("নতুন শিক্ষাবর্ষ লিখুন!");
   if (from === to) return { updated: 0 };
 
@@ -1768,7 +1943,7 @@ export const renameResultYear = async (oldYear, newYear) => {
   if (years.includes(to)) throw new Error(`"${to}" ইতিমধ্যেই আছে!`);
 
   const snapshot = await getDocs(
-    query(collection(db, COLLECTIONS.RESULTS), where("year", "==", from))
+    query(collection(db, COLLECTIONS.RESULTS), where("year", "in", yearSpellings(from)))
   );
   const total = snapshot.docs.length;
   const chunkSize = 400;
@@ -1779,7 +1954,7 @@ export const renameResultYear = async (oldYear, newYear) => {
   }
 
   const { custom, archived } = await readYearSettings();
-  const swap = (list) => list.map((y) => (y === from ? to : y));
+  const swap = (list) => list.map((y) => (canonicalYear(y) === from ? to : y));
   await setDoc(
     doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC),
     {
@@ -1799,7 +1974,7 @@ export const renameResultYear = async (oldYear, newYear) => {
  */
 export const deleteResultYear = async (year) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  const clean = String(year).trim();
+  const clean = canonicalYear(year);
 
   const { deleted } = await clearResultsByYear(clean);
 
@@ -1807,8 +1982,8 @@ export const deleteResultYear = async (year) => {
   await setDoc(
     doc(db, COLLECTIONS.SITE_SETTINGS, RESULT_YEARS_DOC),
     {
-      custom: custom.filter((y) => y !== clean),
-      archived: archived.filter((y) => y !== clean),
+      custom: custom.filter((y) => canonicalYear(y) !== clean),
+      archived: archived.filter((y) => canonicalYear(y) !== clean),
       updatedAt: serverTimestamp(),
     },
     { merge: true }
@@ -1822,7 +1997,9 @@ const uncached_getResultsByYear = async (selectedYear = "all") => {
     try {
       let q = collection(db, COLLECTIONS.RESULTS);
       if (selectedYear && selectedYear !== "all") {
-        q = query(q, where("year", "==", selectedYear.toString()));
+        const spellings = yearSpellings(selectedYear);
+        if (!spellings.length) return [];
+        q = query(q, where("year", "in", spellings));
       }
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
@@ -1917,6 +2094,7 @@ export const getAnnouncement = cached("getAnnouncement", uncached_getAnnouncemen
 export const getTeamStructure = cached("getTeamStructure", uncached_getTeamStructure);
 export const getSyllabus = cached("getSyllabus", uncached_getSyllabus);
 export const getUpazilaCenters = cached("getUpazilaCenters", uncached_getUpazilaCenters);
+export const getExamCenters = cached("getExamCenters", uncached_getExamCenters);
 export const getContactSettings = cached("getContactSettings", uncached_getContactSettings);
 export const getImportantDates = cached("getImportantDates", uncached_getImportantDates);
 export const getAdmitCardSettings = cached("getAdmitCardSettings", uncached_getAdmitCardSettings);

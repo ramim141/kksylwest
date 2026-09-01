@@ -21,7 +21,7 @@ import {
   HiPencilSquare,
 } from "react-icons/hi2";
 import { FaFacebookF, FaYoutube, FaWhatsapp, FaCalendarAlt, FaAward } from "react-icons/fa";
-import { SubTabs, Toast } from "../ui";
+import { SubTabs, Toast, useConfirm } from "../ui";
 import {
   getHomepageContent,
   saveHomepageContent,
@@ -33,6 +33,7 @@ import {
   DEFAULT_CONTACT_SETTINGS,
   getImportantDates,
   saveImportantDates,
+  saveResultVisibility,
   DEFAULT_IMPORTANT_DATES,
   getAdmitCardSettings,
   saveAdmitCardSettings,
@@ -117,6 +118,8 @@ const SiteSettingsManager = () => {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [confirm, confirmUI] = useConfirm();
   const [statusMessage, setStatusMessage] = useState(null);
   const { refreshBranding } = useBranding();
 
@@ -195,12 +198,47 @@ const SiteSettingsManager = () => {
     e.preventDefault();
     setSaving(true);
     try {
-      await saveImportantDates(datesData);
+      /* The publication switches have their own button; leaving them out
+         here keeps an unsaved toggle from going live with a date edit. */
+      // eslint-disable-next-line no-unused-vars
+      const { resultsPublished, meritListYear, ...dateFields } = datesData;
+      await saveImportantDates(dateFields);
       showToast("গুরুত্বপূর্ণ তারিখ ও কাউন্টডাউন টাইমার সফলভাবে সংরক্ষিত হয়েছে!");
     } catch (e) {
       showToast("সংরক্ষণ করতে সমস্যা হয়েছে!", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  /* Publishing is the one setting on this screen the whole public site
+     reacts to instantly, so it asks first and says exactly what will change. */
+  const handleSaveVisibility = async () => {
+    const ok = await confirm({
+      tone: "primary",
+      title: "ফলাফল প্রকাশ সেটিং সংরক্ষণ করবেন?",
+      body: "সংরক্ষণ করার সাথে সাথেই ওয়েবসাইটে এই পরিবর্তন কার্যকর হবে।",
+      detail: [
+        datesData.resultsPublished
+          ? "ফলাফল সার্চ (/search): চালু"
+          : "ফলাফল সার্চ (/search): বন্ধ",
+        datesData.meritListYear
+          ? `মেধা তালিকা: ${datesData.meritListYear}`
+          : "মেধা তালিকা: প্রকাশিত হবে না",
+      ].join("  |  "),
+      confirmLabel: "সংরক্ষণ করুন",
+    });
+    if (!ok) return;
+
+    setSavingVisibility(true);
+    try {
+      await saveResultVisibility(datesData);
+      showToast("ফলাফল প্রকাশ নিয়ন্ত্রণ সফলভাবে সংরক্ষিত হয়েছে!");
+    } catch (e) {
+      console.error(e);
+      showToast("সংরক্ষণ করতে সমস্যা হয়েছে!", "error");
+    } finally {
+      setSavingVisibility(false);
     }
   };
 
@@ -1020,6 +1058,82 @@ const SiteSettingsManager = () => {
           SUBTAB 2: IMPORTANT DATES & COUNTDOWN TIMER
           =================================================================== */}
       {activeSubTab === "dates" && (
+        <>
+        {/* ============================================================
+            RESULT VISIBILITY — what the public may see, and for which
+            session. Kept apart from Exam Year on purpose: registration
+            for the coming session runs long before its results exist,
+            so the year on display is usually the previous one.
+            ============================================================ */}
+        <div className="p-5 sm:p-6 bg-surface-card border border-amber-500/40 rounded-lg space-y-4 shadow-none animate-fadeIn">
+          <div className="flex items-start gap-3">
+            <HiSparkles className="text-amber-500 text-lg mt-0.5 shrink-0" />
+            <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
+              <span className="font-bold text-ink-strong">ফলাফল প্রকাশ নিয়ন্ত্রণ:</span>{" "}
+              পরীক্ষা হওয়ার আগে ফলাফল বা মেধা তালিকা যেন কেউ দেখতে না পারে,
+              তা এখান থেকে নিয়ন্ত্রণ করুন। দুটি সেটিং আলাদা — চাইলে আগে ফলাফল
+              সার্চ খুলে পরে মেধা তালিকা প্রকাশ করতে পারবেন।
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Search gate */}
+            <div>
+              <label className="block text-[13px] font-bold text-ink-body mb-1.5">
+                ফলাফল সার্চ (/search) চালু আছে?
+              </label>
+              <select
+                value={datesData.resultsPublished ? "yes" : "no"}
+                onChange={(e) =>
+                  setDatesData({ ...datesData, resultsPublished: e.target.value === "yes" })
+                }
+                className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
+              >
+                <option value="no">🔒 বন্ধ — "ফলাফল এখনো প্রকাশিত হয়নি" দেখাবে</option>
+                <option value="yes">✅ চালু — রোল দিয়ে ফলাফল খোঁজা যাবে</option>
+              </select>
+              <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
+                বন্ধ থাকলে নোটিশে চলতি শিক্ষাবর্ষ ({datesData.examYear}) দেখানো হবে।
+              </p>
+            </div>
+
+            {/* Merit list year */}
+            <div>
+              <label className="block text-[13px] font-bold text-ink-body mb-1.5">
+                মেধা তালিকায় কোন সালের ফলাফল দেখাবে?
+              </label>
+              <select
+                value={datesData.meritListYear || ""}
+                onChange={(e) => setDatesData({ ...datesData, meritListYear: e.target.value })}
+                className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
+              >
+                <option value="">🔒 কোনোটিই নয় — "এখনো প্রকাশিত হয়নি" দেখাবে</option>
+                {resultYears.years.map((y) => (
+                  <option key={y} value={y}>
+                    🏆 {y} ({resultYears.counts[y] || 0} জন)
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
+                {resultYears.years.length === 0
+                  ? "এখনো কোনো সালের ফলাফল আপলোড করা হয়নি।"
+                  : "যে সালের ফলাফল আপলোড করা আছে শুধু সেগুলোই এখানে আসে।"}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleSaveVisibility}
+              disabled={savingVisibility}
+              className="px-6 py-2.5 rounded bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-400 font-semibold text-[13px] sm:text-sm transition cursor-pointer disabled:opacity-50"
+            >
+              {savingVisibility ? "সংরক্ষণ হচ্ছে..." : "ফলাফল প্রকাশ সেটিং সংরক্ষণ করুন"}
+            </button>
+          </div>
+        </div>
+
         <form onSubmit={handleSaveDates} className="p-5 sm:p-6 bg-surface-card border border-line-soft rounded-lg space-y-6 shadow-none animate-fadeIn">
           <div className="border-b border-line-soft pb-3">
             <h3 className="text-base sm:text-lg font-semibold text-ink-strong flex items-center gap-2">
@@ -1036,70 +1150,6 @@ const SiteSettingsManager = () => {
             <HiSparkles className="text-primary text-lg mt-0.5 shrink-0" />
             <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
               <span className="font-bold text-ink-strong">চলতি শিক্ষাবর্ষ (Exam Year):</span> এখানে যে বছর (যেমন: <strong>২০২৬</strong>) সেট করে সংরক্ষণ করবেন, পুরো ওয়েবসাইটের সব পেজে স্বয়ংক্রিয়ভাবে সেই বছরটি দৃশ্যমান হবে।
-            </div>
-          </div>
-
-          {/* ============================================================
-              RESULT VISIBILITY — what the public may see, and for which
-              session. Kept apart from Exam Year on purpose: registration
-              for the coming session runs long before its results exist,
-              so the year on display is usually the previous one.
-              ============================================================ */}
-          <div className="p-4 bg-surface rounded-lg border border-amber-500/40 space-y-4">
-            <div className="flex items-start gap-3">
-              <HiSparkles className="text-amber-500 text-lg mt-0.5 shrink-0" />
-              <div className="text-xs sm:text-sm text-ink-body leading-relaxed">
-                <span className="font-bold text-ink-strong">ফলাফল প্রকাশ নিয়ন্ত্রণ:</span>{" "}
-                পরীক্ষা হওয়ার আগে ফলাফল বা মেধা তালিকা যেন কেউ দেখতে না পারে,
-                তা এখান থেকে নিয়ন্ত্রণ করুন। দুটি সেটিং আলাদা — চাইলে আগে ফলাফল
-                সার্চ খুলে পরে মেধা তালিকা প্রকাশ করতে পারবেন।
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {/* Search gate */}
-              <div>
-                <label className="block text-[13px] font-bold text-ink-body mb-1.5">
-                  ফলাফল সার্চ (/search) চালু আছে?
-                </label>
-                <select
-                  value={datesData.resultsPublished ? "yes" : "no"}
-                  onChange={(e) =>
-                    setDatesData({ ...datesData, resultsPublished: e.target.value === "yes" })
-                  }
-                  className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
-                >
-                  <option value="no">🔒 বন্ধ — "ফলাফল এখনো প্রকাশিত হয়নি" দেখাবে</option>
-                  <option value="yes">✅ চালু — রোল দিয়ে ফলাফল খোঁজা যাবে</option>
-                </select>
-                <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
-                  বন্ধ থাকলে নোটিশে চলতি শিক্ষাবর্ষ ({datesData.examYear}) দেখানো হবে।
-                </p>
-              </div>
-
-              {/* Merit list year */}
-              <div>
-                <label className="block text-[13px] font-bold text-ink-body mb-1.5">
-                  মেধা তালিকায় কোন সালের ফলাফল দেখাবে?
-                </label>
-                <select
-                  value={datesData.meritListYear || ""}
-                  onChange={(e) => setDatesData({ ...datesData, meritListYear: e.target.value })}
-                  className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded text-ink-strong text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary"
-                >
-                  <option value="">🔒 কোনোটিই নয় — "এখনো প্রকাশিত হয়নি" দেখাবে</option>
-                  {resultYears.years.map((y) => (
-                    <option key={y} value={y}>
-                      🏆 {y} ({resultYears.counts[y] || 0} জন)
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1.5 text-[11px] text-ink-muted leading-relaxed">
-                  {resultYears.years.length === 0
-                    ? "এখনো কোনো সালের ফলাফল আপলোড করা হয়নি।"
-                    : "যে সালের ফলাফল আপলোড করা আছে শুধু সেগুলোই এখানে আসে।"}
-                </p>
-              </div>
             </div>
           </div>
 
@@ -1246,6 +1296,7 @@ const SiteSettingsManager = () => {
             </button>
           </div>
         </form>
+        </>
       )}
 
       {/* ===================================================================
@@ -1582,6 +1633,7 @@ const SiteSettingsManager = () => {
         </form>
       )}
 
+      {confirmUI}
     </div>
   );
 };

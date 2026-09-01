@@ -13,6 +13,7 @@ import {
   HiGlobeAlt,
   HiMapPin,
   HiBookOpen,
+  HiBuildingLibrary,
   HiMegaphone,
 } from "react-icons/hi2";
 import { FaWhatsapp } from "react-icons/fa";
@@ -71,6 +72,15 @@ export const NAV_GROUPS = [
           "প্রতিটি শ্রেণির বিষয়, অধ্যায়, পূর্ণমান ও পরীক্ষার সময়সূচি নির্ধারণ করুন।",
         icon: HiBookOpen,
         keywords: "syllabus subject marks distribution সিলেবাস",
+      },
+      {
+        id: "examcenters",
+        label: "পরীক্ষা কেন্দ্র",
+        title: "পরীক্ষা কেন্দ্রের তালিকা",
+        description:
+          "পরীক্ষা যেসব কেন্দ্রে হবে সেগুলোর তালিকা তৈরি ও হালনাগাদ করুন — রেজিস্ট্রেশন অনুমোদনের সময় এখান থেকেই কেন্দ্র বেছে নেওয়া যাবে।",
+        icon: HiBuildingLibrary,
+        keywords: "exam center venue hall কেন্দ্র পরীক্ষা কেন্দ্র seat",
       },
       {
         id: "upazilas",

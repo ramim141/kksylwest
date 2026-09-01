@@ -36,6 +36,7 @@ service cloud.firestore {
     match /team_structure/{doc}   { allow read: if publicRead(); allow write: if isAdmin(); }
     match /syllabus/{doc}         { allow read: if publicRead(); allow write: if isAdmin(); }
     match /upazila_centers/{doc}  { allow read: if publicRead(); allow write: if isAdmin(); }
+    match /exam_centers/{doc}     { allow read: if publicRead(); allow write: if isAdmin(); }
 
     /* Exam dates, branding, contact details and the like. The public site
        renders from these on every page, so they have to be readable. */

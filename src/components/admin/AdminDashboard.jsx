@@ -33,6 +33,7 @@ import TeamStructureManager from "./tabs/TeamStructureManager";
 import SyllabusManager from "./tabs/SyllabusManager";
 import RegistrationManager from "./tabs/RegistrationManager";
 import UpazilaCenterManager from "./tabs/UpazilaCenterManager";
+import ExamCenterManager from "./tabs/ExamCenterManager";
 import AnnouncementManager from "./tabs/AnnouncementManager";
 import WhatsAppBroadcaster from "./tabs/WhatsAppBroadcaster";
 
@@ -41,6 +42,7 @@ const TAB_VIEWS = {
   results: ResultManager,
   broadcaster: WhatsAppBroadcaster,
   upazilas: UpazilaCenterManager,
+  examcenters: ExamCenterManager,
   content: SiteSettingsManager,
   hero: HeroManager,
   activities: ActivityManager,
