@@ -73,7 +73,8 @@ const AdmitCardFront = ({ student, logo, admitSettings }) => {
   const rollDisplay = student.assignedRoll || student.roll || "—";
   const centerName = student.examCenter || admitSettings.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট";
   const examDate = student.examDate || admitSettings.defaultExamDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)";
-  const examTime = student.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা";
+  const rawExamTime = student.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা";
+  const examTime = rawExamTime.replace(/১১:৩০/g, "১১:০০");
   const subjects = student.examSubjects || admitSettings.defaultSubjects || "বাংলা, ইংরেজি, গণিত, বিজ্ঞান, সাধারণ জ্ঞান";
 
   return (

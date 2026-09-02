@@ -159,7 +159,8 @@ const AdmitCardPortal = () => {
     const studentName = admitData.nameBn || admitData.name || "";
     const center = admitData.examCenter || admitSettings.defaultCenter;
     const date = admitData.examDate || admitSettings.defaultExamDate;
-    const time = admitData.examTime || admitSettings.defaultExamTime;
+    const rawTime = admitData.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা";
+    const time = rawTime.replace(/১১:৩০/g, "১১:০০");
     const directUrl = `${window.location.origin}/admit-card?id=${encodeURIComponent(targetRoll)}`;
 
     const text = `🎫 *কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষা ${examYear} — প্রবেশপত্র*\n\n👨‍🎓 নাম: ${studentName}\n📋 রোল/আইডি: ${targetRoll}\n🏛️ কেন্দ্র: ${center}\n📅 তারিখ: ${date}\n⏰ সময়: ${time}\n\nআপনার ডিজিটাল প্রবেশপত্র ডাউনলোড ও প্রিন্ট লিংক:\n🔗 ${directUrl}`;
@@ -520,7 +521,7 @@ const AdmitCardPortal = () => {
                           {admitData.examDate || admitSettings.defaultExamDate}
                         </td>
                         <td className="py-2 px-2 text-rose-700 font-black text-xs sm:text-sm">
-                          {admitData.examTime || admitSettings.defaultExamTime}
+                          {(admitData.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা").replace(/১১:৩০/g, "১১:০০")}
                         </td>
                       </tr>
                       <tr className="bg-amber-50/60 font-bold text-[11px] sm:text-xs text-slate-800">
