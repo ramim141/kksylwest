@@ -15,6 +15,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db, isFirebaseConfigured } from "../firebase/config";
+import { NOTICE_FIELDS } from "../utils/whatsappNotify";
 
 // Collections Names
 export const COLLECTIONS = {
@@ -1089,6 +1090,21 @@ export const bulkAssignRolls = async (assignments = []) => {
   return assignments.length;
 };
 
+/**
+ * Stamps a registration once one of its two WhatsApp notices has actually
+ * gone out (see src/utils/whatsappNotify.js). The stamp is what stops the
+ * same message being sent twice and what the list reads to show who is
+ * still waiting on a notice.
+ */
+export const markRegistrationNotified = async (id, stage) => {
+  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
+  const field = NOTICE_FIELDS[stage];
+  if (!field) throw new Error(`Unknown notice stage: ${stage}`);
+  await updateDoc(doc(db, COLLECTIONS.REGISTRATIONS, id), {
+    [field]: serverTimestamp(),
+  });
+};
+
 export const deleteRegistration = async (id) => {
   if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
   await deleteDoc(doc(db, COLLECTIONS.REGISTRATIONS, id));
@@ -1228,9 +1244,6 @@ export const updateUpazilaCenter = async (id, upazilaData) => {
 export const DEFAULT_EXAM_CENTERS = [
   {
     name: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
-    address: "দরগাহ গেইট, সিলেট সদর",
-    upazila: "সদর উপজেলা",
-    roomInfo: "",
     isActive: true,
     orderIndex: 1,
   },
@@ -1251,7 +1264,7 @@ const uncached_getExamCenters = async () => {
       console.warn("Firestore getExamCenters fallback:", error);
     }
   }
-  return [];
+  return DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
 };
 
 export const addExamCenter = async (centerData) => {

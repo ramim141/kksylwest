@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import {
   HiTrash,
   HiPencilSquare,
@@ -17,8 +18,19 @@ import {
   deleteRegistration,
   bulkAssignRolls,
   getExamCenters,
+  markRegistrationNotified,
 } from "../../../services/firestore";
 import { uploadToImgBB } from "../../../services/imgbb";
+import {
+  NOTICE_FIELDS,
+  NOTICE_LABELS,
+  NOTICE_STAGES,
+  buildNoticeText,
+  dueStages,
+  noticeStateOf,
+  openWhatsApp,
+  whatsappNumberOf,
+} from "../../../utils/whatsappNotify";
 import { Button, EmptyState, Toast, useConfirm } from "../ui";
 const CLASSES = [
   "৪র্থ শ্রেণি",
@@ -84,6 +96,75 @@ const UPAZILAS = [
   "বালাগঞ্জ উপজেলা",
   "অন্যান্য",
 ];
+
+/* One tap = one stage of the two-stage WhatsApp notice (stage 1 = tracking
+   number on approval, stage 2 = roll & centre). An already-sent stage stays
+   clickable so a lost message can be resent, but it reads as done. */
+const NoticeButton = ({ badge, title, sent, disabled, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    title={title}
+    className={`relative w-10 h-10 inline-flex items-center justify-center shrink-0 rounded border transition ${
+      disabled
+        ? "bg-surface-overlay/30 text-ink-muted border-line-soft cursor-not-allowed"
+        : sent
+        ? "bg-primary-500/25 text-primary-300 border-primary-500/40 hover:bg-primary-500/40 cursor-pointer"
+        : "bg-secondary/15 text-secondary border-secondary/30 hover:bg-secondary/30 cursor-pointer"
+    }`}
+  >
+    <FaWhatsapp className="text-sm" />
+    <span
+      className={`absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full text-[10px] font-bold
+        flex items-center justify-center border ${
+          sent
+            ? "bg-primary text-primary-on border-primary"
+            : "bg-surface-card text-ink-muted border-line-soft"
+        }`}
+    >
+      {sent ? "✓" : badge}
+    </span>
+  </button>
+);
+
+/* Both stages side by side, in order. Reads the record itself, so a row and
+   the modal can never disagree about what has already gone out. */
+const NoticeButtons = ({ student, onSend }) => {
+  const notice = noticeStateOf(student);
+  const approvalBlocked = student.status !== "approved";
+
+  return (
+    <>
+      <NoticeButton
+        badge="১"
+        sent={notice.approvalSent}
+        disabled={approvalBlocked}
+        title={
+          approvalBlocked
+            ? "আবেদন অনুমোদনের পরেই ট্র্যাকিং নোটিশ পাঠানো যাবে"
+            : notice.approvalSent
+            ? "১ম নোটিশ (ট্র্যাকিং নম্বর) পাঠানো হয়েছে — আবার পাঠাতে ক্লিক করুন"
+            : "১ম নোটিশ: ট্র্যাকিং নম্বর WhatsApp-এ পাঠান"
+        }
+        onClick={() => onSend(student, NOTICE_STAGES.APPROVAL)}
+      />
+      <NoticeButton
+        badge="২"
+        sent={notice.rollSent}
+        disabled={!notice.rollReady}
+        title={
+          !notice.rollReady
+            ? "রোল ও কেন্দ্র দুটোই নির্ধারিত হলে ২য় নোটিশ পাঠানো যাবে"
+            : notice.rollSent
+            ? "২য় নোটিশ (রোল ও কেন্দ্র) পাঠানো হয়েছে — আবার পাঠাতে ক্লিক করুন"
+            : "২য় নোটিশ: রোল, কেন্দ্র ও প্রবেশপত্রের লিংক পাঠান"
+        }
+        onClick={() => onSend(student, NOTICE_STAGES.ROLL)}
+      />
+    </>
+  );
+};
 
 const RegistrationManager = () => {
   const [registrations, setRegistrations] = useState([]);
@@ -200,8 +281,11 @@ const RegistrationManager = () => {
         selectedClass === "all" || r.studentClass === selectedClass;
       const matchUpazila =
         selectedUpazila === "all" || r.upazila === selectedUpazila;
-      const matchStatus =
-        selectedStatus === "all" || r.status === selectedStatus;
+      /* The status select doubles as a notice queue: a "notice:*" value asks
+         who is still owed which of the two WhatsApp messages. */
+      const matchStatus = selectedStatus.startsWith("notice:")
+        ? dueStages(r).includes(selectedStatus.slice("notice:".length))
+        : selectedStatus === "all" || r.status === selectedStatus;
 
       return matchSearch && matchClass && matchUpazila && matchStatus;
     });
@@ -214,6 +298,21 @@ const RegistrationManager = () => {
     const approved = registrations.filter((r) => r.status === "approved").length;
     const rejected = registrations.filter((r) => r.status === "rejected").length;
     return { total, pending, approved, rejected };
+  }, [registrations]);
+
+  /* How many applicants are still owed each notice — shown on the filter so
+     nobody is left waiting on a message the admin forgot to send. */
+  const noticeCounts = useMemo(() => {
+    let approval = 0;
+    let roll = 0;
+    let blocked = 0;
+    registrations.forEach((r) => {
+      const stages = dueStages(r);
+      if (stages.includes(NOTICE_STAGES.APPROVAL)) approval += 1;
+      if (stages.includes(NOTICE_STAGES.ROLL)) roll += 1;
+      if (noticeStateOf(r).rollBlocked) blocked += 1;
+    });
+    return { approval, roll, blocked };
   }, [registrations]);
 
   /* Next free roll inside a class's own block. Blocks are 10k wide, so a
@@ -307,7 +406,7 @@ const RegistrationManager = () => {
       );
       setStatusMessage({
         type: "success",
-        text: `${selectedClass}-এর ${assignments.length} জন শিক্ষার্থীর রোল (${firstRoll} - ${lastRoll}) সফলভাবে বরাদ্দ হয়েছে!`,
+        text: `${selectedClass}-এর ${assignments.length} জন শিক্ষার্থীর রোল (${firstRoll} - ${lastRoll}) সফলভাবে বরাদ্দ হয়েছে! এবার ফিল্টার থেকে "২য় নোটিশ বাকি" বেছে নিয়ে WhatsApp নোটিশ পাঠান।`,
       });
     } catch (err) {
       console.error(err);
@@ -386,6 +485,37 @@ const RegistrationManager = () => {
         examTime: assignData.examTime,
         roomNo: assignData.roomNo,
       }));
+
+      /* Both notices hang off this one save: approval settles stage 1, roll +
+         centre settle stage 2. Offer the due one right here instead of
+         leaving the admin to remember who is still owed a message. */
+      const updated = { ...selectedStudent, ...assignData };
+      const pending = dueStages(updated);
+      if (pending.length) {
+        const both = pending.length === 2;
+        const stage = both ? NOTICE_STAGES.ROLL : pending[0];
+        const ok = await confirm({
+          tone: "primary",
+          confirmLabel: "WhatsApp খুলুন",
+          cancelLabel: "পরে পাঠাব",
+          title: both
+            ? "ট্র্যাকিং ও রোল — একসাথে জানাবেন?"
+            : stage === NOTICE_STAGES.APPROVAL
+            ? "অনুমোদনের নোটিশ পাঠাবেন?"
+            : "রোল ও কেন্দ্রের নোটিশ পাঠাবেন?",
+          body: both
+            ? "অনুমোদন, রোল ও কেন্দ্র একসাথেই নির্ধারিত হয়েছে। রোলের বার্তাতেই ট্র্যাকিং আইডি থাকে, তাই পরপর দুটি বার্তার বদলে একটি পূর্ণ বার্তা পাঠানো হবে।"
+            : stage === NOTICE_STAGES.APPROVAL
+            ? "শিক্ষার্থীকে এখন শুধু ট্র্যাকিং নম্বরটি জানানো হবে। রোল ও কেন্দ্র নির্ধারিত হলে ২য় নোটিশটি আলাদাভাবে পাঠাতে হবে।"
+            : "রোল নম্বর, পরীক্ষা কেন্দ্র, সময়সূচি ও প্রবেশপত্রের ডাউনলোড লিংক পাঠানো হবে।",
+          detail: `${updated.nameBn || ""} — ${
+            whatsappNumberOf(updated) || "WhatsApp নম্বর নেই"
+          }`,
+        });
+        if (ok) {
+          await sendNotice(updated, stage, both ? [NOTICE_STAGES.APPROVAL] : []);
+        }
+      }
     } catch (err) {
       console.error(err);
       setStatusMessage({
@@ -562,52 +692,68 @@ const RegistrationManager = () => {
     }
   };
 
-  const handleSendWhatsAppNotification = (student, roll, center, date, time) => {
-    const rawPhone =
-      student.whatsappNumber ||
-      student.mobile ||
-      student.guardianPhone ||
-      student.studentPhone ||
-      "";
-    let cleanPhone = rawPhone.replace(/[^0-9]/g, "");
-
-    if (cleanPhone.startsWith("0")) {
-      cleanPhone = "88" + cleanPhone;
-    } else if (!cleanPhone.startsWith("880") && cleanPhone.length === 10) {
-      cleanPhone = "880" + cleanPhone;
+  /* Sends one stage of the two-stage notice and records the dispatch, so the
+     list keeps showing who is still owed which message.
+     `alsoStamp` covers the case where a single save settles both stages: the
+     roll message already carries the tracking id, so the applicant is told
+     everything once instead of getting two messages back to back. */
+  const sendNotice = useCallback(async (student, stage, alsoStamp = []) => {
+    const phone = whatsappNumberOf(student);
+    if (!phone) {
+      setStatusMessage({
+        type: "error",
+        text: `${student.nameBn || "শিক্ষার্থী"} — কোনো WhatsApp নম্বর নেই, বার্তা পাঠানো যাচ্ছে না।`,
+      });
+      return false;
+    }
+    if (stage === NOTICE_STAGES.ROLL && !noticeStateOf(student).rollReady) {
+      setStatusMessage({
+        type: "error",
+        text: "রোল ও কেন্দ্র দুটোই নির্ধারিত না হলে দ্বিতীয় নোটিশ পাঠানো যাবে না।",
+      });
+      return false;
     }
 
-    const assignedRollNum = roll || student.assignedRoll || "অ্যাসাইনকৃত";
-    const centerName = center || student.examCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট";
-    const examDateStr = date || student.examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)";
-    const examTimeStr = time || student.examTime || "সকাল ১০:০০ টা - ১১:৩০ টা";
-    const trackingIdStr = student.trackingId || "";
+    /* Open first: the popup rides on the admin's own click, and an await for
+       Firestore in between is enough for a browser to block it. */
+    if (!openWhatsApp(phone, buildNoticeText(stage, student))) {
+      setStatusMessage({
+        type: "error",
+        text: "ব্রাউজার নতুন ট্যাব খুলতে দেয়নি — পপ-আপ অনুমতি দিয়ে আবার চেষ্টা করুন।",
+      });
+      return false;
+    }
 
-    const baseUrl = window.location.origin;
-    const cleanRollUrl = toAsciiDigits(assignedRollNum);
-    const admitUrl = `${baseUrl}/admit-card?id=${cleanRollUrl}`;
+    const stamped = {};
+    const now = new Date();
+    [stage, ...alsoStamp].forEach((st) => {
+      stamped[NOTICE_FIELDS[st]] = now;
+    });
 
-    const msg = `আসসালামু আলাইকুম ${student.nameBn || "শিক্ষার্থী"}! 🎉
-কিশোরকণ্ঠ মেধা বৃত্তি পরীক্ষায় আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
+    setRegistrations((prev) =>
+      prev.map((r) => (r.id === student.id ? { ...r, ...stamped } : r))
+    );
+    setSelectedStudent((prev) =>
+      prev && prev.id === student.id ? { ...prev, ...stamped } : prev
+    );
 
-📌 *আপনার পরীক্ষার বিবরণ:*
-• রোল নম্বর: *${assignedRollNum}*
-• শ্রেণি: ${student.studentClass || ""}
-• পরীক্ষা কেন্দ্র: *${centerName}*
-• পরীক্ষার সময়: ${examDateStr} (${examTimeStr})
-• ট্র্যাকিং আইডি: ${trackingIdStr}
-
-🔗 *আপনার অফিসিয়াল প্রবেশপত্র (Admit Card) ডাউনলোড লিংক:*
-${admitUrl}
-
-পরীক্ষার দিন প্রবেশপত্রটি প্রিন্ট করে সাথে নিয়ে আসতে হবে।
-
-ধন্যবাদান্তে,
-কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`;
-
-    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
-    window.open(waUrl, "_blank");
-  };
+    try {
+      for (const st of [stage, ...alsoStamp]) {
+        await markRegistrationNotified(student.id, st);
+      }
+      setStatusMessage({
+        type: "success",
+        text: `${student.nameBn || "শিক্ষার্থী"} — ${NOTICE_LABELS[stage]} নোটিশ WhatsApp-এ খোলা হয়েছে।`,
+      });
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({
+        type: "error",
+        text: "বার্তা খোলা হয়েছে, তবে 'পাঠানো হয়েছে' চিহ্নটি সংরক্ষণ করা যায়নি।",
+      });
+    }
+    return true;
+  }, []);
 
   const handleDelete = async (id, name) => {
     const ok = await confirm({
@@ -786,6 +932,10 @@ ${admitUrl}
             <option value="pending">⏳ শুধু অপেক্ষমাণ (Pending)</option>
             <option value="approved">✓ অনুমোদিত (Approved)</option>
             <option value="rejected">✕ বাতিলকৃত (Rejected)</option>
+            <optgroup label="WhatsApp নোটিশ বাকি">
+              <option value="notice:approval">{`🔔 ১ম নোটিশ বাকি — ট্র্যাকিং (${noticeCounts.approval})`}</option>
+              <option value="notice:roll">{`🔔 ২য় নোটিশ বাকি — রোল ও কেন্দ্র (${noticeCounts.roll})`}</option>
+            </optgroup>
           </select>
         </div>
 
@@ -804,6 +954,17 @@ ${admitUrl}
           </select>
         </div>
       </div>
+
+      {/* A roll with no centre blocks the second notice outright, and the
+          filter above cannot show it — say so here. */}
+      {noticeCounts.blocked > 0 && (
+        <div className="px-4 py-3 rounded-lg bg-secondary/10 border border-secondary/30 text-[13px] text-ink-body">
+          <span className="font-bold text-secondary">
+            {noticeCounts.blocked} জন শিক্ষার্থীর রোল আছে, কিন্তু পরীক্ষা কেন্দ্র নির্ধারিত হয়নি।
+          </span>{" "}
+          কেন্দ্র না বসানো পর্যন্ত তাদের ২য় WhatsApp নোটিশ (রোল ও কেন্দ্র) পাঠানো যাবে না।
+        </div>
+      )}
 
       {/* Registrations Table */}
       <div className="bg-surface-card border border-line-soft rounded-lg shadow-none overflow-hidden">
@@ -851,13 +1012,13 @@ ${admitUrl}
             <table className="w-full text-left text-[13px]">
               <thead className="bg-surface text-ink-muted uppercase text-[12px] tracking-wider border-b border-line-soft font-bold">
                 <tr>
-                  <th className="p-3.5">ট্র্যাকিং ও ছবি</th>
-                  <th className="p-3.5">পরীক্ষার্থীর নাম</th>
-                  <th className="p-3.5">শ্রেণি ও প্রতিষ্ঠান</th>
-                  <th className="p-3.5">পেমেন্ট ও TrxID</th>
-                  <th className="p-3.5">বরাদ্দ রোল ও কেন্দ্র</th>
-                  <th className="p-3.5">স্ট্যাটাস</th>
-                  <th className="p-3.5 text-right">অ্যাকশন</th>
+                  <th className="p-3.5 whitespace-nowrap">ট্র্যাকিং ও ছবি</th>
+                  <th className="p-3.5 whitespace-nowrap">পরীক্ষার্থীর নাম</th>
+                  <th className="p-3.5 whitespace-nowrap">শ্রেণি ও প্রতিষ্ঠান</th>
+                  <th className="p-3.5 whitespace-nowrap">পেমেন্ট ও TrxID</th>
+                  <th className="p-3.5 whitespace-nowrap">বরাদ্দ রোল ও কেন্দ্র</th>
+                  <th className="p-3.5 whitespace-nowrap">স্ট্যাটাস</th>
+                  <th className="p-3.5 text-right whitespace-nowrap">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft text-ink-body">
@@ -931,35 +1092,39 @@ ${admitUrl}
                       )}
                     </td>
 
-                    <td className="p-3.5">
+                    <td className="p-3.5 whitespace-nowrap">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[12px] font-bold ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold whitespace-nowrap shadow-sm ${
                           st.status === "approved"
-                            ? "bg-primary-500/20 text-primary-300 border border-primary-500/30"
+                            ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
                             : st.status === "rejected"
-                            ? "bg-error/20 text-error border border-error/30"
-                            : "bg-secondary/20 text-secondary border border-secondary/30"
+                            ? "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                            : "bg-amber-500/15 text-amber-400 border border-amber-500/30"
                         }`}
                       >
-                        {st.status === "approved"
-                          ? "✓ Approved"
-                          : st.status === "rejected"
-                          ? "✕ Rejected"
-                          : "⏳ Pending"}
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                            st.status === "approved"
+                              ? "bg-emerald-400"
+                              : st.status === "rejected"
+                              ? "bg-rose-400"
+                              : "bg-amber-400 animate-pulse"
+                          }`}
+                        />
+                        <span>
+                          {st.status === "approved"
+                            ? "Approved"
+                            : st.status === "rejected"
+                            ? "Rejected"
+                            : "Pending"}
+                        </span>
                       </span>
                     </td>
 
                     <td className="p-3.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        {/* 1-Click WhatsApp Button */}
-                        <button
-                          type="button"
-                          onClick={() => handleSendWhatsAppNotification(st)}
-                          title="WhatsApp-এ প্রবেশপত্র নোটিফিকেশন পাঠান"
-                          className="w-10 h-10 inline-flex items-center justify-center shrink-0 rounded bg-primary-500/15 hover:bg-primary-500/30 text-primary-400 border border-primary-500/30 transition cursor-pointer"
-                        >
-                          <FaWhatsapp className="text-sm" />
-                        </button>
+                        {/* Two-stage WhatsApp notice: ১ tracking, ২ roll & centre */}
+                        <NoticeButtons student={st} onSend={sendNotice} />
 
                         {/* Edit / Approve Modal Button */}
                         <button
@@ -992,48 +1157,55 @@ ${admitUrl}
       {/* ===================================================================
           MODAL 1: ADD NEW OFFLINE STUDENT REGISTRATION MODAL
           =================================================================== */}
-      {isAddModalOpen && (
+      {isAddModalOpen && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-3 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-[9999] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-fade-in"
           onClick={() => setIsAddModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-5xl bg-surface border border-line-soft rounded-lg p-4 sm:p-5 shadow-overlay space-y-3 max-h-[96vh] overflow-y-auto scrollbar-none overlay-enter"
+            className="relative w-full max-w-5xl bg-surface-card border border-line-soft/90 rounded-2xl p-5 sm:p-7 shadow-2xl space-y-4 my-auto overflow-hidden animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Luminous Top Accent Line */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-teal-400" />
+
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-line-soft pb-3">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-ink-strong flex items-center gap-2">
-                  <FaUserPlus className="text-primary" />
-                  <span>অফলাইন কাগজের ফরম শিক্ষার্থী এন্ট্রি</span>
-                </h3>
-                <span className="text-[13px] text-ink-muted">
+            <div className="flex items-center justify-between pb-3.5 border-b border-line-soft/80">
+              <div className="space-y-0.5 min-w-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary border border-primary/30 flex items-center justify-center shrink-0 text-sm shadow-sm">
+                    <FaUserPlus />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight truncate">
+                    অফলাইন কাগজের ফরম শিক্ষার্থী এন্ট্রি
+                  </h3>
+                </div>
+                <p className="text-xs text-ink-muted">
                   অফলাইনে জমাকৃত ফরম থেকে সরাসরি ডাটাবেজে এন্ট্রি ও রোল বরাদ্দ করুন।
-                </span>
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAddModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-surface-card hover:bg-surface-overlay text-ink-body flex items-center justify-center transition cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-surface-low hover:bg-surface-overlay text-ink-muted hover:text-ink-strong border border-line-soft/80 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="বন্ধ করুন"
               >
                 <HiXMark className="text-lg" />
               </button>
             </div>
 
-            <form onSubmit={handleAddOfflineSubmit} className="space-y-3">
+            <form onSubmit={handleAddOfflineSubmit} className="space-y-4">
               
               {/* SECTION 1: PERSONAL DETAILS */}
-              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-line-soft">
-                <span className="text-[13px] font-bold text-primary uppercase tracking-wider block">
+              <div className="p-4 rounded-xl bg-surface-low border border-line-soft/80 space-y-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
                   ১. পরীক্ষার্থীর ব্যক্তিগত তথ্য
                 </span>
 
-                {/* Eight fields in two rows on a wide screen; the modal is
-                    sized so this section never needs its own scroll. */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
-                      পরীক্ষার্থীর নাম (বাংলায়) <span className="text-tertiary">*</span>
+                    <label className="block text-xs font-bold text-ink-body mb-1">
+                      পরীক্ষার্থীর নাম (বাংলায়) <span className="text-error">*</span>
                     </label>
                     <input
                       type="text"
@@ -1042,29 +1214,31 @@ ${admitUrl}
                       onChange={handleOfflineInputChange}
                       placeholder="নাম বাংলায়"
                       required
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">Name (English - Capital)</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">
+                      Name (English - Capital)
+                    </label>
                     <input
                       type="text"
                       name="nameEn"
                       value={offlineForm.nameEn}
                       onChange={handleOfflineInputChange}
                       placeholder="KAZI SHAFAYAT..."
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 uppercase"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all uppercase"
                     />
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">লিঙ্গ</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">লিঙ্গ</label>
                     <select
                       name="gender"
                       value={offlineForm.gender}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 cursor-pointer transition-all"
                     >
                       <option value="ছাত্র">👨‍🎓 ছাত্র</option>
                       <option value="ছাত্রী">👩‍🎓 ছাত্রী</option>
@@ -1072,12 +1246,12 @@ ${admitUrl}
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">ধর্ম</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">ধর্ম</label>
                     <select
                       name="religion"
                       value={offlineForm.religion}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 cursor-pointer transition-all"
                     >
                       {RELIGIONS.map((rel) => (
                         <option key={rel} value={rel}>
@@ -1088,20 +1262,21 @@ ${admitUrl}
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">মোবাইল নম্বর</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">মোবাইল নম্বর</label>
                     <input
                       type="tel"
                       name="mobile"
                       value={offlineForm.mobile}
                       onChange={handleOfflineInputChange}
                       placeholder="017XXXXXXXX"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-mono"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-mono font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-primary mb-0.5 flex items-center gap-1">
-                      <FaWhatsapp /> WhatsApp নম্বর
+                    <label className="block text-xs font-bold text-ink-body mb-1 flex items-center gap-1">
+                      <FaWhatsapp className="text-primary text-xs" />
+                      <span>WhatsApp নম্বর</span>
                     </label>
                     <input
                       type="tel"
@@ -1109,45 +1284,46 @@ ${admitUrl}
                       value={offlineForm.whatsappNumber}
                       onChange={handleOfflineInputChange}
                       placeholder="017XXXXXXXX"
-                      className="w-full px-3 py-1.5 bg-surface border border-primary/40 rounded text-ink-strong text-[13px] font-mono focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-mono font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">পিতার নাম</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">পিতার নাম</label>
                     <input
                       type="text"
                       name="fatherName"
                       value={offlineForm.fatherName}
                       onChange={handleOfflineInputChange}
                       placeholder="পিতার নাম"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">মাতার নাম</label>
+                    <label className="block text-xs font-bold text-ink-body mb-1">মাতার নাম</label>
                     <input
                       type="text"
                       name="motherName"
                       value={offlineForm.motherName}
                       onChange={handleOfflineInputChange}
                       placeholder="মাতার নাম"
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
                 </div>
               </div>
-              {/* SECTION 2: ACADEMIC & ADDRESS */}
-              <div className="space-y-2.5 p-3 bg-surface-lowest/80 rounded-lg border border-line-soft">
-                <span className="text-[13px] font-bold text-tertiary uppercase tracking-wider block">
+
+              {/* SECTION 2: EDUCATION & ADDRESS */}
+              <div className="p-4 rounded-xl bg-surface-low border border-line-soft/80 space-y-3">
+                <span className="text-xs font-bold text-primary uppercase tracking-wider block">
                   ২. শিক্ষাগত ও ঠিকানার তথ্য
                 </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                  <div className="sm:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
-                      শিক্ষা প্রতিষ্ঠানের নাম <span className="text-tertiary">*</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="lg:col-span-2 min-w-0">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
+                      শিক্ষা প্রতিষ্ঠানের নাম <span className="text-error">*</span>
                     </label>
                     <input
                       type="text"
@@ -1156,19 +1332,19 @@ ${admitUrl}
                       onChange={handleOfflineInputChange}
                       placeholder="স্কুল / মাদ্রাসার নাম"
                       required
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       শ্রেণি
                     </label>
                     <select
                       name="studentClass"
                       value={offlineForm.studentClass}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-bold"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 cursor-pointer transition-all"
                     >
                       {CLASSES.map((cls) => (
                         <option key={cls} value={cls}>
@@ -1179,17 +1355,17 @@ ${admitUrl}
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       শাখা / ক্লাস রোল
                     </label>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2">
                       <input
                         type="text"
                         name="section"
                         value={offlineForm.section}
                         onChange={handleOfflineInputChange}
                         placeholder="শাখা"
-                        className="w-1/2 px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                        className="w-1/2 min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary"
                       />
                       <input
                         type="text"
@@ -1197,22 +1373,20 @@ ${admitUrl}
                         value={offlineForm.classRoll}
                         onChange={handleOfflineInputChange}
                         placeholder="রোল"
-                        className="w-1/2 px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px] font-mono"
+                        className="w-1/2 min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-mono font-medium focus:outline-none focus:border-primary"
                       />
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
-                  {/* Without this the offline entry silently kept the default
-                      upazila, which skewed every upazila-wise report. */}
                   <div className="min-w-0">
-                    <label className="block text-[13px] text-ink-muted">উপজেলা / থানা *</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">উপজেলা / থানা *</label>
                     <select
                       name="upazila"
                       value={offlineForm.upazila}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary cursor-pointer"
                     >
                       {UPAZILAS.map((u) => (
                         <option key={u} value={u}>
@@ -1222,29 +1396,29 @@ ${admitUrl}
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[13px] text-ink-muted">গ্রাম</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">গ্রাম</label>
                     <input
                       type="text"
                       name="village"
                       value={offlineForm.village}
                       onChange={handleOfflineInputChange}
                       placeholder="গ্রাম"
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[13px] text-ink-muted">ডাকঘর</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">ডাকঘর</label>
                     <input
                       type="text"
                       name="postOffice"
                       value={offlineForm.postOffice}
                       onChange={handleOfflineInputChange}
                       placeholder="ডাকঘর"
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[13px] text-ink-muted">ইউনিয়ন *</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">ইউনিয়ন *</label>
                     <input
                       type="text"
                       name="union"
@@ -1252,11 +1426,11 @@ ${admitUrl}
                       onChange={handleOfflineInputChange}
                       placeholder="ইউনিয়ন"
                       required
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[13px] text-ink-muted">থানা *</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">থানা *</label>
                     <input
                       type="text"
                       name="thana"
@@ -1264,32 +1438,32 @@ ${admitUrl}
                       onChange={handleOfflineInputChange}
                       placeholder="থানা"
                       required
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
                   <div>
-                    <label className="block text-[13px] text-ink-muted">জেলা</label>
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">জেলা</label>
                     <input
                       type="text"
                       name="district"
                       value={offlineForm.district}
                       onChange={handleOfflineInputChange}
                       placeholder="জেলা"
-                      className="w-full px-2.5 py-1.5 bg-surface border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
               </div>
 
               {/* SECTION 3: EXAM ROLL & CENTER ASSIGNMENT */}
-              <div className="space-y-2.5 p-3 bg-primary-900/20 rounded-lg border border-primary/30">
-                <span className="text-[13px] font-bold text-secondary uppercase tracking-wider block">
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 space-y-3">
+                <span className="text-xs font-bold text-secondary uppercase tracking-wider block">
                   ৩. অফিস কর্তৃক রোল ও কেন্দ্র বরাদ্দ (Exam Roll & Center)
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="min-w-0">
-                    <label title="পরেও এডিট করা যাবে" className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label title="পরেও এডিট করা যাবে" className="block text-xs font-bold text-ink-body mb-1">
                       🔢 পরীক্ষার রোল (Exam Roll)
                     </label>
                     <input
@@ -1298,19 +1472,19 @@ ${admitUrl}
                       value={offlineForm.assignedRoll}
                       onChange={handleOfflineInputChange}
                       placeholder="যেমন: ১০৫০২"
-                      className="w-full px-3 py-1.5 bg-surface-lowest border border-primary/60 rounded text-primary-300 font-mono font-semibold text-sm focus:outline-none focus:border-primary/40"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-primary/60 rounded-lg text-primary font-mono font-bold text-xs sm:text-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                     />
                   </div>
 
                   <div className="min-w-0 lg:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
                     </label>
                     <select
                       name="examCenter"
                       value={offlineForm.examCenter}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary cursor-pointer"
                     >
                       <option value="">কেন্দ্র নির্বাচন করুন</option>
                       {centerOptions(offlineForm.examCenter).map((name) => (
@@ -1322,14 +1496,14 @@ ${admitUrl}
                   </div>
 
                   <div className="min-w-0">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       স্ট্যাটাস
                     </label>
                     <select
                       name="status"
                       value={offlineForm.status}
                       onChange={handleOfflineInputChange}
-                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-primary text-[13px] font-bold"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-primary text-xs font-bold cursor-pointer"
                     >
                       <option value="approved">✓ অনুমোদিত (Approved)</option>
                       <option value="pending">⏳ অপেক্ষমাণ (Pending)</option>
@@ -1337,9 +1511,9 @@ ${admitUrl}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-3 pt-1">
                   <div className="min-w-0 lg:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       📅 পরীক্ষার তারিখ ও সময়
                     </label>
                     <input
@@ -1348,13 +1522,13 @@ ${admitUrl}
                       value={offlineForm.examDate}
                       onChange={handleOfflineInputChange}
                       placeholder="২৪ অক্টোবর ২০২৫ (শুক্রবার)"
-                      className="w-full px-3 py-1.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px]"
+                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
 
                   {/* Optional Photo Attachment */}
                   <div className="min-w-0 lg:col-span-2">
-                    <label className="block text-[13px] font-bold text-ink-body mb-0.5">
+                    <label className="block text-xs font-bold text-ink-body mb-1">
                       পাসপোর্ট সাইজ ছবি আপলোড (ঐচ্ছিক)
                     </label>
                     <div className="flex items-center gap-3">
@@ -1362,13 +1536,13 @@ ${admitUrl}
                         type="file"
                         accept="image/*"
                         onChange={handleOfflinePhotoSelect}
-                        className="flex-1 min-w-0 text-[13px] text-ink-muted file:mr-2 file:py-1 file:px-3 file:rounded file:border-0 file:text-[13px] file:font-bold file:bg-primary-container file:text-ink-strong hover:file:bg-primary-container cursor-pointer"
+                        className="flex-1 min-w-0 text-xs text-ink-muted file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-primary/20 file:text-primary hover:file:bg-primary/30 cursor-pointer"
                       />
                       {offlinePhotoPreview && (
                         <img
                           src={offlinePhotoPreview}
                           alt="Preview"
-                          className="w-10 h-12 shrink-0 rounded object-cover border border-primary/40"
+                          className="w-10 h-12 shrink-0 rounded-lg object-cover border border-primary/40 shadow-sm"
                         />
                       )}
                     </div>
@@ -1377,22 +1551,23 @@ ${admitUrl}
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line-soft">
-                <button
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-line-soft/80">
+                <Button
                   type="button"
+                  tone="neutral"
+                  size="md"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2.5 bg-surface-card hover:bg-surface-overlay text-ink-body text-[13px] rounded cursor-pointer"
                 >
                   বাতিল
-                </button>
+                </Button>
                 <button
                   type="submit"
                   disabled={addingSubmitting}
-                  className="px-6 py-2.5 bg-gradient-to-r from-primary-container to-tertiary-container hover:from-primary-container hover:to-tertiary-container text-ink-strong font-semibold rounded text-[13px] transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                  className="min-h-[42px] px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-primary to-emerald-600 hover:brightness-110 text-primary-on font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer flex items-center gap-2 disabled:opacity-50 select-none"
                 >
                   {addingSubmitting ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
                       <span>সংরক্ষণ হচ্ছে...</span>
                     </>
                   ) : (
@@ -1405,54 +1580,60 @@ ${admitUrl}
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ===================================================================
           MODAL 2: ADMIN EDIT / ROLL ASSIGNMENT MODAL (Existing Records)
           =================================================================== */}
-      {selectedStudent && (
+      {selectedStudent && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center p-2 sm:p-3 bg-surface-lowest/80 backdrop-blur-md animate-fadeIn"
+          className="fixed inset-0 z-[9999] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-fade-in"
           onClick={() => setSelectedStudent(null)}
         >
           <div
-            className="relative w-full max-w-2xl bg-surface border border-line-soft rounded-lg p-5 sm:p-7 shadow-overlay space-y-5 max-h-[90vh] overflow-y-auto scrollbar-none overlay-enter"
+            className="relative w-full max-w-3xl bg-surface-card border border-line-soft/90 rounded-2xl p-5 sm:p-7 shadow-2xl space-y-5 my-auto overflow-hidden animate-scale-up"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Luminous Top Line */}
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-teal-400" />
+
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-line-soft pb-3">
-              <div>
-                <h3 className="text-base sm:text-lg font-semibold text-ink-strong">
-                  আবেদন পর্যালোচনা ও রোল অ্যাসাইনমেন্ট
+            <div className="flex items-center justify-between pb-3.5 border-b border-line-soft/80">
+              <div className="space-y-0.5 min-w-0">
+                <h3 className="text-base sm:text-lg font-bold text-ink-strong tracking-tight truncate">
+                  আবেদন পর্যালোচনা ও রোল বরাদ্দ
                 </h3>
-                <span className="text-[13px] text-primary font-mono">
+                <span className="text-xs text-primary font-mono font-bold block">
                   ট্র্যাকিং আইডি: {selectedStudent.trackingId}
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedStudent(null)}
-                className="w-8 h-8 rounded-full bg-surface-card hover:bg-surface-overlay text-ink-body flex items-center justify-center transition cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-surface-low hover:bg-surface-overlay text-ink-muted hover:text-ink-strong border border-line-soft/80 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="বন্ধ করুন"
               >
                 <HiXMark className="text-lg" />
               </button>
             </div>
 
             {/* Student Full Info Card */}
-            <div className="p-4 bg-surface-lowest rounded-lg border border-line-soft flex flex-col sm:flex-row items-start gap-4 text-[13px]">
+            <div className="p-4.5 bg-surface-low rounded-xl border border-line-soft/80 flex flex-col sm:flex-row items-start gap-4 text-xs sm:text-[13px] shadow-sm">
               {selectedStudent.photoUrl ? (
                 <img
                   src={selectedStudent.photoUrl}
                   alt=""
-                  className="w-20 h-24 rounded object-cover border border-line-soft flex-shrink-0"
+                  className="w-20 h-24 rounded-xl object-cover border border-line-soft/80 shrink-0 shadow-sm"
                 />
               ) : (
-                <div className="w-20 h-24 rounded bg-surface-card border border-line-soft flex items-center justify-center text-ink-muted text-2xl flex-shrink-0">
+                <div className="w-20 h-24 rounded-xl bg-surface-card border border-line-soft/80 flex items-center justify-center text-ink-muted text-3xl shrink-0">
                   👨‍🎓
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-ink-body w-full">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-ink-body w-full">
                 <p>
                   <strong className="text-ink-strong">নাম (বাংলা):</strong> {selectedStudent.nameBn}
                 </p>
@@ -1489,7 +1670,7 @@ ${admitUrl}
                 <p className="sm:col-span-2">
                   <strong className="text-ink-strong">ঠিকানা:</strong> {[selectedStudent.village, selectedStudent.postOffice, selectedStudent.union, selectedStudent.thana, selectedStudent.district].filter(Boolean).join(", ") || "—"}
                 </p>
-                <p className="sm:col-span-2 text-secondary pt-1 border-t border-line-soft">
+                <p className="sm:col-span-2 text-secondary pt-1.5 border-t border-line-soft/60 font-semibold">
                   <strong>পেমেন্ট:</strong> {selectedStudent.paymentMethod} | প্রেরক: {selectedStudent.senderNumber || "—"} | TrxID: {selectedStudent.trxId || "—"}
                 </p>
               </div>
@@ -1499,24 +1680,24 @@ ${admitUrl}
             <form onSubmit={handleSaveStatus} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-[13px] font-bold text-ink-body mb-1">
-                    আবেদনের স্ট্যাটাস নির্ধারণ <span className="text-tertiary">*</span>
+                  <label className="block text-xs font-bold text-ink-body mb-1">
+                    আবেদনের স্ট্যাটাস নির্ধারণ <span className="text-error">*</span>
                   </label>
                   <select
                     value={assignData.status}
                     onChange={(e) =>
                       setAssignData((prev) => ({ ...prev, status: e.target.value }))
                     }
-                    className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] font-bold focus:outline-none focus:border-primary/40"
+                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
                   >
                     <option value="approved">✓ অনুমোদন করুন (Approved)</option>
-                    <option value="pending">⏳ অপেক্ষমান রাখুন (Pending)</option>
+                    <option value="pending">⏳ অপেক্ষমাণ রাখুন (Pending)</option>
                     <option value="rejected">✕ বাতিল করুন (Rejected)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-bold text-ink-body mb-1">
+                  <label className="block text-xs font-bold text-ink-body mb-1">
                     🔢 পরীক্ষার রোল নম্বর বরাদ্দ করুন (Roll Number)
                   </label>
                   <input
@@ -1526,13 +1707,13 @@ ${admitUrl}
                       setAssignData((prev) => ({ ...prev, assignedRoll: e.target.value }))
                     }
                     placeholder="যেমন: ১০৫০১"
-                    className="w-full px-3 py-2.5 bg-surface-lowest border border-primary/50 rounded text-primary text-[13px] font-mono font-bold focus:outline-none focus:border-primary/40"
+                    className="w-full min-h-[40px] px-3 bg-surface-low border border-primary/50 rounded-lg text-primary text-xs sm:text-sm font-mono font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[13px] font-bold text-ink-body mb-1">
+                <label className="block text-xs font-bold text-ink-body mb-1">
                   🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
                 </label>
                 <select
@@ -1540,7 +1721,7 @@ ${admitUrl}
                   onChange={(e) =>
                     setAssignData((prev) => ({ ...prev, examCenter: e.target.value }))
                   }
-                  className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
+                  className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary cursor-pointer"
                 >
                   <option value="">কেন্দ্র নির্বাচন করুন</option>
                   {centerOptions(assignData.examCenter).map((name) => (
@@ -1550,7 +1731,7 @@ ${admitUrl}
                   ))}
                 </select>
                 {examCenters.length === 0 && (
-                  <span className="block mt-1 text-[12px] text-ink-muted">
+                  <span className="block mt-1 text-[11px] text-ink-muted">
                     কোনো কেন্দ্র যুক্ত করা হয়নি — সাইডবারের "পরীক্ষা কেন্দ্র" ট্যাব থেকে যুক্ত করুন।
                   </span>
                 )}
@@ -1558,7 +1739,7 @@ ${admitUrl}
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="sm:col-span-2">
-                  <label className="block text-[13px] font-bold text-ink-body mb-1">
+                  <label className="block text-xs font-bold text-ink-body mb-1">
                     📅 পরীক্ষার তারিখ ও সময়
                   </label>
                   <input
@@ -1568,12 +1749,12 @@ ${admitUrl}
                       setAssignData((prev) => ({ ...prev, examDate: e.target.value }))
                     }
                     placeholder="২৪ অক্টোবর ২০২৫ (শুক্রবার) | সকাল ১০:০০ টা"
-                    className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40 font-medium"
+                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[13px] font-bold text-ink-body mb-1">
+                  <label className="block text-xs font-bold text-ink-body mb-1">
                     🏢 রুম / সিট নম্বর
                   </label>
                   <input
@@ -1583,13 +1764,13 @@ ${admitUrl}
                       setAssignData((prev) => ({ ...prev, roomNo: e.target.value }))
                     }
                     placeholder="রুম-২০৪"
-                    className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[13px] font-bold text-ink-body mb-1">
+                <label className="block text-xs font-bold text-ink-body mb-1">
                   📝 অ্যাডমিন নোট / মন্তব্য
                 </label>
                 <input
@@ -1599,41 +1780,34 @@ ${admitUrl}
                     setAssignData((prev) => ({ ...prev, adminNote: e.target.value }))
                   }
                   placeholder="যেমন: ফি যাচাইকৃত ও প্রবেশপত্র প্রস্তুত"
-                  className="w-full px-3 py-2.5 bg-surface-lowest border border-line-soft rounded text-ink-strong text-[13px] focus:outline-none focus:border-primary/40"
+                  className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-2.5 pt-4 border-t border-line-soft">
-                {/* 1-Click WhatsApp Dispatch Button */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSendWhatsAppNotification(
-                      selectedStudent,
-                      assignData.assignedRoll,
-                      assignData.examCenter,
-                      assignData.examDate,
-                      assignData.examTime
-                    )
-                  }
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded bg-primary-container hover:bg-primary-container text-ink-strong font-bold text-[13px] transition cursor-pointer"
-                >
-                  <FaWhatsapp className="text-base" />
-                  <span>📲 WhatsApp-এ প্রবেশপত্র নোটিফিকেশন পাঠান</span>
-                </button>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-line-soft/80">
+                {/* Two-stage WhatsApp dispatch — sends the saved record, so
+                    edit and save first, then send. */}
+                <div className="w-full sm:w-auto flex items-center gap-2">
+                  <NoticeButtons student={selectedStudent} onSend={sendNotice} />
+                  <span className="text-[11px] text-ink-muted leading-tight">
+                    ১ = ট্র্যাকিং নম্বর
+                    <br />২ = রোল ও কেন্দ্র
+                  </span>
+                </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-                  <button
+                <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+                  <Button
                     type="button"
+                    tone="neutral"
+                    size="md"
                     onClick={() => setSelectedStudent(null)}
-                    className="px-4 py-2.5 bg-surface-card hover:bg-surface-overlay text-ink-body text-[13px] rounded cursor-pointer"
                   >
                     বন্ধ করুন
-                  </button>
+                  </Button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-gradient-to-r from-primary-container to-tertiary-container hover:from-primary-container hover:to-tertiary-container text-ink-strong font-bold rounded text-[13px] transition cursor-pointer"
+                    className="min-h-[42px] px-5 rounded-xl bg-gradient-to-r from-emerald-500 via-primary to-emerald-600 hover:brightness-110 text-primary-on font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer select-none"
                   >
                     সংরক্ষণ ও অনুমোদন
                   </button>
@@ -1641,7 +1815,8 @@ ${admitUrl}
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {confirmUI}

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   HiBuildingLibrary,
   HiCheckCircle,
-  HiMapPin,
   HiPencilSquare,
   HiPlus,
   HiTrash,
@@ -18,7 +17,6 @@ import {
   Panel,
   PanelHeader,
   SearchInput,
-  Select,
   Toast,
   Toggle,
   useConfirm,
@@ -44,24 +42,11 @@ import {
    where paper forms are collected.
    ============================================================ */
 
-/* Same list the registration screens offer, so a centre can be tied to the
-   upazila its students come from. */
-const UPAZILAS = [
-  "দক্ষিণ সুরমা থানা",
-  "মোগলাবাজার থানা",
-  "ফেঞ্চুগঞ্জ উপজেলা",
-  "বিশ্বনাথ উপজেলা",
-  "ওসমানীনগর উপজেলা",
-  "সদর উপজেলা",
-  "বালাগঞ্জ উপজেলা",
-  "অন্যান্য",
-];
-
+/* A centre is just its name: that string is what the registration dropdown
+   offers and what the admit card prints. Address, upazila and room notes were
+   captured here for a while and never read anywhere, so they are gone. */
 const BLANK_CENTER = {
   name: "",
-  address: "",
-  upazila: "সদর উপজেলা",
-  roomInfo: "",
   isActive: true,
   orderIndex: 1,
 };
@@ -99,11 +84,7 @@ const ExamCenterManager = () => {
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return centers;
-    return centers.filter((c) =>
-      [c.name, c.address, c.upazila, c.roomInfo]
-        .filter(Boolean)
-        .some((v) => v.toLowerCase().includes(needle))
-    );
+    return centers.filter((c) => (c.name || "").toLowerCase().includes(needle));
   }, [centers, search]);
 
   const activeCount = useMemo(
@@ -148,9 +129,6 @@ const ExamCenterManager = () => {
     try {
       const payload = {
         name,
-        address: form.address.trim(),
-        upazila: form.upazila,
-        roomInfo: form.roomInfo.trim(),
         isActive: form.isActive !== false,
         orderIndex: Number(form.orderIndex) || centers.length + 1,
       };
@@ -248,7 +226,7 @@ const ExamCenterManager = () => {
           <SearchInput
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="কেন্দ্রের নাম, ঠিকানা বা উপজেলা..."
+            placeholder="কেন্দ্রের নাম দিয়ে খুঁজুন..."
             className="flex-1 min-w-[220px]"
           />
           <Chip tone="primary" icon={HiCheckCircle}>
@@ -269,7 +247,7 @@ const ExamCenterManager = () => {
             description={
               centers.length === 0
                 ? "কেন্দ্র যুক্ত করলে রেজিস্ট্রেশন অনুমোদনের সময় সেটি ড্রপডাউন থেকে বেছে নেওয়া যাবে।"
-                : "অন্য নাম বা উপজেলা দিয়ে খুঁজে দেখুন।"
+                : "অন্য নাম দিয়ে খুঁজে দেখুন।"
             }
             action={
               centers.length === 0 ? (
@@ -293,15 +271,6 @@ const ExamCenterManager = () => {
                       <Chip tone="neutral">বন্ধ</Chip>
                     )}
                   </div>
-                  <span className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-ink-muted">
-                    {center.upazila && (
-                      <span className="inline-flex items-center gap-1">
-                        <HiMapPin className="text-sm" /> {center.upazila}
-                      </span>
-                    )}
-                    {center.address && <span>{center.address}</span>}
-                    {center.roomInfo && <span>কক্ষ: {center.roomInfo}</span>}
-                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -343,61 +312,47 @@ const ExamCenterManager = () => {
         description="কেন্দ্রের নাম যেভাবে লিখবেন, প্রবেশপত্রেও ঠিক সেভাবেই ছাপা হবে।"
         footer={
           <>
-            <Button tone="neutral" onClick={() => setEditingId(null)}>
+            <Button type="button" tone="neutral" onClick={() => setEditingId(null)}>
               বাতিল
             </Button>
-            <Button tone="primary" onClick={handleSave} loading={saving}>
-              সংরক্ষণ করুন
+            <Button
+              type="submit"
+              form="exam-center-editor"
+              tone="primary"
+              icon={HiCheckCircle}
+              loading={saving}
+            >
+              {editingId === "new" ? "সংরক্ষণ করুন" : "আপডেট করুন"}
             </Button>
           </>
         }
       >
-        <form onSubmit={handleSave} className="space-y-4">
-          <Field label="কেন্দ্রের নাম" required>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              placeholder="যেমন: সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
+        <form id="exam-center-editor" onSubmit={handleSave} className="space-y-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <Field
+              label="কেন্দ্রের নাম"
               required
-            />
-          </Field>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Field label="ঠিকানা">
+              htmlFor="center-name"
+              hint="এই নামটিই প্রবেশপত্রে ও রেজিস্ট্রেশনের ড্রপডাউনে দেখা যাবে।"
+              className="sm:col-span-2"
+            >
               <Input
-                value={form.address}
-                onChange={(e) => setForm((p) => ({ ...p, address: e.target.value }))}
-                placeholder="যেমন: দরগাহ গেইট, সিলেট সদর"
+                id="center-name"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="যেমন: সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট"
+                required
               />
             </Field>
 
-            <Field label="উপজেলা / থানা">
-              <Select
-                value={form.upazila}
-                onChange={(e) => setForm((p) => ({ ...p, upazila: e.target.value }))}
-              >
-                {UPAZILAS.map((u) => (
-                  <option key={u} value={u}>
-                    {u}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-
-            <Field label="কক্ষ / আসন সংক্রান্ত নোট" hint="ঐচ্ছিক">
+            <Field label="তালিকায় ক্রম" hint="ছোট সংখ্যা আগে দেখাবে।" htmlFor="center-order">
               <Input
-                value={form.roomInfo}
-                onChange={(e) => setForm((p) => ({ ...p, roomInfo: e.target.value }))}
-                placeholder="যেমন: রুম ১০১ - ১১০"
-              />
-            </Field>
-
-            <Field label="তালিকায় ক্রম" hint="ছোট সংখ্যা আগে দেখাবে">
-              <Input
+                id="center-order"
                 type="number"
                 min="1"
                 value={form.orderIndex}
                 onChange={(e) => setForm((p) => ({ ...p, orderIndex: e.target.value }))}
+                className="font-mono text-center"
               />
             </Field>
           </div>

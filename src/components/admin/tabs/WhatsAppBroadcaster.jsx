@@ -54,30 +54,46 @@ const toBengaliDigits = (num) => {
 
 const TEMPLATES = [
   {
-    id: "admit",
-    name: "🎫 প্রবেশপত্র ও রোল বরাদ্দ",
-    badge: "প্রবেশপত্র",
-    description: "শিক্ষার্থীর আবেদন অনুমোদনের পর রোল ও প্রবেশপত্র লিংক পাঠানো",
-    text: `কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষায় আপনার আবেদন সফলভাবে অনুমোদিত হয়েছে।
+    id: "approval_tracking",
+    name: "১. 🔖 আবেদন অনুমোদন ও ট্র্যাকিং আইডি",
+    badge: "১ম নোটিশ (ট্র্যাকিং)",
+    description: "আবেদন অনুমোদনের পর শিক্ষার্থীকে শুধুমাত্র ট্র্যাকিং নম্বর পাঠানো",
+    text: `আসসালামু আলাইকুম {name}! 🎉
+কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষায় আপনার আবেদনটি যাচাই শেষে অনুমোদিত হয়েছে।
+
+🔖 আপনার ট্র্যাকিং নম্বর: {trackingId}
+• শ্রেণি: {class}
+• প্রতিষ্ঠান: {school}
+
+নম্বরটি সংরক্ষণ করে রাখুন। পরবর্তীতে রোল নম্বর ও পরীক্ষা কেন্দ্র নির্ধারিত হলে আরেকটি বার্তায় প্রবেশপত্রসহ বিস্তারিত জানিয়ে দেওয়া হবে।
+
+ধন্যবাদান্তে,
+কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`,
+  },
+  {
+    id: "admit_roll_center",
+    name: "২. 🎫 রোল ও কেন্দ্র বরাদ্দ (প্রবেশপত্র)",
+    badge: "২য় নোটিশ (রোল ও কেন্দ্র)",
+    description: "রোল ও পরীক্ষা কেন্দ্র বরাদ্দের পর প্রবেশপত্র ডাউনলোড লিংকসহ পূর্ণাঙ্গ নোটিশ",
+    text: `আসসালামু আলাইকুম {name}!
+আপনার রোল নম্বর ও পরীক্ষা কেন্দ্র নির্ধারিত হয়েছে।
 
 📌 পরীক্ষার বিবরণ:
 • রোল নম্বর: {roll}
-• পরীক্ষার্থীর নাম: {name}
 • শ্রেণি: {class}
 • পরীক্ষা কেন্দ্র: {center}
 • পরীক্ষার তারিখ: {examDate}
+• ট্র্যাকিং আইডি: {trackingId}
 
-🔗 প্রবেশপত্র ডাউনলোড লিংক:
+🔗 প্রবেশপত্র (Admit Card) ডাউনলোড লিংক:
 {admitUrl}
 
-পরীক্ষার দিন প্রবেশপত্রটি প্রিন্ট করে পরীক্ষা কেন্দ্রে সাথে নিয়ে আসতে হবে।
-
-শুভেচ্ছান্তে,
+ধন্যবাদান্তে,
 কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।`,
   },
   {
     id: "exam_reminder",
-    name: "🎯 পরীক্ষার সময় ও কেন্দ্রের স্মরণিকা",
+    name: "৩. 🎯 পরীক্ষার সময় ও কেন্দ্রের স্মরণিকা",
     badge: "পরীক্ষা স্মরণিকা",
     description: "পরীক্ষার আগের দিন কেন্দ্র ও সময়সূচি স্মরণ করিয়ে দেওয়া",
     text: `আসসালামু আলাইকুম {name},
@@ -94,7 +110,7 @@ const TEMPLATES = [
   },
   {
     id: "result",
-    name: "🏆 ফলাফল প্রকাশ ও মেধা সম্মাননা",
+    name: "৪. 🏆 ফলাফল প্রকাশ ও মেধা সম্মাননা",
     badge: "ফলাফল",
     description: "ফলাফল প্রকাশের পর বিস্তারিত রেজাল্ট ও মেধা সনদ লিংক পাঠানো",
     text: `অভিনন্দন {name}!
@@ -107,7 +123,7 @@ const TEMPLATES = [
   },
   {
     id: "custom",
-    name: "✍️ কাস্টম ব্রডকাস্ট বার্তা",
+    name: "৫. ✍️ কাস্টম ব্রডকাস্ট বার্তা",
     badge: "কাস্টম",
     description: "নিজের ইচ্ছেমতো নোটিশ বা জরুরি নির্দেশনা তৈরি করুন",
     text: `আসসালামু আলাইকুম {name},
@@ -120,6 +136,7 @@ const TEMPLATES = [
 
 const DYNAMIC_TAGS = [
   { tag: "{name}", label: "নাম" },
+  { tag: "{trackingId}", label: "ট্র্যাকিং আইডি" },
   { tag: "{roll}", label: "রোল" },
   { tag: "{class}", label: "শ্রেণি" },
   { tag: "{school}", label: "প্রতিষ্ঠান" },
@@ -135,7 +152,7 @@ const WhatsAppBroadcaster = () => {
   const [selectedClass, setSelectedClass] = useState("সকল শ্রেণি");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTemplateId, setSelectedTemplateId] = useState("admit");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("approval_tracking");
   const [customMessage, setCustomMessage] = useState(TEMPLATES[0].text);
   const [copiedNumbers, setCopiedNumbers] = useState(false);
   const [copiedStudentId, setCopiedStudentId] = useState(null);
@@ -163,7 +180,8 @@ const WhatsAppBroadcaster = () => {
         list = regs.map((r) => ({
           id: r.id,
           name: r.nameBn || r.nameEn || "শিক্ষার্থী",
-          roll: r.assignedRoll || r.trackingId || "—",
+          roll: r.assignedRoll || "—",
+          trackingId: r.trackingId || "—",
           mobile: r.whatsappNumber || r.mobile || r.guardianPhone || "",
           studentClass: r.studentClass || "—",
           institution: r.institution || "—",
@@ -176,6 +194,7 @@ const WhatsAppBroadcaster = () => {
           id: res.id || res.roll,
           name: res.name || "শিক্ষার্থী",
           roll: res.roll || "—",
+          trackingId: res.roll || "—",
           mobile: res.mobile || "",
           studentClass: res.class || "—",
           institution: res.school || "—",
@@ -209,6 +228,7 @@ const WhatsAppBroadcaster = () => {
         const matches =
           c.name?.toLowerCase().includes(q) ||
           c.roll?.toString().includes(q) ||
+          c.trackingId?.toString().toLowerCase().includes(q) ||
           c.mobile?.includes(q) ||
           c.institution?.toLowerCase().includes(q);
         if (!matches) return false;
@@ -233,6 +253,7 @@ const WhatsAppBroadcaster = () => {
 
     return customMessage
       .replace(/{name}|{নাম}/g, student.name || "")
+      .replace(/{trackingId}|{ট্র্যাকিং_আইডি}|{ট্র্যাকিং}/g, student.trackingId || "")
       .replace(/{roll}|{রোল}/g, student.roll || "")
       .replace(/{class}|{শ্রেণি}/g, student.studentClass || "")
       .replace(/{school}|{প্রতিষ্ঠান}/g, student.institution || "")
