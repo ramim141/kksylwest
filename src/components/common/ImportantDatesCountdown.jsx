@@ -213,7 +213,7 @@ const ImportantDatesCountdown = () => {
               <div className="flex items-start justify-between gap-3 border-b border-white/[0.06] pb-2.5">
                 <span className="text-slate-400 font-medium">⏰ পরীক্ষার সময়:</span>
                 <span className="font-bold text-emerald-400 text-right">
-                  {dates.examTimeBn || "সকাল ১০:০০ টা - ১১:৩০ টা"}
+                  {dates.examTimeBn || "সকাল ১০:০০ টা - ১১:০০ টা"}
                 </span>
               </div>
 

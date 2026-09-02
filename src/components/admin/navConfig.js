@@ -15,6 +15,7 @@ import {
   HiBookOpen,
   HiBuildingLibrary,
   HiMegaphone,
+  HiPrinter,
 } from "react-icons/hi2";
 import { FaWhatsapp } from "react-icons/fa";
 
@@ -54,6 +55,15 @@ export const NAV_GROUPS = [
           "অনলাইন আবেদন যাচাই করুন, অফলাইন ফরম এন্ট্রি দিন এবং শিক্ষার্থীদের রোল ও কেন্দ্র বরাদ্দ করুন।",
         icon: HiAcademicCap,
         keywords: "registration admission form roll student আবেদন",
+      },
+      {
+        id: "admitprint",
+        label: "প্রবেশপত্র প্রিন্ট",
+        title: "প্রবেশপত্র প্রিন্ট ও বাল্ক PDF ডাউনলোড",
+        description:
+          "শ্রেণি ও কেন্দ্রভিত্তিক সকল শিক্ষার্থীর প্রবেশপত্র এক ক্লিকে A4 ডুপ্লেক্স শিটে প্রিন্ট ও PDF ডাউনলোড করুন।",
+        icon: HiPrinter,
+        keywords: "admit card print pdf bulk download প্রবেশপত্র প্রিন্ট",
       },
       {
         id: "results",

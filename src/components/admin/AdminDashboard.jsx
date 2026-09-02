@@ -36,9 +36,11 @@ import UpazilaCenterManager from "./tabs/UpazilaCenterManager";
 import ExamCenterManager from "./tabs/ExamCenterManager";
 import AnnouncementManager from "./tabs/AnnouncementManager";
 import WhatsAppBroadcaster from "./tabs/WhatsAppBroadcaster";
+import AdmitCardBulkPrintManager from "./tabs/AdmitCardBulkPrintManager";
 
 const TAB_VIEWS = {
   registrations: RegistrationManager,
+  admitprint: AdmitCardBulkPrintManager,
   results: ResultManager,
   broadcaster: WhatsAppBroadcaster,
   upazilas: UpazilaCenterManager,

@@ -301,7 +301,7 @@ const OnlineRegistration = () => {
         assignedRoll: "",
         examCenter: "",
         examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-        examTime: "সকাল ১০:০০ টা - ১১:৩০ টা",
+        examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
         roomNo: "",
       };
 

@@ -201,8 +201,8 @@ export const Modal = ({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center
-        bg-black/80 backdrop-blur-md p-0 sm:p-6 animate-fadeIn"
+      className="fixed inset-0 z-[9999] flex items-center justify-center
+        bg-black/85 backdrop-blur-md p-3 sm:p-6 animate-fadeIn overflow-y-auto"
       onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div
@@ -210,12 +210,15 @@ export const Modal = ({
         role="dialog"
         aria-modal="true"
         aria-label={typeof title === "string" ? title : undefined}
-        className={`w-full ${width} bg-surface-card border border-line-strong/50
-          rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col
+        className={`relative w-full ${width} bg-surface-card border border-line-soft/90
+          rounded-2xl shadow-2xl flex flex-col my-auto
           max-h-[92vh] sm:max-h-[88vh] animate-slideUp overflow-hidden`}
       >
+        {/* Luminous Top Accent Line */}
+        <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-primary via-emerald-400 to-teal-400" />
+
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 py-4.5 border-b border-line-soft/80 bg-surface-low/80 shrink-0">
+        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 pt-6 pb-5 border-b border-line-soft/80 bg-surface-low/80 shrink-0">
           <div className="flex items-start gap-3.5 min-w-0">
             {Icon && (
               <span className="w-10 h-10 rounded-xl shrink-0 bg-primary/20 text-primary border border-primary/30 flex items-center justify-center text-xl shadow-sm">
@@ -227,7 +230,7 @@ export const Modal = ({
                 {title}
               </h2>
               {description && (
-                <p className="text-[13px] text-ink-muted mt-1 leading-relaxed">{description}</p>
+                <p className="text-xs sm:text-[13px] text-ink-muted mt-1 leading-relaxed">{description}</p>
               )}
             </div>
           </div>
@@ -235,8 +238,8 @@ export const Modal = ({
             type="button"
             onClick={onClose}
             aria-label="বন্ধ করুন"
-            className="shrink-0 w-9 h-9 rounded-lg flex items-center justify-center
-              text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/80 transition-colors cursor-pointer"
+            className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center
+              text-ink-muted hover:text-ink-strong bg-surface-card hover:bg-surface-overlay border border-line-soft/80 transition-colors cursor-pointer"
           >
             <HiXMark className="text-xl" />
           </button>
