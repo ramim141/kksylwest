@@ -1059,7 +1059,7 @@ export const updateRegistrationStatus = async (
     assignedRoll: assignedRoll || "",
     examCenter: examCenter || "",
     examDate: examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-    examTime: examTime || "সকাল ১০:০০ টা - ১১:৩০ টা",
+    examTime: examTime || "সকাল ১০:০০ টা - ১১:০০ টা",
     roomNo: roomNo || "",
     reviewedAt: serverTimestamp(),
   });
@@ -1403,7 +1403,7 @@ export const DEFAULT_IMPORTANT_DATES = {
   admitCardReleaseDateBn: "১৮ অক্টোবর ২০২৬ (শনিবার)",
   examDate: "২০২৬-১০-২৪T10:00:00",
   examDateBn: "২৪ অক্টোবর ২০২৬ (শুক্রবার)",
-  examTimeBn: "সকাল ১০:০০ টা - ১১:৩০ টা",
+  examTimeBn: "সকাল ১০:০০ টা - ১১:০০ টা",
   resultPublishDate: "২০২৬-১১-১০T15:00:00",
   resultPublishDateBn: "১০ নভেম্বর ২০২৬",
   prizeDistributionDate: "২০২৬-১১-২০",
@@ -1572,7 +1572,7 @@ const LOCAL_ADMIT_CARD_SETTINGS_KEY = "kkmb_admit_card_settings_data";
 export const DEFAULT_ADMIT_CARD_SETTINGS = {
   defaultCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
   defaultExamDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-  defaultExamTime: "সকাল ১০:০০টা থেকে ১১:৩০টা",
+  defaultExamTime: "সকাল ১০:০০ টা - ১১:০০ টা",
   defaultSubjects: "বাংলা, ইংরেজি, গণিত, বিজ্ঞান, সাধারণ জ্ঞান",
   sealText1: "SEAL",
   sealText2: "KKMB",

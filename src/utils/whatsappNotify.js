@@ -33,7 +33,7 @@ export const NOTICE_LABELS = {
 };
 
 const DEFAULT_EXAM_DATE = "২৪ অক্টোবর ২০২৫ (শুক্রবার)";
-const DEFAULT_EXAM_TIME = "সকাল ১০:০০ টা - ১১:৩০ টা";
+const DEFAULT_EXAM_TIME = "সকাল ১০:০০ টা - ১১:০০ টা";
 const SIGNATURE = "কিশোরকণ্ঠ পাঠক ফোরাম, সিলেট জেলা পশ্চিম।";
 
 /* Rolls and phone numbers are compared raw elsewhere (searchAdmitCard,

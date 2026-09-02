@@ -217,7 +217,7 @@ const RegistrationManager = () => {
     assignedRoll: "",
     examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
     examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-    examTime: "সকাল ১০:০০ টা - ১১:৩০ টা",
+    examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
     roomNo: "",
     status: "approved", // Approved immediately for offline forms
 
@@ -238,7 +238,7 @@ const RegistrationManager = () => {
     assignedRoll: "",
     examCenter: "",
     examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-    examTime: "সকাল ১০:০০ টা - ১১:৩০ টা",
+    examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
     roomNo: "",
   });
 
@@ -430,7 +430,7 @@ const RegistrationManager = () => {
       assignedRoll: student.assignedRoll || nextRollFor(student.studentClass),
       examCenter: student.examCenter || defaultExamCenter(),
       examDate: student.examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-      examTime: student.examTime || "সকাল ১০:০০ টা - ১১:৩০ টা",
+      examTime: student.examTime || "সকাল ১০:০০ টা - ১১:০০ টা",
       roomNo: student.roomNo || "",
     });
   };
@@ -675,7 +675,7 @@ const RegistrationManager = () => {
         assignedRoll: "",
         examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
         examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
-        examTime: "সকাল ১০:০০ টা - ১১:৩০ টা",
+        examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
         roomNo: "",
         status: "approved",
         paymentMethod: "Cash/School",
