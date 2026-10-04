@@ -6,27 +6,21 @@ import React, {
   useRef,
 } from "react";
 import { getFirebaseAuth } from "../firebase/config";
+import {
+  validateAdminCredentials,
+  verifyAdminOTP,
+  ADMIN_CREDENTIALS,
+} from "../services/otpService";
 
 /* Accounts allowed into the admin panel.
+   firestore.rules also enforces kishorkanthasylwest@gmail.com. */
+export const ADMIN_EMAILS = [ADMIN_CREDENTIALS.email];
 
-   This list is a courtesy check, not the security boundary. The bundle is
-   public, so anyone can read it and anyone can patch their own copy to walk
-   past it. What actually protects the data is the identical allowlist in
-   firestore.rules, which Firestore enforces on the server for every read and
-   write. Change one and you must change the other. */
-export const ADMIN_EMAILS = ["kishorkanthasylwest@gmail.com"];
+const ADMIN_STORAGE_KEY = "_kk_admin_auth_user";
 
 const isAdminEmail = (email) =>
-  typeof email === "string" && ADMIN_EMAILS.includes(email.trim().toLowerCase());
-
-/* The popup cannot be opened at all in these cases — in-app browsers, strict
-   blockers, most mobile webviews. Redirect is the documented fallback, and
-   the only option there. A popup the user closed themselves is not on this
-   list: that was a deliberate cancel. */
-const POPUP_FALLBACK_CODES = [
-  "auth/popup-blocked",
-  "auth/operation-not-supported-in-environment",
-];
+  typeof email === "string" &&
+  ADMIN_EMAILS.includes(email.trim().toLowerCase());
 
 const describeAuthError = (err) => {
   switch (err?.code) {
@@ -36,9 +30,13 @@ const describeAuthError = (err) => {
     case "auth/network-request-failed":
       return "ইন্টারনেট সংযোগ পাওয়া যাচ্ছে না। সংযোগ যাচাই করে আবার চেষ্টা করুন।";
     case "auth/unauthorized-domain":
-      return "এই ডোমেইনটি Firebase Authentication-এ অনুমোদিত নয়। Firebase Console → Authentication → Settings → Authorized domains-এ ডোমেইনটি যোগ করুন।";
+      return "এই ডোমেইনটি Firebase Authentication-এ অনুমোদিত নয়।";
     case "auth/operation-not-allowed":
-      return "Google সাইন-ইন এখনো চালু করা হয়নি। Firebase Console → Authentication → Sign-in method থেকে Google চালু করুন।";
+      return "সাইনিং মেথড চালু করা নেই।";
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+      return "ইমেইল বা পাসওয়ার্ড সঠিক নয়।";
     default:
       return err?.message || "লগইন করতে সমস্যা হয়েছে।";
   }
@@ -52,29 +50,53 @@ const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    // Attempt to restore persistent admin session
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.email && isAdminEmail(parsed.email)) {
+            return parsed;
+          }
+        }
+      } catch {
+        // ignore parse error
+      }
+    }
+    return null;
+  });
+
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState("");
   const startedRef = useRef(false);
 
-  /* Firebase Auth is ~40KB and every visitor to a public page would pay for
-     it if this ran on mount — AuthProvider wraps the whole app. Instead the
-     admin screens ask for it, so the SDK is only fetched by someone actually
-     heading for /admin. `loading` stays true until then, which is correct:
-     nothing outside the admin area reads it. */
   const ensureAuth = useCallback(() => {
     if (startedRef.current) return;
     startedRef.current = true;
 
     (async () => {
       try {
+        // If we already have stored admin session, mark loading as false quickly
+        const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (parsed?.email && isAdminEmail(parsed.email)) {
+              setCurrentUser(parsed);
+              setLoading(false);
+            }
+          } catch {
+            // ignore
+          }
+        }
+
         const auth = await getFirebaseAuth();
         const { onAuthStateChanged, getRedirectResult, signOut } = await import(
           "firebase/auth"
         );
 
-        /* Completes a sign-in that had to fall back to redirect. Resolves to
-           null on an ordinary page load, so it is safe to always await. */
         try {
           await getRedirectResult(auth);
         } catch (err) {
@@ -82,42 +104,110 @@ export const AuthProvider = ({ children }) => {
         }
 
         onAuthStateChanged(auth, async (user) => {
-          if (user && !isAdminEmail(user.email)) {
-            /* Signed in to Google, but not on the list. End the session
-               rather than leave a half-authenticated client sitting there —
-               Firestore would reject its every request anyway. */
-            await signOut(auth).catch(() => {});
-            setCurrentUser(null);
-            setAuthError(notAllowedMessage(user.email));
+          if (user) {
+            if (!isAdminEmail(user.email)) {
+              await signOut(auth).catch(() => {});
+              localStorage.removeItem(ADMIN_STORAGE_KEY);
+              setCurrentUser(null);
+              setAuthError(notAllowedMessage(user.email));
+            } else {
+              const adminUser = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName || "Admin",
+                photoURL: user.photoURL || null,
+                emailVerified: true,
+              };
+              localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+              setCurrentUser(adminUser);
+            }
           } else {
-            setCurrentUser(user);
+            // Check if we still have local admin session
+            const localSaved = localStorage.getItem(ADMIN_STORAGE_KEY);
+            if (!localSaved) {
+              setCurrentUser(null);
+            }
           }
           setLoading(false);
         });
       } catch (err) {
         console.warn("Firebase Auth unavailable:", err);
-        setCurrentUser(null);
-        setAuthError(describeAuthError(err));
+        const localSaved = localStorage.getItem(ADMIN_STORAGE_KEY);
+        if (!localSaved) {
+          setCurrentUser(null);
+          setAuthError(describeAuthError(err));
+        }
         setLoading(false);
       }
     })();
   }, []);
 
-  /* Popup first, redirect only when a popup cannot be opened.
+  /**
+   * Admin Login with Custom Email, Password, and 6-digit OTP
+   */
+  const loginWithCredentials = useCallback(
+    async (email, password, otp) => {
+      setAuthError("");
 
-     Redirect was tried as the primary flow and does not survive the trip
-     back: Firebase writes the pending sign-in against authDomain
-     (<project>.firebaseapp.com) and has to read it again from our own
-     origin. Chrome partitions storage per top-level site, so that read comes
-     back empty, getRedirectResult resolves to null, and the app concludes
-     nobody signed in — the user lands on the login page again having just
-     approved the consent screen.
+      // 1. Verify email & password
+      if (!validateAdminCredentials(email, password)) {
+        throw new Error("ভুল ইমেইল বা পাসওয়ার্ড প্রদান করা হয়েছে।");
+      }
 
-     The popup keeps everything in one browsing context, so nothing has to
-     cross an origin boundary to be read back. It does log a
-     Cross-Origin-Opener-Policy warning from Firebase's own window.closed
-     poll; that read is already wrapped in a guard by the SDK and is not
-     the sign-in path, which resolves over postMessage. */
+      // 2. Verify OTP code
+      const otpCheck = verifyAdminOTP(otp);
+      if (!otpCheck.valid) {
+        throw new Error(otpCheck.error || "ভুল ওটিপি কোড!");
+      }
+
+      // 3. Create Admin Session Object
+      const adminUser = {
+        uid: "admin_kishorkanthasylwest",
+        email: ADMIN_CREDENTIALS.email,
+        displayName: "অ্যাডমিনিস্ট্রেটর",
+        role: "super_admin",
+        emailVerified: true,
+        authenticatedAt: Date.now(),
+      };
+
+      // Try Firebase Auth email sign in / link if available in project
+      try {
+        const auth = await getFirebaseAuth();
+        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } =
+          await import("firebase/auth");
+        try {
+          const res = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
+          if (res?.user) {
+            adminUser.uid = res.user.uid;
+          }
+        } catch (firebaseErr) {
+          // If user not found in Firebase Auth, attempt creating it with the credentials
+          if (firebaseErr?.code === "auth/user-not-found" || firebaseErr?.code === "auth/invalid-credential") {
+            try {
+              const res = await createUserWithEmailAndPassword(auth, email.trim(), password.trim());
+              if (res?.user) {
+                adminUser.uid = res.user.uid;
+              }
+            } catch {
+              // Ignore creation error and proceed with verified admin session
+            }
+          }
+        }
+      } catch (e) {
+        console.info("Firebase Auth background link note:", e?.message);
+      }
+
+      // 4. Persist admin session
+      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+      setCurrentUser(adminUser);
+      return adminUser;
+    },
+    []
+  );
+
+  /**
+   * Secondary Google Sign In fallback
+   */
   const loginWithGoogle = useCallback(async () => {
     setAuthError("");
     ensureAuth();
@@ -131,18 +221,13 @@ export const AuthProvider = ({ children }) => {
     } = await import("firebase/auth");
 
     const provider = new GoogleAuthProvider();
-    /* Without this Google silently reuses whichever account the browser
-       signed in with last, which on a shared machine is the wrong one often
-       enough to be worth the extra tap. */
     provider.setCustomParameters({ prompt: "select_account" });
 
     let result;
     try {
       result = await signInWithPopup(auth, provider);
     } catch (err) {
-      if (POPUP_FALLBACK_CODES.includes(err.code)) {
-        /* No popup is possible here, so redirect is the only way through
-           even knowing it may not survive the return trip. */
+      if (err.code === "auth/popup-blocked" || err.code === "auth/operation-not-supported-in-environment") {
         await signInWithRedirect(auth, provider);
         return null;
       }
@@ -151,23 +236,41 @@ export const AuthProvider = ({ children }) => {
 
     if (!isAdminEmail(result.user.email)) {
       await signOut(auth).catch(() => {});
+      localStorage.removeItem(ADMIN_STORAGE_KEY);
       throw new Error(notAllowedMessage(result.user.email));
     }
 
-    return result.user;
+    const adminUser = {
+      uid: result.user.uid,
+      email: result.user.email,
+      displayName: result.user.displayName || "অ্যাডমিনিস্ট্রেটর",
+      photoURL: result.user.photoURL || null,
+      emailVerified: true,
+      authenticatedAt: Date.now(),
+    };
+
+    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+    setCurrentUser(adminUser);
+    return adminUser;
   }, [ensureAuth]);
 
+  /**
+   * Complete Logout
+   */
   const logout = useCallback(async () => {
-    const auth = await getFirebaseAuth();
-    const { signOut } = await import("firebase/auth");
-    await signOut(auth);
+    try {
+      const auth = await getFirebaseAuth();
+      const { signOut } = await import("firebase/auth");
+      await signOut(auth).catch(() => {});
+    } catch {
+      // ignore
+    }
+    localStorage.removeItem(ADMIN_STORAGE_KEY);
+    sessionStorage.removeItem("_kk_admin_otp_session");
     setCurrentUser(null);
     setAuthError("");
   }, []);
 
-  /* Renders children immediately. Gating them on `loading` would hold the
-     entire public site behind an auth round-trip; ProtectedRoute already
-     shows its own spinner for the screens that actually need the answer. */
   return (
     <AuthContext.Provider
       value={{
@@ -175,6 +278,7 @@ export const AuthProvider = ({ children }) => {
         loading,
         authError,
         setAuthError,
+        loginWithCredentials,
         loginWithGoogle,
         logout,
         ensureAuth,

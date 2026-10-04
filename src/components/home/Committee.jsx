@@ -202,6 +202,11 @@ const Committee = () => {
                         rounded="rounded-full"
                         className="w-full h-full aspect-square shrink-0"
                         imgClassName="object-top"
+                        fallback={
+                          <div className="absolute inset-0 rounded-full bg-indigo-500/15 text-indigo-200 flex items-center justify-center text-2xl sm:text-3xl font-bold">
+                            {member.name?.trim().charAt(0)}
+                          </div>
+                        }
                       />
                       
                       {/* Facebook Icon Overlay */}

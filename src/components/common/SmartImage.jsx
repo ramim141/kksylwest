@@ -40,15 +40,18 @@ const SmartImage = ({
     if (node?.complete && node.naturalWidth > 0) setStatus("loaded");
   }, []);
 
+  // No source at all is a failure, not an endless load.
+  const shown = src ? status : "error";
+
   return (
     <div className={cx("relative overflow-hidden", rounded, aspect, className)}>
-      {status !== "loaded" && (
+      {shown === "loading" && (
         <div className={cx("absolute inset-0 skeleton", rounded)} aria-hidden="true" />
       )}
 
-      {status === "error"
-        ? fallback
-        : src && (
+      {shown === "error"
+        ? fallback ?? <div className={cx("absolute inset-0 bg-white/5", rounded)} aria-hidden="true" />
+        : (
             <img
               ref={attachImg}
               src={src}
