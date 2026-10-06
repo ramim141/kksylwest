@@ -1293,7 +1293,7 @@ export const addExamCenter = async (centerData) => {
     createdAt: new Date().toISOString(),
   };
 
-  let createdId = `center_${Date.now()}`;
+  let createdId = `center_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
   if (isFirebaseConfigured()) {
     try {
@@ -1309,14 +1309,28 @@ export const addExamCenter = async (centerData) => {
     }
   }
 
-  // Always update local cache
+  // Preserve ALL existing centers, append the new center
   try {
-    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
-    const merged = existing.filter((c) => c.name !== newCenter.name);
-    merged.push({ id: createdId, ...newCenter });
-    merged.sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0));
-    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(merged));
-  } catch {}
+    let existing = [];
+    const saved = localStorage.getItem(LOCAL_EXAM_CENTERS_KEY);
+    if (saved) {
+      existing = JSON.parse(saved);
+    }
+    if (!Array.isArray(existing) || existing.length === 0) {
+      existing = DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
+    }
+
+    const updatedList = [
+      ...existing.filter(
+        (c) => c.id !== createdId && String(c.name || "").trim().toLowerCase() !== newCenter.name.toLowerCase()
+      ),
+      { id: createdId, ...newCenter },
+    ];
+    updatedList.sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0));
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updatedList));
+  } catch (e) {
+    console.warn("localStorage save error:", e);
+  }
 
   return createdId;
 };
@@ -1341,10 +1355,16 @@ export const updateExamCenter = async (id, centerData) => {
     }
   }
 
-  // Update local cache
+  // Update local cache without removing any existing centers
   try {
-    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
+    let existing = [];
+    const saved = localStorage.getItem(LOCAL_EXAM_CENTERS_KEY);
+    if (saved) existing = JSON.parse(saved);
+    if (!Array.isArray(existing) || existing.length === 0) {
+      existing = DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
+    }
     const updated = existing.map((c) => (c.id === id ? { ...c, ...updatedData } : c));
+    updated.sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0));
     localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
   } catch {}
 };
@@ -1358,9 +1378,9 @@ export const deleteExamCenter = async (id) => {
     }
   }
 
-  // Update local cache
+  // Remove from local cache
   try {
-    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
+    let existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
     const updated = existing.filter((c) => c.id !== id);
     localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
   } catch {}
