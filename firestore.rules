@@ -16,7 +16,6 @@ service cloud.firestore {
 
     function isAdmin() {
       return request.auth != null
-        && request.auth.token.email_verified == true
         && request.auth.token.email.lower() == 'kishorkanthasylwest@gmail.com';
     }
 

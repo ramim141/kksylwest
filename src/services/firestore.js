@@ -1249,7 +1249,10 @@ export const DEFAULT_EXAM_CENTERS = [
   },
 ];
 
+const LOCAL_EXAM_CENTERS_KEY = "kkmb_exam_centers_data";
+
 const uncached_getExamCenters = async () => {
+  let list = [];
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -1258,57 +1261,136 @@ const uncached_getExamCenters = async () => {
       );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        return snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+        try {
+          localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(list));
+        } catch {}
+        return list;
       }
     } catch (error) {
       console.warn("Firestore getExamCenters fallback:", error);
     }
   }
+
+  // Fallback to local storage
+  try {
+    const saved = localStorage.getItem(LOCAL_EXAM_CENTERS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+
   return DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
 };
 
 export const addExamCenter = async (centerData) => {
-  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  const docRef = await addDoc(collection(db, COLLECTIONS.EXAM_CENTERS), {
+  const newCenter = {
     ...centerData,
     name: String(centerData.name || "").trim(),
     isActive: centerData.isActive !== false,
     orderIndex: Number(centerData.orderIndex) || 1,
-    createdAt: serverTimestamp(),
-  });
-  return docRef.id;
+    createdAt: new Date().toISOString(),
+  };
+
+  let createdId = `center_${Date.now()}`;
+
+  if (isFirebaseConfigured()) {
+    try {
+      const docRef = await addDoc(collection(db, COLLECTIONS.EXAM_CENTERS), {
+        ...newCenter,
+        createdAt: serverTimestamp(),
+      });
+      if (docRef?.id) {
+        createdId = docRef.id;
+      }
+    } catch (err) {
+      console.warn("Firestore addExamCenter failed, saving locally:", err);
+    }
+  }
+
+  // Always update local cache
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
+    const merged = existing.filter((c) => c.name !== newCenter.name);
+    merged.push({ id: createdId, ...newCenter });
+    merged.sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0));
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(merged));
+  } catch {}
+
+  return createdId;
 };
 
 export const updateExamCenter = async (id, centerData) => {
-  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  await updateDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id), {
+  const updatedData = {
     ...centerData,
     name: String(centerData.name || "").trim(),
     isActive: centerData.isActive !== false,
     orderIndex: Number(centerData.orderIndex) || 1,
-    updatedAt: serverTimestamp(),
-  });
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (isFirebaseConfigured()) {
+    try {
+      await updateDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id), {
+        ...updatedData,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.warn("Firestore updateExamCenter failed, updating locally:", err);
+    }
+  }
+
+  // Update local cache
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
+    const updated = existing.map((c) => (c.id === id ? { ...c, ...updatedData } : c));
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
+  } catch {}
 };
 
 export const deleteExamCenter = async (id) => {
-  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
-  await deleteDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id));
+  if (isFirebaseConfigured()) {
+    try {
+      await deleteDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id));
+    } catch (err) {
+      console.warn("Firestore deleteExamCenter failed, updating locally:", err);
+    }
+  }
+
+  // Update local cache
+  try {
+    const existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
+    const updated = existing.filter((c) => c.id !== id);
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
+  } catch {}
 };
 
 /** Writes the defaults, but only into an empty collection. */
 export const seedDefaultExamCenters = async () => {
-  if (!isFirebaseConfigured()) throw new Error("Firebase কনফিগার করা নেই!");
   const existing = await uncached_getExamCenters();
   if (existing.length > 0) return existing.length;
 
-  const batch = writeBatch(db);
-  DEFAULT_EXAM_CENTERS.forEach((center) => {
-    batch.set(doc(collection(db, COLLECTIONS.EXAM_CENTERS)), {
-      ...center,
-      createdAt: serverTimestamp(),
-    });
-  });
-  await batch.commit();
+  if (isFirebaseConfigured()) {
+    try {
+      const batch = writeBatch(db);
+      DEFAULT_EXAM_CENTERS.forEach((center) => {
+        batch.set(doc(collection(db, COLLECTIONS.EXAM_CENTERS)), {
+          ...center,
+          createdAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    } catch (err) {
+      console.warn("Firestore seedDefaultExamCenters note:", err);
+    }
+  }
+
+  try {
+    const initial = DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(initial));
+  } catch {}
+
   return DEFAULT_EXAM_CENTERS.length;
 };
 
