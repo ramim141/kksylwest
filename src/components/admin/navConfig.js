@@ -50,11 +50,20 @@ export const NAV_GROUPS = [
       {
         id: "registrations",
         label: "অনলাইন রেজিস্ট্রেশন",
-        title: "রেজিস্ট্রেশন ও রোল বরাদ্দ",
+        title: "অনলাইন রেজিস্ট্রেশন ও আবেদন যাচাই",
         description:
-          "অনলাইন আবেদন যাচাই করুন, অফলাইন ফরম এন্ট্রি দিন এবং শিক্ষার্থীদের রোল ও কেন্দ্র বরাদ্দ করুন।",
+          "অনলাইন আবেদনসমূহ যাচাই করুন, অনুমোদন দিন এবং রোল ও কেন্দ্র বরাদ্দ করুন।",
         icon: HiAcademicCap,
-        keywords: "registration admission form roll student আবেদন",
+        keywords: "online registration admission form roll student আবেদন",
+      },
+      {
+        id: "offlineregistrations",
+        label: "অফলাইন রেজিস্ট্রেশন",
+        title: "অফলাইন রেজিস্ট্রেশন ও ডেটা এন্ট্রি",
+        description:
+          "অফলাইন ফরমের ডেটা এন্ট্রি করুন এবং অফলাইন শিক্ষার্থীদের তালিকা ও রোল পরিচালনা করুন।",
+        icon: HiDocumentText,
+        keywords: "offline registration form manual entry অফলাইন ফরম",
       },
       {
         id: "admitprint",

@@ -280,6 +280,7 @@ export const EMPTY_COUNTS = {
   unreadMessages: null,
   registrations: null,
   pendingRegistrations: null,
+  offlineRegistrations: null,
 };
 
 /**
@@ -600,6 +601,17 @@ export const useOverviewData = () => {
       .sort((a, b) => b.at.getTime() - a.at.getTime())
       .slice(0, 8);
 
+    const isOfflineReg = (r) =>
+      r?.registrationType === "offline" ||
+      r?.isOffline === true ||
+      r?.paymentMethod === "Cash/School" ||
+      r?.paymentMethod === "অফলাইন" ||
+      String(r?.adminNote || "").includes("অফলাইন");
+
+    const onlineRegs = (regs || []).filter((r) => !isOfflineReg(r));
+    const offlineRegs = (regs || []).filter((r) => isOfflineReg(r));
+    const pendingOnline = onlineRegs.filter((r) => r.status === "pending").length;
+
     setCounts({
       results: resultStats ? resultStats.total : null,
       notices: notices ? notices.length : null,
@@ -607,8 +619,9 @@ export const useOverviewData = () => {
       committee: committee ? committee.length : null,
       messages: messageStats ? messageStats.total : null,
       unreadMessages: messageStats ? messageStats.unread : null,
-      registrations: registrations ? registrations.total : null,
-      pendingRegistrations: registrations ? registrations.pending : null,
+      registrations: regs ? onlineRegs.length : null,
+      pendingRegistrations: regs ? pendingOnline : null,
+      offlineRegistrations: regs ? offlineRegs.length : null,
     });
 
     setData({
