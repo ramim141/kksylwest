@@ -51,10 +51,13 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
-    // Attempt to restore persistent admin session
+    // Attempt to restore active admin session for this browser session only
     if (typeof window !== "undefined") {
       try {
-        const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
+        // Clean up any legacy localStorage key to ensure browser-close logout works reliably
+        localStorage.removeItem(ADMIN_STORAGE_KEY);
+
+        const saved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.email && isAdminEmail(parsed.email)) {
@@ -78,8 +81,8 @@ export const AuthProvider = ({ children }) => {
 
     (async () => {
       try {
-        // If we already have stored admin session, mark loading as false quickly
-        const saved = localStorage.getItem(ADMIN_STORAGE_KEY);
+        // Check active session in sessionStorage
+        const saved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
@@ -93,9 +96,20 @@ export const AuthProvider = ({ children }) => {
         }
 
         const auth = await getFirebaseAuth();
-        const { onAuthStateChanged, getRedirectResult, signOut } = await import(
-          "firebase/auth"
-        );
+        const {
+          onAuthStateChanged,
+          getRedirectResult,
+          signOut,
+          setPersistence,
+          browserSessionPersistence,
+        } = await import("firebase/auth");
+
+        // Enforce browserSessionPersistence so Firebase Auth clears on browser close as well
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+        } catch {
+          // ignore if persistence fails
+        }
 
         try {
           await getRedirectResult(auth);
@@ -107,7 +121,7 @@ export const AuthProvider = ({ children }) => {
           if (user) {
             if (!isAdminEmail(user.email)) {
               await signOut(auth).catch(() => {});
-              localStorage.removeItem(ADMIN_STORAGE_KEY);
+              sessionStorage.removeItem(ADMIN_STORAGE_KEY);
               setCurrentUser(null);
               setAuthError(notAllowedMessage(user.email));
             } else {
@@ -118,13 +132,13 @@ export const AuthProvider = ({ children }) => {
                 photoURL: user.photoURL || null,
                 emailVerified: true,
               };
-              localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+              sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
               setCurrentUser(adminUser);
             }
           } else {
-            // Check if we still have local admin session
-            const localSaved = localStorage.getItem(ADMIN_STORAGE_KEY);
-            if (!localSaved) {
+            // Check if we still have local session in sessionStorage
+            const sessionSaved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+            if (!sessionSaved) {
               setCurrentUser(null);
             }
           }
@@ -132,8 +146,8 @@ export const AuthProvider = ({ children }) => {
         });
       } catch (err) {
         console.warn("Firebase Auth unavailable:", err);
-        const localSaved = localStorage.getItem(ADMIN_STORAGE_KEY);
-        if (!localSaved) {
+        const sessionSaved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+        if (!sessionSaved) {
           setCurrentUser(null);
           setAuthError(describeAuthError(err));
         }
@@ -144,6 +158,7 @@ export const AuthProvider = ({ children }) => {
 
   /**
    * Admin Login with Custom Email, Password, and 6-digit OTP
+   * Supports concurrent multi-device logins and per-session isolation
    */
   const loginWithCredentials = useCallback(
     async (email, password, otp) => {
@@ -170,11 +185,20 @@ export const AuthProvider = ({ children }) => {
         authenticatedAt: Date.now(),
       };
 
-      // Try Firebase Auth email sign in / link if available in project
+      // Try Firebase Auth email sign in with session persistence if available
       try {
         const auth = await getFirebaseAuth();
-        const { signInWithEmailAndPassword, createUserWithEmailAndPassword } =
-          await import("firebase/auth");
+        const {
+          signInWithEmailAndPassword,
+          createUserWithEmailAndPassword,
+          setPersistence,
+          browserSessionPersistence,
+        } = await import("firebase/auth");
+
+        try {
+          await setPersistence(auth, browserSessionPersistence);
+        } catch {}
+
         try {
           const res = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
           if (res?.user) {
@@ -197,8 +221,9 @@ export const AuthProvider = ({ children }) => {
         console.info("Firebase Auth background link note:", e?.message);
       }
 
-      // 4. Persist admin session
-      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+      // 4. Persist admin session in sessionStorage (auto-logout on browser close)
+      sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+      localStorage.removeItem(ADMIN_STORAGE_KEY);
       setCurrentUser(adminUser);
       return adminUser;
     },
@@ -218,7 +243,13 @@ export const AuthProvider = ({ children }) => {
       signInWithPopup,
       signInWithRedirect,
       signOut,
+      setPersistence,
+      browserSessionPersistence,
     } = await import("firebase/auth");
+
+    try {
+      await setPersistence(auth, browserSessionPersistence);
+    } catch {}
 
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
@@ -236,7 +267,7 @@ export const AuthProvider = ({ children }) => {
 
     if (!isAdminEmail(result.user.email)) {
       await signOut(auth).catch(() => {});
-      localStorage.removeItem(ADMIN_STORAGE_KEY);
+      sessionStorage.removeItem(ADMIN_STORAGE_KEY);
       throw new Error(notAllowedMessage(result.user.email));
     }
 
@@ -249,7 +280,8 @@ export const AuthProvider = ({ children }) => {
       authenticatedAt: Date.now(),
     };
 
-    localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+    sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+    localStorage.removeItem(ADMIN_STORAGE_KEY);
     setCurrentUser(adminUser);
     return adminUser;
   }, [ensureAuth]);
@@ -266,6 +298,7 @@ export const AuthProvider = ({ children }) => {
       // ignore
     }
     localStorage.removeItem(ADMIN_STORAGE_KEY);
+    sessionStorage.removeItem(ADMIN_STORAGE_KEY);
     sessionStorage.removeItem("_kk_admin_otp_session");
     setCurrentUser(null);
     setAuthError("");
