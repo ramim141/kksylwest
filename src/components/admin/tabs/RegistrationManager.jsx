@@ -254,14 +254,20 @@ const RegistrationManager = () => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-    /* The centre list is maintained on its own tab; a failure to read it
-       only costs the dropdown its options, so it must not block the page. */
+  const refreshCenters = useCallback(() => {
     getExamCenters()
       .then((list) => setExamCenters(list || []))
       .catch((err) => console.warn("Exam centre list unavailable:", err));
   }, []);
+
+  useEffect(() => {
+    loadData();
+    refreshCenters();
+    window.addEventListener("kk_exam_centers_updated", refreshCenters);
+    return () => {
+      window.removeEventListener("kk_exam_centers_updated", refreshCenters);
+    };
+  }, [refreshCenters]);
 
   // Filtered registrations
   const filteredList = useMemo(() => {
@@ -423,6 +429,7 @@ const RegistrationManager = () => {
     examCenters.find((c) => c.isActive !== false)?.name || "";
 
   const handleOpenModal = (student) => {
+    refreshCenters();
     setSelectedStudent(student);
     setAssignData({
       status: student.status || "approved",
@@ -545,6 +552,7 @@ const RegistrationManager = () => {
   };
 
   const openAddModal = () => {
+    refreshCenters();
     setOfflineForm((prev) => ({
       ...prev,
       assignedRoll: prev.assignedRoll.trim() || nextRollFor(prev.studentClass),
