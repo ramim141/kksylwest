@@ -1317,7 +1317,7 @@ const RegistrationManager = () => {
                 </span>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div className="lg:col-span-2 min-w-0">
+                  <div className="lg:col-span-3 min-w-0">
                     <label className="block text-xs font-bold text-ink-body mb-1">
                       শিক্ষা প্রতিষ্ঠানের নাম <span className="text-error">*</span>
                     </label>
@@ -1332,7 +1332,7 @@ const RegistrationManager = () => {
                     />
                   </div>
 
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-xs font-bold text-ink-body mb-1">
                       শ্রেণি
                     </label>
@@ -1349,34 +1349,10 @@ const RegistrationManager = () => {
                       ))}
                     </select>
                   </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-ink-body mb-1">
-                       শাখা / ক্লাস রোল
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        name="section"
-                        value={offlineForm.section}
-                        onChange={handleOfflineInputChange}
-                        placeholder="শাখা"
-                        className="w-1/2 min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary"
-                      />
-                      <input
-                        type="text"
-                        name="classRoll"
-                        value={offlineForm.classRoll}
-                        onChange={handleOfflineInputChange}
-                        placeholder="রোল"
-                        className="w-1/2 min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-mono font-medium focus:outline-none focus:border-primary"
-                      />
-                    </div>
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                  <div className="min-w-0">
+                  <div className="lg:col-span-2 min-w-0">
                     <label className="block text-xs font-semibold text-ink-muted mb-1">উপজেলা / থানা *</label>
                     <select
                       name="upazila"
@@ -1391,7 +1367,7 @@ const RegistrationManager = () => {
                       ))}
                     </select>
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-xs font-semibold text-ink-muted mb-1">ইউনিয়ন *</label>
                     <input
                       type="text"
@@ -1403,19 +1379,7 @@ const RegistrationManager = () => {
                       className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-muted mb-1">থানা *</label>
-                    <input
-                      type="text"
-                      name="thana"
-                      value={offlineForm.thana}
-                      onChange={handleOfflineInputChange}
-                      placeholder="থানা"
-                      required
-                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
-                    />
-                  </div>
-                  <div>
+                  <div className="min-w-0">
                     <label className="block text-xs font-semibold text-ink-muted mb-1">জেলা</label>
                     <input
                       type="text"
