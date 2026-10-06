@@ -168,14 +168,7 @@ const NoticeButtons = ({ student, onSend }) => {
 
 export const isOfflineRegistration = (r) => {
   if (!r) return false;
-  return (
-    r.registrationType === "offline" ||
-    r.isOffline === true ||
-    r.paymentMethod === "Cash/School" ||
-    r.paymentMethod === "অফলাইন" ||
-    String(r.adminNote || "").includes("অফলাইন") ||
-    r.feeCollectedBy === "offline"
-  );
+  return r.registrationType === "offline" || r.isOffline === true;
 };
 
 const RegistrationManager = ({ mode = "all" }) => {
@@ -912,7 +905,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
             }`}
           >
-            সকল ({registrations.length})
+            জমাকৃত অনলাইন ও অফলাইন ফরম ({registrations.length})
           </button>
           <button
             type="button"
@@ -923,7 +916,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
             }`}
           >
-            <span>🌐 অনলাইন আবেদন</span>
+            <span>🌐 জমাকৃত অনলাইন ফরম</span>
             <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
               {totalOnlineCount}
             </span>
@@ -937,7 +930,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
             }`}
           >
-            <span>📝 অফলাইন ফরম</span>
+            <span>📝 জমাকৃত অফলাইন ফরম</span>
             <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
               {totalOfflineCount}
             </span>
@@ -989,7 +982,7 @@ const RegistrationManager = ({ mode = "all" }) => {
             {stats.total}
           </span>
           <span className="text-[13px] text-ink-muted font-medium">
-            {originFilter === "offline" ? "মোট অফলাইন ফরম" : originFilter === "online" ? "মোট অনলাইন আবেদন" : "মোট আবেদনকারী"}
+            {originFilter === "offline" ? "মোট জমাকৃত অফলাইন ফরম" : originFilter === "online" ? "মোট জমাকৃত অনলাইন ফরম" : "মোট জমাকৃত ফরম"}
           </span>
         </div>
         <div className="p-4 bg-surface-card border border-secondary/30 rounded-lg shadow-none">
