@@ -39,7 +39,10 @@ import WhatsAppBroadcaster from "./tabs/WhatsAppBroadcaster";
 import AdmitCardBulkPrintManager from "./tabs/AdmitCardBulkPrintManager";
 
 const TAB_VIEWS = {
-  registrations: RegistrationManager,
+  registrations: (props) => <RegistrationManager key="online" mode="online" {...props} />,
+  offlineregistrations: (props) => (
+    <RegistrationManager key="offline" mode="offline" {...props} />
+  ),
   admitprint: AdmitCardBulkPrintManager,
   results: ResultManager,
   broadcaster: WhatsAppBroadcaster,
@@ -129,6 +132,8 @@ const AdminDashboard = () => {
   const badgeFor = (id) => {
     if (id === "registrations" && counts.pendingRegistrations > 0)
       return { text: `${toBn(counts.pendingRegistrations)} নতুন`, tone: "primary" };
+    if (id === "offlineregistrations" && counts.offlineRegistrations > 0)
+      return { text: toBn(counts.offlineRegistrations), tone: "neutral" };
     if (id === "messages" && counts.unreadMessages > 0)
       return { text: toBn(counts.unreadMessages), tone: "error" };
     if (id === "results" && counts.results > 0)

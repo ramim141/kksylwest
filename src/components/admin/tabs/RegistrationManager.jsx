@@ -166,10 +166,23 @@ const NoticeButtons = ({ student, onSend }) => {
   );
 };
 
-const RegistrationManager = () => {
+export const isOfflineRegistration = (r) => {
+  if (!r) return false;
+  return (
+    r.registrationType === "offline" ||
+    r.isOffline === true ||
+    r.paymentMethod === "Cash/School" ||
+    r.paymentMethod === "অফলাইন" ||
+    String(r.adminNote || "").includes("অফলাইন") ||
+    r.feeCollectedBy === "offline"
+  );
+};
+
+const RegistrationManager = ({ mode = "all" }) => {
   const [registrations, setRegistrations] = useState([]);
   const [confirm, confirmUI] = useConfirm();
   const [loading, setLoading] = useState(true);
+  const [originFilter, setOriginFilter] = useState(mode);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedUpazila, setSelectedUpazila] = useState("all");
@@ -178,6 +191,10 @@ const RegistrationManager = () => {
   const [statusMessage, setStatusMessage] = useState(null);
   const [bulkAssigning, setBulkAssigning] = useState(false);
   const [examCenters, setExamCenters] = useState([]);
+
+  useEffect(() => {
+    setOriginFilter(mode);
+  }, [mode]);
 
   // Offline registration modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -201,7 +218,7 @@ const RegistrationManager = () => {
     // Academic
     institution: "",
     studentClass: "১০ম শ্রেণি",
-    section: "ক",
+    section: "",
     classRoll: "",
     upazila: "দক্ষিণ সুরমা থানা",
 
@@ -269,9 +286,23 @@ const RegistrationManager = () => {
     };
   }, [refreshCenters]);
 
-  // Filtered registrations
+  // Overall counts
+  const totalOnlineCount = useMemo(
+    () => registrations.filter((r) => !isOfflineRegistration(r)).length,
+    [registrations]
+  );
+  const totalOfflineCount = useMemo(
+    () => registrations.filter((r) => isOfflineRegistration(r)).length,
+    [registrations]
+  );
+
+  // Filtered registrations scoped by origin + search + filters
   const filteredList = useMemo(() => {
     return registrations.filter((r) => {
+      const isOff = isOfflineRegistration(r);
+      if (originFilter === "online" && isOff) return false;
+      if (originFilter === "offline" && !isOff) return false;
+
       const matchSearch =
         !searchQuery ||
         r.nameBn?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -295,16 +326,24 @@ const RegistrationManager = () => {
 
       return matchSearch && matchClass && matchUpazila && matchStatus;
     });
-  }, [registrations, searchQuery, selectedClass, selectedUpazila, selectedStatus]);
+  }, [registrations, originFilter, searchQuery, selectedClass, selectedUpazila, selectedStatus]);
 
-  // Statistics
+  // Statistics scoped to current origin selection
+  const scopedList = useMemo(() => {
+    if (originFilter === "online") return registrations.filter((r) => !isOfflineRegistration(r));
+    if (originFilter === "offline") return registrations.filter((r) => isOfflineRegistration(r));
+    return registrations;
+  }, [registrations, originFilter]);
+
   const stats = useMemo(() => {
-    const total = registrations.length;
-    const pending = registrations.filter((r) => r.status === "pending").length;
-    const approved = registrations.filter((r) => r.status === "approved").length;
-    const rejected = registrations.filter((r) => r.status === "rejected").length;
-    return { total, pending, approved, rejected };
-  }, [registrations]);
+    const total = scopedList.length;
+    const pending = scopedList.filter((r) => r.status === "pending").length;
+    const approved = scopedList.filter((r) => r.status === "approved").length;
+    const rejected = scopedList.filter((r) => r.status === "rejected").length;
+    const withRoll = scopedList.filter((r) => Boolean(String(r.assignedRoll || "").trim())).length;
+    const withoutRoll = Math.max(0, approved - withRoll);
+    return { total, pending, approved, rejected, withRoll, withoutRoll };
+  }, [scopedList]);
 
   /* How many applicants are still owed each notice — shown on the filter so
      nobody is left waiting on a message the admin forgot to send. */
@@ -312,14 +351,14 @@ const RegistrationManager = () => {
     let approval = 0;
     let roll = 0;
     let blocked = 0;
-    registrations.forEach((r) => {
+    scopedList.forEach((r) => {
       const stages = dueStages(r);
       if (stages.includes(NOTICE_STAGES.APPROVAL)) approval += 1;
       if (stages.includes(NOTICE_STAGES.ROLL)) roll += 1;
       if (noticeStateOf(r).rollBlocked) blocked += 1;
     });
     return { approval, roll, blocked };
-  }, [registrations]);
+  }, [scopedList]);
 
   /* Next free roll inside a class's own block. Blocks are 10k wide, so a
      stray legacy roll (e.g. 100001) can't drag the counter out of range. */
@@ -860,30 +899,87 @@ const RegistrationManager = () => {
 
   return (
     <div className="space-y-6 animate-fadeIn font-sans text-ink-strong">
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          tone="secondary"
-          icon={HiHashtag}
-          loading={bulkAssigning}
-          disabled={selectedClass !== "all" && bulkTargets.length === 0}
-          title={
-            selectedClass === "all"
-              ? "প্রথমে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন"
-              : `${selectedClass}: ${bulkTargets.length} জনের রোল বরাদ্দ হবে`
-          }
-          onClick={handleBulkAssignRolls}
-        >
-          <span>
-            এক ক্লিকে রোল বরাদ্দ
-            {selectedClass !== "all" ? ` (${bulkTargets.length})` : ""}
-          </span>
-        </Button>
-        <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
-          অফলাইন নতুন রেজিস্ট্রেশন
-        </Button>
-        <Button tone="neutral" icon={HiArrowDownTray} onClick={exportToCSV}>
-          CSV এক্সপোর্ট
-        </Button>
+      {/* Top Action & Scope Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft pb-3">
+        {/* Origin Switcher Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-surface-card border border-line-soft rounded-xl">
+          <button
+            type="button"
+            onClick={() => setOriginFilter("all")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+              originFilter === "all"
+                ? "bg-primary text-primary-on shadow-sm"
+                : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
+            }`}
+          >
+            সকল ({registrations.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setOriginFilter("online")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              originFilter === "online"
+                ? "bg-primary text-primary-on shadow-sm"
+                : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
+            }`}
+          >
+            <span>🌐 অনলাইন আবেদন</span>
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
+              {totalOnlineCount}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOriginFilter("offline")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              originFilter === "offline"
+                ? "bg-primary text-primary-on shadow-sm"
+                : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
+            }`}
+          >
+            <span>📝 অফলাইন ফরম</span>
+            <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
+              {totalOfflineCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          {originFilter === "offline" && (
+            <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
+              + নতুন অফলাইন এন্ট্রি
+            </Button>
+          )}
+
+          <Button
+            tone="secondary"
+            icon={HiHashtag}
+            loading={bulkAssigning}
+            disabled={selectedClass !== "all" && bulkTargets.length === 0}
+            title={
+              selectedClass === "all"
+                ? "প্রথমে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন"
+                : `${selectedClass}: ${bulkTargets.length} জনের রোল বরাদ্দ হবে`
+            }
+            onClick={handleBulkAssignRolls}
+          >
+            <span>
+              এক ক্লিকে রোল বরাদ্দ
+              {selectedClass !== "all" ? ` (${bulkTargets.length})` : ""}
+            </span>
+          </Button>
+
+          {originFilter !== "offline" && (
+            <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
+              অফলাইন নতুন রেজিস্ট্রেশন
+            </Button>
+          )}
+
+          <Button tone="neutral" icon={HiArrowDownTray} onClick={exportToCSV}>
+            CSV এক্সপোর্ট
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -892,19 +988,25 @@ const RegistrationManager = () => {
           <span className="text-2xl font-semibold text-ink-strong block font-mono">
             {stats.total}
           </span>
-          <span className="text-[13px] text-ink-muted font-medium">মোট আবেদনকারী</span>
+          <span className="text-[13px] text-ink-muted font-medium">
+            {originFilter === "offline" ? "মোট অফলাইন ফরম" : originFilter === "online" ? "মোট অনলাইন আবেদন" : "মোট আবেদনকারী"}
+          </span>
         </div>
         <div className="p-4 bg-surface-card border border-secondary/30 rounded-lg shadow-none">
           <span className="text-2xl font-semibold text-secondary block font-mono">
-            {stats.pending}
+            {originFilter === "offline" ? stats.withoutRoll : stats.pending}
           </span>
-          <span className="text-[13px] text-ink-muted font-medium">অপেক্ষমাণ (Pending)</span>
+          <span className="text-[13px] text-ink-muted font-medium">
+            {originFilter === "offline" ? "রোল বরাদ্দ বাকি" : "অপেক্ষমাণ (Pending)"}
+          </span>
         </div>
         <div className="p-4 bg-surface-card border border-primary-500/30 rounded-lg shadow-none">
           <span className="text-2xl font-semibold text-primary-400 block font-mono">
-            {stats.approved}
+            {originFilter === "offline" ? stats.withRoll : stats.approved}
           </span>
-          <span className="text-[13px] text-ink-muted font-medium">অনুমোদিত (Approved)</span>
+          <span className="text-[13px] text-ink-muted font-medium">
+            {originFilter === "offline" ? "রোল বরাদ্দ সম্পন্ন" : "অনুমোদিত (Approved)"}
+          </span>
         </div>
         <div className="p-4 bg-surface-card border border-error/30 rounded-lg shadow-none">
           <span className="text-2xl font-semibold text-error block font-mono">
@@ -985,17 +1087,21 @@ const RegistrationManager = () => {
           <EmptyState
             icon={HiAcademicCap}
             title={
-              registrations.length === 0
-                ? "এখনো কোনো আবেদন জমা পড়েনি"
+              scopedList.length === 0
+                ? originFilter === "offline"
+                  ? "এখনো কোনো অফলাইন রেজিস্ট্রেশন এন্ট্রি দেওয়া হয়নি"
+                  : "এখনো কোনো অনলাইন আবেদন জমা পড়েনি"
                 : "এই ফিল্টারে কোনো আবেদন মেলেনি"
             }
             description={
-              registrations.length === 0
-                ? "অনলাইন আবেদন জমা পড়লে এখানে দেখা যাবে। কাগজের ফরম হাতে থাকলে উপরের বাটন থেকে সরাসরি অফলাইন এন্ট্রি দিন।"
-                : `মোট ${registrations.length} টি আবেদনের কোনোটিই বর্তমান সার্চ ও ফিল্টারের সাথে মেলেনি।`
+              scopedList.length === 0
+                ? originFilter === "offline"
+                  ? "কাগজের ফরম হাতে থাকলে উপরের '+ নতুন অফলাইন এন্ট্রি' বাটন থেকে সরাসরি যুক্ত করুন।"
+                  : "অনলাইন পোর্টাল থেকে আবেদন জমা হলে এখানে দেখা যাবে।"
+                : `মোট ${scopedList.length} টি রেকর্ডের কোনোটিই বর্তমান ফিল্টারের সাথে মেলেনি।`
             }
             action={
-              registrations.length > 0 ? (
+              scopedList.length > 0 ? (
                 <Button
                   tone="neutral"
                   onClick={() => {
@@ -1009,7 +1115,7 @@ const RegistrationManager = () => {
                 </Button>
               ) : (
                 <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
-                  অফলাইন নতুন রেজিস্ট্রেশন
+                  + নতুন অফলাইন এন্ট্রি দিন
                 </Button>
               )
             }
@@ -1023,14 +1129,16 @@ const RegistrationManager = () => {
                   <th className="p-3.5 whitespace-nowrap">ট্র্যাকিং ও ছবি</th>
                   <th className="p-3.5 whitespace-nowrap">পরীক্ষার্থীর নাম</th>
                   <th className="p-3.5 whitespace-nowrap">শ্রেণি ও প্রতিষ্ঠান</th>
-                  <th className="p-3.5 whitespace-nowrap">পেমেন্ট ও TrxID</th>
+                  <th className="p-3.5 whitespace-nowrap">ধরন ও পেমেন্ট</th>
                   <th className="p-3.5 whitespace-nowrap">বরাদ্দ রোল ও কেন্দ্র</th>
                   <th className="p-3.5 whitespace-nowrap">স্ট্যাটাস</th>
                   <th className="p-3.5 text-right whitespace-nowrap">অ্যাকশন</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft text-ink-body">
-                {filteredList.map((st) => (
+                {filteredList.map((st) => {
+                  const isOff = isOfflineRegistration(st);
+                  return (
                   <tr key={st.id} className="hover:bg-surface-overlay/40 transition">
                     <td className="p-3.5">
                       <div className="flex items-center gap-2">
@@ -1075,11 +1183,19 @@ const RegistrationManager = () => {
                     </td>
 
                     <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded-full bg-surface-overlay/40 text-[12px] font-bold block w-fit mb-0.5 text-ink-body">
-                        {st.paymentMethod}
-                      </span>
-                      <span className="font-mono text-[12px] text-secondary block">
-                        {st.trxId ? `Trx: ${st.trxId}` : "ক্যাশ গ্রহণ"}
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${
+                            isOff
+                              ? "bg-sky-500/15 text-sky-400 border-sky-500/30"
+                              : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          }`}
+                        >
+                          {isOff ? "📝 অফলাইন" : "🌐 অনলাইন"}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[12px] text-ink-muted block">
+                        {st.trxId ? `Trx: ${st.trxId}` : (st.paymentMethod || "নগদ")}
                       </span>
                     </td>
 
@@ -1155,7 +1271,8 @@ const RegistrationManager = () => {
                       </div>
                     </td>
                   </tr>
-                ))}
+                );
+              })}
               </tbody>
             </table>
           </div>
