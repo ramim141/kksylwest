@@ -457,6 +457,10 @@ const AdmitCardBulkPrintManager = () => {
 
   useEffect(() => {
     loadData();
+    window.addEventListener("kk_exam_centers_updated", loadData);
+    return () => {
+      window.removeEventListener("kk_exam_centers_updated", loadData);
+    };
   }, []);
 
   // Filter approved students with assigned rolls

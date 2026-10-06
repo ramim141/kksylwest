@@ -169,7 +169,7 @@ const ExamCenterManager = () => {
     if (!ok) return;
 
     try {
-      await deleteExamCenter(center.id);
+      await deleteExamCenter(center.id, center.name);
       setCenters((prev) => prev.filter((c) => c.id !== center.id));
       showToast("কেন্দ্রটি মুছে ফেলা হয়েছে!");
     } catch (err) {

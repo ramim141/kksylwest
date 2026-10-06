@@ -1250,9 +1250,17 @@ export const DEFAULT_EXAM_CENTERS = [
 ];
 
 const LOCAL_EXAM_CENTERS_KEY = "kkmb_exam_centers_data";
+const LOCAL_DELETED_CENTERS_KEY = "kkmb_deleted_exam_centers";
+
+export const broadcastCentersUpdated = () => {
+  clearDataCache("getExamCenters");
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent("kk_exam_centers_updated"));
+  }
+};
 
 const uncached_getExamCenters = async () => {
-  let list = [];
+  let remoteList = [];
   if (isFirebaseConfigured()) {
     try {
       const q = query(
@@ -1261,33 +1269,72 @@ const uncached_getExamCenters = async () => {
       );
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
-        list = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
-        try {
-          localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(list));
-        } catch {}
-        return list;
+        remoteList = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
       }
     } catch (error) {
       console.warn("Firestore getExamCenters fallback:", error);
     }
   }
 
-  // Fallback to local storage
+  // Fallback / merged with local storage
+  let localList = [];
   try {
     const saved = localStorage.getItem(LOCAL_EXAM_CENTERS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) localList = parsed;
     }
   } catch {}
 
-  return DEFAULT_EXAM_CENTERS.map((c, i) => ({ id: `default-${i + 1}`, ...c }));
+  let deletedNames = [];
+  try {
+    const delSaved = localStorage.getItem(LOCAL_DELETED_CENTERS_KEY);
+    if (delSaved) deletedNames = JSON.parse(delSaved);
+    if (!Array.isArray(deletedNames)) deletedNames = [];
+  } catch {}
+
+  const centerMap = new Map();
+
+  // 1. Seed with default centers unless explicitly deleted
+  DEFAULT_EXAM_CENTERS.forEach((c, i) => {
+    const key = String(c.name || "").trim().toLowerCase();
+    if (key && !deletedNames.includes(key)) {
+      centerMap.set(key, { id: `default-${i + 1}`, ...c });
+    }
+  });
+
+  // 2. Local storage centers
+  localList.forEach((c) => {
+    const key = String(c?.name || "").trim().toLowerCase();
+    if (key) {
+      centerMap.set(key, { ...(centerMap.get(key) || {}), ...c });
+    }
+  });
+
+  // 3. Remote Firestore centers (authoritative for IDs/fields)
+  remoteList.forEach((c) => {
+    const key = String(c?.name || "").trim().toLowerCase();
+    if (key) {
+      centerMap.set(key, { ...(centerMap.get(key) || {}), ...c });
+    }
+  });
+
+  const combined = Array.from(centerMap.values()).sort(
+    (a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0)
+  );
+
+  try {
+    localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(combined));
+  } catch {}
+
+  return combined;
 };
 
 export const addExamCenter = async (centerData) => {
+  const name = String(centerData.name || "").trim();
   const newCenter = {
     ...centerData,
-    name: String(centerData.name || "").trim(),
+    name,
     isActive: centerData.isActive !== false,
     orderIndex: Number(centerData.orderIndex) || 1,
     createdAt: new Date().toISOString(),
@@ -1309,6 +1356,13 @@ export const addExamCenter = async (centerData) => {
     }
   }
 
+  // Remove from deleted list if re-added
+  try {
+    let deleted = JSON.parse(localStorage.getItem(LOCAL_DELETED_CENTERS_KEY) || "[]");
+    deleted = deleted.filter((n) => n !== name.toLowerCase());
+    localStorage.setItem(LOCAL_DELETED_CENTERS_KEY, JSON.stringify(deleted));
+  } catch {}
+
   // Preserve ALL existing centers, append the new center
   try {
     let existing = [];
@@ -1322,7 +1376,7 @@ export const addExamCenter = async (centerData) => {
 
     const updatedList = [
       ...existing.filter(
-        (c) => c.id !== createdId && String(c.name || "").trim().toLowerCase() !== newCenter.name.toLowerCase()
+        (c) => c.id !== createdId && String(c.name || "").trim().toLowerCase() !== name.toLowerCase()
       ),
       { id: createdId, ...newCenter },
     ];
@@ -1332,6 +1386,7 @@ export const addExamCenter = async (centerData) => {
     console.warn("localStorage save error:", e);
   }
 
+  broadcastCentersUpdated();
   return createdId;
 };
 
@@ -1367,9 +1422,11 @@ export const updateExamCenter = async (id, centerData) => {
     updated.sort((a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0));
     localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
   } catch {}
+
+  broadcastCentersUpdated();
 };
 
-export const deleteExamCenter = async (id) => {
+export const deleteExamCenter = async (id, centerName) => {
   if (isFirebaseConfigured()) {
     try {
       await deleteDoc(doc(db, COLLECTIONS.EXAM_CENTERS, id));
@@ -1378,12 +1435,27 @@ export const deleteExamCenter = async (id) => {
     }
   }
 
-  // Remove from local cache
+  // Remove from local cache and remember deleted name
   try {
     let existing = JSON.parse(localStorage.getItem(LOCAL_EXAM_CENTERS_KEY) || "[]");
-    const updated = existing.filter((c) => c.id !== id);
+    const target = existing.find((c) => c.id === id);
+    const nameToDelete = (centerName || target?.name || "").trim().toLowerCase();
+
+    if (nameToDelete) {
+      let deleted = JSON.parse(localStorage.getItem(LOCAL_DELETED_CENTERS_KEY) || "[]");
+      if (!deleted.includes(nameToDelete)) {
+        deleted.push(nameToDelete);
+        localStorage.setItem(LOCAL_DELETED_CENTERS_KEY, JSON.stringify(deleted));
+      }
+    }
+
+    const updated = existing.filter(
+      (c) => c.id !== id && (!nameToDelete || String(c.name || "").trim().toLowerCase() !== nameToDelete)
+    );
     localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(updated));
   } catch {}
+
+  broadcastCentersUpdated();
 };
 
 /** Writes the defaults, but only into an empty collection. */
@@ -1411,6 +1483,7 @@ export const seedDefaultExamCenters = async () => {
     localStorage.setItem(LOCAL_EXAM_CENTERS_KEY, JSON.stringify(initial));
   } catch {}
 
+  broadcastCentersUpdated();
   return DEFAULT_EXAM_CENTERS.length;
 };
 
