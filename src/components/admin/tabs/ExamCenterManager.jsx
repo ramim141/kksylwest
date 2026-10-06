@@ -134,10 +134,18 @@ const ExamCenterManager = () => {
       };
 
       if (editingId === "new") {
-        await addExamCenter(payload);
+        const newId = await addExamCenter(payload);
+        setCenters((prev) =>
+          [...prev, { id: newId, ...payload }].sort(
+            (a, b) => (Number(a.orderIndex) || 0) - (Number(b.orderIndex) || 0)
+          )
+        );
         showToast(`"${name}" কেন্দ্রটি যুক্ত হয়েছে!`);
       } else {
         await updateExamCenter(editingId, payload);
+        setCenters((prev) =>
+          prev.map((c) => (c.id === editingId ? { ...c, ...payload } : c))
+        );
         showToast(`"${name}" কেন্দ্রটি হালনাগাদ হয়েছে!`);
       }
 
@@ -316,11 +324,11 @@ const ExamCenterManager = () => {
               বাতিল
             </Button>
             <Button
-              type="submit"
-              form="exam-center-editor"
+              type="button"
               tone="primary"
               icon={HiCheckCircle}
               loading={saving}
+              onClick={handleSave}
             >
               {editingId === "new" ? "সংরক্ষণ করুন" : "আপডেট করুন"}
             </Button>
