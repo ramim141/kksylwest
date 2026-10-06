@@ -604,27 +604,27 @@ const RegistrationManager = () => {
         nameBn: offlineForm.nameBn.trim(),
         nameEn: offlineForm.nameEn.trim(),
         gender: offlineForm.gender,
-        fatherName: offlineForm.fatherName.trim(),
-        motherName: offlineForm.motherName.trim(),
-        guardianName: offlineForm.guardianName.trim() || offlineForm.fatherName.trim(),
-        guardianRelation: offlineForm.guardianRelation,
-        dateOfBirth: offlineForm.dateOfBirth,
-        religion: offlineForm.religion,
-        mobile: offlineForm.mobile.trim(),
-        whatsappNumber: offlineForm.whatsappNumber.trim() || offlineForm.mobile.trim(),
+        fatherName: offlineForm.fatherName?.trim() || "",
+        motherName: offlineForm.motherName?.trim() || "",
+        guardianName: offlineForm.guardianName?.trim() || offlineForm.fatherName?.trim() || "",
+        guardianRelation: offlineForm.guardianRelation || "পিতা",
+        dateOfBirth: offlineForm.dateOfBirth || "",
+        religion: offlineForm.religion || "ইসলাম",
+        mobile: offlineForm.mobile?.trim() || "",
+        whatsappNumber: offlineForm.whatsappNumber?.trim() || offlineForm.mobile?.trim() || "",
         
-        institution: offlineForm.institution.trim(),
+        institution: offlineForm.institution?.trim() || "",
         studentClass: offlineForm.studentClass,
-        section: offlineForm.section.trim(),
-        classRoll: offlineForm.classRoll.trim(),
+        section: offlineForm.section?.trim() || "",
+        classRoll: offlineForm.classRoll?.trim() || "",
         upazila: offlineForm.upazila,
 
-        village: offlineForm.village.trim(),
-        postOffice: offlineForm.postOffice.trim(),
-        union: offlineForm.union.trim(),
-        thana: offlineForm.thana.trim(),
-        district: offlineForm.district.trim(),
-        presentAddress: offlineForm.presentAddress.trim(),
+        village: offlineForm.village?.trim() || "",
+        postOffice: offlineForm.postOffice?.trim() || "",
+        union: offlineForm.union?.trim() || "",
+        thana: offlineForm.thana?.trim() || "",
+        district: offlineForm.district?.trim() || "",
+        presentAddress: offlineForm.presentAddress?.trim() || "",
 
         photoUrl: finalPhotoUrl,
         paymentMethod: offlineForm.paymentMethod,
@@ -1288,7 +1288,7 @@ const RegistrationManager = () => {
                     />
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="lg:col-span-2 min-w-0">
                     <label className="block text-xs font-bold text-ink-body mb-1">পিতার নাম</label>
                     <input
                       type="text"
@@ -1296,18 +1296,6 @@ const RegistrationManager = () => {
                       value={offlineForm.fatherName}
                       onChange={handleOfflineInputChange}
                       placeholder="পিতার নাম"
-                      className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
-                    />
-                  </div>
-
-                  <div className="min-w-0">
-                    <label className="block text-xs font-bold text-ink-body mb-1">মাতার নাম</label>
-                    <input
-                      type="text"
-                      name="motherName"
-                      value={offlineForm.motherName}
-                      onChange={handleOfflineInputChange}
-                      placeholder="মাতার নাম"
                       className="w-full min-h-[40px] px-3 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                     />
                   </div>
@@ -1356,7 +1344,7 @@ const RegistrationManager = () => {
 
                   <div>
                     <label className="block text-xs font-bold text-ink-body mb-1">
-                      শাখা / ক্লাস রোল
+                       শাখা / ক্লাস রোল
                     </label>
                     <div className="flex gap-2">
                       <input
@@ -1379,7 +1367,7 @@ const RegistrationManager = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
                   <div className="min-w-0">
                     <label className="block text-xs font-semibold text-ink-muted mb-1">উপজেলা / থানা *</label>
                     <select
@@ -1394,28 +1382,6 @@ const RegistrationManager = () => {
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-muted mb-1">গ্রাম</label>
-                    <input
-                      type="text"
-                      name="village"
-                      value={offlineForm.village}
-                      onChange={handleOfflineInputChange}
-                      placeholder="গ্রাম"
-                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-ink-muted mb-1">ডাকঘর</label>
-                    <input
-                      type="text"
-                      name="postOffice"
-                      value={offlineForm.postOffice}
-                      onChange={handleOfflineInputChange}
-                      placeholder="ডাকঘর"
-                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
-                    />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-ink-muted mb-1">ইউনিয়ন *</label>
