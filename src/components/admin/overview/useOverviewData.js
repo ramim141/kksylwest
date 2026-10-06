@@ -602,11 +602,7 @@ export const useOverviewData = () => {
       .slice(0, 8);
 
     const isOfflineReg = (r) =>
-      r?.registrationType === "offline" ||
-      r?.isOffline === true ||
-      r?.paymentMethod === "Cash/School" ||
-      r?.paymentMethod === "অফলাইন" ||
-      String(r?.adminNote || "").includes("অফলাইন");
+      r?.registrationType === "offline" || r?.isOffline === true;
 
     const onlineRegs = (regs || []).filter((r) => !isOfflineReg(r));
     const offlineRegs = (regs || []).filter((r) => isOfflineReg(r));
