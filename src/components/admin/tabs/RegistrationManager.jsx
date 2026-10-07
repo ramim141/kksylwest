@@ -87,14 +87,23 @@ const GUARDIAN_RELATIONS = [
 /* Same list the public form offers, so an offline entry lands in the same
    bucket as an online one and the upazila-wise reports stay comparable. */
 const UPAZILAS = [
-  "দক্ষিণ সুরমা থানা",
-  "মোগলাবাজার থানা",
+  "ফতেহপুর কামিল মাদ্রাসা",
+  "সদর উপজেলা পূর্ব",
+  "সদর উপজেলা উত্তর",
+  "সদর উপজেলা দক্ষিন",
   "ফেঞ্চুগঞ্জ উপজেলা",
-  "বিশ্বনাথ উপজেলা",
+  "ফেঞ্চুগঞ্জ সরকারি কলেজ",
+  "মোগলাবাজার থানা পূর্ব",
+  "মোগলাবাজার থানা পশ্চিম",
+  "কোম্পানিগঞ্জ উপজেলা",
+  "বিশ্বনাথ পৌরসভা",
+  "বিশ্বনাথ উপজেলা উত্তর",
+  "বিশ্বনাথ উপজেলা পশ্চিম",
+  "দক্ষিন সুরমা থানা",
   "ওসমানীনগর উপজেলা",
-  "সদর উপজেলা",
-  "বালাগঞ্জ উপজেলা",
-  "অন্যান্য",
+  "তাজপুর ডিগ্রি কলেজ",
+  "বালাগঞ্জ উপজেলা উত্তর",
+  "বালাগঞ্জ উপজেলা দক্ষিন",
 ];
 
 /* One tap = one stage of the two-stage WhatsApp notice (stage 1 = tracking
@@ -213,13 +222,13 @@ const RegistrationManager = ({ mode = "all" }) => {
     studentClass: "১০ম শ্রেণি",
     section: "",
     classRoll: "",
-    upazila: "দক্ষিণ সুরমা থানা",
+    upazila: "ফতেহপুর কামিল মাদ্রাসা",
 
     // Address
     village: "",
     postOffice: "",
     union: "",
-    thana: "দক্ষিণ সুরমা",
+    thana: "ফতেহপুর কামিল মাদ্রাসা",
     district: "সিলেট",
     presentAddress: "",
 
@@ -705,11 +714,11 @@ const RegistrationManager = ({ mode = "all" }) => {
         studentClass: "১০ম শ্রেণি",
         section: "ক",
         classRoll: "",
-        upazila: "দক্ষিণ সুরমা থানা",
+        upazila: "ফতেহপুর কামিল মাদ্রাসা",
         village: "",
         postOffice: "",
         union: "",
-        thana: "দক্ষিণ সুরমা",
+        thana: "ফতেহপুর কামিল মাদ্রাসা",
         district: "সিলেট",
         presentAddress: "",
         assignedRoll: "",
