@@ -32,6 +32,16 @@ import ExamRulesCard from "./ExamRulesCard";
 import { useExamYear } from "../../context/ExamYearContext";
 
 const UPAZILAS = [
+  "দক্ষিন সুরমা উপজেলা",
+  "ফেঞ্চুগঞ্জ উপজেলা",
+  "বিশ্বনাথ উপজেলা",
+  "ওসমানীনগর উপজেলা",
+  "সদর উপজেলা",
+  "বালাগঞ্জ উপজেলা",
+  "কোম্পানিগঞ্জ উপজেলা",
+];
+
+const THANAS = [
   "ফতেহপুর কামিল মাদ্রাসা",
   "সদর উপজেলা পূর্ব",
   "সদর উপজেলা উত্তর",
@@ -108,13 +118,13 @@ const OnlineRegistration = () => {
     studentClass: "১০ম শ্রেণি",
     section: "ক",
     classRoll: "",
-    upazila: "দক্ষিণ সুরমা থানা",
+    upazila: "দক্ষিন সুরমা উপজেলা",
 
     // Address Details
     village: "",
     postOffice: "",
     union: "",
-    thana: "দক্ষিণ সুরমা",
+    thana: "ফতেহপুর কামিল মাদ্রাসা",
     district: "সিলেট",
     presentAddress: "",
 
@@ -521,11 +531,11 @@ const OnlineRegistration = () => {
                     studentClass: "১০ম শ্রেণি",
                     section: "ক",
                     classRoll: "",
-                    upazila: "দক্ষিণ সুরমা থানা",
+                    upazila: "দক্ষিন সুরমা উপজেলা",
                     village: "",
                     postOffice: "",
                     union: "",
-                    thana: "দক্ষিণ সুরমা",
+                    thana: "ফতেহপুর কামিল মাদ্রাসা",
                     district: "সিলেট",
                     presentAddress: "",
                     photoUrl: "",
@@ -905,7 +915,7 @@ const OnlineRegistration = () => {
                     <label className="block text-xs font-black text-ink-body">
                       স্থায়ী ঠিকানা (Permanent Address)
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
                       <div className="space-y-1">
                         <label className="block text-[11px] text-ink-muted">গ্রাম</label>
                         <input
@@ -944,17 +954,37 @@ const OnlineRegistration = () => {
                       </div>
                       <div className="space-y-1">
                         <label className="block text-[11px] text-ink-muted">
-                          থানা / উপজেলা <span className="text-tertiary">*</span>
+                          উপজেলা <span className="text-tertiary">*</span>
                         </label>
-                        <input
-                          type="text"
+                        <select
+                          name="upazila"
+                          value={formData.upazila}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 rounded bg-surface-lowest border border-line-soft text-xs text-white focus:outline-none focus:border-primary/40 font-medium cursor-pointer"
+                        >
+                          {UPAZILAS.map((u) => (
+                            <option key={u} value={u}>
+                              {u}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] text-ink-muted">
+                          থানা <span className="text-tertiary">*</span>
+                        </label>
+                        <select
                           name="thana"
                           value={formData.thana}
                           onChange={handleInputChange}
-                          placeholder="থানা"
-                          required
-                          className="w-full px-3 py-2 rounded bg-surface-lowest border border-line-soft text-xs text-white focus:outline-none focus:border-primary/40 font-medium"
-                        />
+                          className="w-full px-3 py-2 rounded bg-surface-lowest border border-line-soft text-xs text-white focus:outline-none focus:border-primary/40 font-medium cursor-pointer"
+                        >
+                          {THANAS.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div className="space-y-1">
                         <label className="block text-[11px] text-ink-muted">জেলা</label>
