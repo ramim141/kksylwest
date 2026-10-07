@@ -87,6 +87,16 @@ const GUARDIAN_RELATIONS = [
 /* Same list the public form offers, so an offline entry lands in the same
    bucket as an online one and the upazila-wise reports stay comparable. */
 const UPAZILAS = [
+  "দক্ষিন সুরমা উপজেলা",
+  "ফেঞ্চুগঞ্জ উপজেলা",
+  "বিশ্বনাথ উপজেলা",
+  "ওসমানীনগর উপজেলা",
+  "সদর উপজেলা",
+  "বালাগঞ্জ উপজেলা",
+  "কোম্পানিগঞ্জ উপজেলা",
+];
+
+const THANAS = [
   "ফতেহপুর কামিল মাদ্রাসা",
   "সদর উপজেলা পূর্ব",
   "সদর উপজেলা উত্তর",
@@ -222,7 +232,7 @@ const RegistrationManager = ({ mode = "all" }) => {
     studentClass: "১০ম শ্রেণি",
     section: "",
     classRoll: "",
-    upazila: "ফতেহপুর কামিল মাদ্রাসা",
+    upazila: "দক্ষিন সুরমা উপজেলা",
 
     // Address
     village: "",
@@ -714,7 +724,7 @@ const RegistrationManager = ({ mode = "all" }) => {
         studentClass: "১০ম শ্রেণি",
         section: "ক",
         classRoll: "",
-        upazila: "ফতেহপুর কামিল মাদ্রাসা",
+        upazila: "দক্ষিন সুরমা উপজেলা",
         village: "",
         postOffice: "",
         union: "",
@@ -1471,8 +1481,8 @@ const RegistrationManager = ({ mode = "all" }) => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
-                  <div className="lg:col-span-2 min-w-0">
-                    <label className="block text-xs font-semibold text-ink-muted mb-1">উপজেলা / থানা *</label>
+                  <div className="min-w-0">
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">উপজেলা *</label>
                     <select
                       name="upazila"
                       value={offlineForm.upazila}
@@ -1482,6 +1492,21 @@ const RegistrationManager = ({ mode = "all" }) => {
                       {UPAZILAS.map((u) => (
                         <option key={u} value={u}>
                           {u}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="min-w-0">
+                    <label className="block text-xs font-semibold text-ink-muted mb-1">থানা *</label>
+                    <select
+                      name="thana"
+                      value={offlineForm.thana}
+                      onChange={handleOfflineInputChange}
+                      className="w-full min-h-[38px] px-2.5 bg-surface-card border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary cursor-pointer"
+                    >
+                      {THANAS.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
                         </option>
                       ))}
                     </select>
