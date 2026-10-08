@@ -190,7 +190,7 @@ const NoticeButtons = ({ student, onSend }) => {
   );
 };
 
-export const isOfflineRegistration = (r) => {
+const isOfflineRegistration = (r) => {
   if (!r) return false;
   return (
     r.registrationType === "offline" ||
@@ -485,6 +485,63 @@ const RegistrationManager = ({ mode = "all" }) => {
     }
   };
 
+  const offlineWithRollCount = useMemo(
+    () =>
+      registrations.filter(
+        (r) => isOfflineRegistration(r) && Boolean(String(r.assignedRoll || "").trim())
+      ).length,
+    [registrations]
+  );
+
+  const handleResetOfflineRolls = async () => {
+    const targets = registrations.filter(
+      (r) => isOfflineRegistration(r) && Boolean(String(r.assignedRoll || "").trim())
+    );
+
+    if (!targets.length) {
+      setStatusMessage({
+        type: "error",
+        text: "রোল বরাদ্দ থাকা কোনো অফলাইন শিক্ষার্থী পাওয়া যায়নি।",
+      });
+      return;
+    }
+
+    const ok = await confirm({
+      tone: "danger",
+      confirmLabel: "হ্যাঁ, অফলাইন রোল রিসেট করুন",
+      title: "অফলাইন রোল রিসেট",
+      body: `মোট ${targets.length} জন অফলাইন শিক্ষার্থীর পূর্বের বরাদ্দকৃত রোল মুছে ফেলা হবে। রোল পরবর্তীতে সুবিধাজনক সময়ে আবার বরাদ্দ করা যাবে।`,
+    });
+    if (!ok) return;
+
+    setBulkAssigning(true);
+    try {
+      const assignments = targets.map((st) => ({
+        id: st.id,
+        assignedRoll: "",
+      }));
+      await bulkAssignRolls(assignments);
+
+      const targetIds = new Set(targets.map((t) => t.id));
+      setRegistrations((prev) =>
+        prev.map((r) => (targetIds.has(r.id) ? { ...r, assignedRoll: "" } : r))
+      );
+
+      setStatusMessage({
+        type: "success",
+        text: `${targets.length} জন অফলাইন শিক্ষার্থীর রোল সফলভাবে রিসেট করা হয়েছে!`,
+      });
+    } catch (err) {
+      console.error(err);
+      setStatusMessage({
+        type: "error",
+        text: "রোল রিসেট করতে ব্যর্থ হয়েছে: " + err.message,
+      });
+    } finally {
+      setBulkAssigning(false);
+    }
+  };
+
   const defaultExamCenter = () =>
     examCenters.find((c) => c.isActive !== false)?.name || "";
 
@@ -494,7 +551,7 @@ const RegistrationManager = ({ mode = "all" }) => {
     setAssignData({
       status: student.status || "approved",
       adminNote: student.adminNote || "",
-      assignedRoll: student.assignedRoll || nextRollFor(student.studentClass),
+      assignedRoll: student.assignedRoll || "",
       examCenter: student.examCenter || defaultExamCenter(),
       examDate: student.examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
       examTime: student.examTime || "সকাল ১০:০০ টা - ১১:০০ টা",
@@ -933,7 +990,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
             }`}
           >
-            <span>🌐 জমাকৃত অনলাইন ফরম</span>
+            <span>জমাকৃত অনলাইন ফরম</span>
             <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
               {totalOnlineCount}
             </span>
@@ -947,7 +1004,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 : "text-ink-muted hover:text-ink-strong hover:bg-surface-overlay/30"
             }`}
           >
-            <span>📝 জমাকৃত অফলাইন ফরম</span>
+            <span>জমাকৃত অফলাইন ফরম</span>
             <span className="px-1.5 py-0.2 text-[10px] rounded-full bg-white/20 font-mono">
               {totalOfflineCount}
             </span>
@@ -959,6 +1016,18 @@ const RegistrationManager = ({ mode = "all" }) => {
           {originFilter === "offline" && (
             <Button tone="primary" icon={FaUserPlus} onClick={openAddModal}>
               + নতুন অফলাইন এন্ট্রি
+            </Button>
+          )}
+
+          {originFilter === "offline" && offlineWithRollCount > 0 && (
+            <Button
+              tone="danger"
+              icon={HiTrash}
+              loading={bulkAssigning}
+              title="অফলাইন রেজিস্ট্রেশনের সকল রোল রিসেট করুন"
+              onClick={handleResetOfflineRolls}
+            >
+              <span>অফলাইন রোল রিসেট ({offlineWithRollCount})</span>
             </Button>
           )}
 
@@ -1316,7 +1385,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                   </h3>
                 </div>
                 <p className="text-xs text-ink-muted">
-                  অফলাইনে জমাকৃত ফরম থেকে সরাসরি ডাটাবেজে এন্ট্রি ও রোল বরাদ্দ করুন।
+                  অফলাইনে জমাকৃত কাগজের ফরম থেকে সরাসরি ডাটাবেজে এন্ট্রি করুন। রোল পরবর্তীতে বরাদ্দ করা হবে।
                 </p>
               </div>
               <button
@@ -1558,7 +1627,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                   ) : (
                     <>
                       <HiCheck className="text-base" />
-                      <span>সংরক্ষণ ও প্রবেশপত্র সক্রিয় করুন</span>
+                      <span>সংরক্ষণ করুন</span>
                     </>
                   )}
                 </button>
