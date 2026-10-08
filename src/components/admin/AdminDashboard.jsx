@@ -20,23 +20,23 @@ import { toBn, useOverviewData } from "./overview/useOverviewData";
 import { Button, IconButton, useConfirm } from "./ui";
 import { PageHeader } from "./ui/layout";
 
-import ResultManager from "./tabs/ResultManager";
-import NoticeManager from "./tabs/NoticeManager";
-import GalleryManager from "./tabs/GalleryManager";
-import CommitteeManager from "./tabs/CommitteeManager";
-import MessageManager from "./tabs/MessageManager";
-import HeroManager from "./tabs/HeroManager";
-import ActivityManager from "./tabs/ActivityManager";
-import FaqManager from "./tabs/FaqManager";
-import SiteSettingsManager from "./tabs/SiteSettingsManager";
-import TeamStructureManager from "./tabs/TeamStructureManager";
-import SyllabusManager from "./tabs/SyllabusManager";
-import RegistrationManager from "./tabs/RegistrationManager";
-import UpazilaCenterManager from "./tabs/UpazilaCenterManager";
-import ExamCenterManager from "./tabs/ExamCenterManager";
-import AnnouncementManager from "./tabs/AnnouncementManager";
-import WhatsAppBroadcaster from "./tabs/WhatsAppBroadcaster";
-import AdmitCardBulkPrintManager from "./tabs/AdmitCardBulkPrintManager";
+const ResultManager = React.lazy(() => import("./tabs/ResultManager"));
+const NoticeManager = React.lazy(() => import("./tabs/NoticeManager"));
+const GalleryManager = React.lazy(() => import("./tabs/GalleryManager"));
+const CommitteeManager = React.lazy(() => import("./tabs/CommitteeManager"));
+const MessageManager = React.lazy(() => import("./tabs/MessageManager"));
+const HeroManager = React.lazy(() => import("./tabs/HeroManager"));
+const ActivityManager = React.lazy(() => import("./tabs/ActivityManager"));
+const FaqManager = React.lazy(() => import("./tabs/FaqManager"));
+const SiteSettingsManager = React.lazy(() => import("./tabs/SiteSettingsManager"));
+const TeamStructureManager = React.lazy(() => import("./tabs/TeamStructureManager"));
+const SyllabusManager = React.lazy(() => import("./tabs/SyllabusManager"));
+const RegistrationManager = React.lazy(() => import("./tabs/RegistrationManager"));
+const UpazilaCenterManager = React.lazy(() => import("./tabs/UpazilaCenterManager"));
+const ExamCenterManager = React.lazy(() => import("./tabs/ExamCenterManager"));
+const AnnouncementManager = React.lazy(() => import("./tabs/AnnouncementManager"));
+const WhatsAppBroadcaster = React.lazy(() => import("./tabs/WhatsAppBroadcaster"));
+const AdmitCardBulkPrintManager = React.lazy(() => import("./tabs/AdmitCardBulkPrintManager"));
 
 const TAB_VIEWS = {
   registrations: (props) => <RegistrationManager key="online" mode="online" {...props} />,
@@ -472,9 +472,18 @@ const AdminDashboard = () => {
             />
           ) : (
             ActiveView && (
-              <div className="animate-fadeIn">
-                <ActiveView />
-              </div>
+              <React.Suspense
+                fallback={
+                  <div className="p-12 flex flex-col items-center justify-center min-h-[300px] gap-3">
+                    <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+                    <span className="text-xs text-ink-muted">লোড হচ্ছে...</span>
+                  </div>
+                }
+              >
+                <div className="animate-fadeIn">
+                  <ActiveView />
+                </div>
+              </React.Suspense>
             )
           )}
         </main>
