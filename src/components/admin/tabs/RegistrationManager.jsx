@@ -595,27 +595,14 @@ const RegistrationManager = ({ mode = "all" }) => {
   // Handle Adding New Offline Registration
   const handleOfflineInputChange = (e) => {
     const { name, value } = e.target;
-    setOfflineForm((prev) => {
-      /* Changing the class re-suggests the roll, but never overwrites one the
-         admin typed in by hand. */
-      if (name === "studentClass") {
-        const handTyped =
-          prev.assignedRoll.trim() && prev.assignedRoll !== nextRollFor(prev.studentClass);
-        return {
-          ...prev,
-          studentClass: value,
-          assignedRoll: handTyped ? prev.assignedRoll : nextRollFor(value),
-        };
-      }
-      return { ...prev, [name]: value };
-    });
+    setOfflineForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const openAddModal = () => {
     refreshCenters();
     setOfflineForm((prev) => ({
       ...prev,
-      assignedRoll: prev.assignedRoll.trim() || nextRollFor(prev.studentClass),
+      assignedRoll: "",
       /* Pick up the managed list rather than the name this form was seeded
          with, which may since have been renamed or closed. */
       examCenter: centerOptions(prev.examCenter).includes(prev.examCenter)
@@ -715,7 +702,7 @@ const RegistrationManager = ({ mode = "all" }) => {
       setIsAddModalOpen(false);
       setStatusMessage({
         type: "success",
-        text: `অফলাইন শিক্ষার্থী ${newEntry.nameBn}-এর রেজিস্ট্রেশন সফলভাবে সম্পন্ন ও রোল (${newEntry.assignedRoll || "অপেক্ষমান"}) বরাদ্দ হয়েছে!`,
+        text: `অফলাইন শিক্ষার্থী ${newEntry.nameBn}-এর রেজিস্ট্রেশন সফলভাবে সম্পন্ন হয়েছে!`,
       });
 
       // Reset form
