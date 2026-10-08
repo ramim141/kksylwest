@@ -1209,7 +1209,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                               : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
                           }`}
                         >
-                          {isOff ? "📝 অফলাইন" : "🌐 অনলাইন"}
+                          {isOff ? "অফলাইন" : "অনলাইন"}
                         </span>
                       </div>
                       <span className="font-mono text-[12px] text-ink-muted block">
