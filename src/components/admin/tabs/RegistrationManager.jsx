@@ -9,6 +9,11 @@ import {
   HiArrowDownTray,
   HiCheck,
   HiHashtag,
+  HiShieldCheck,
+  HiBuildingLibrary,
+  HiCalendarDays,
+  HiMapPin,
+  HiChatBubbleBottomCenterText,
 } from "react-icons/hi2";
 import { FaWhatsapp, FaUserPlus } from "react-icons/fa";
 import {
@@ -1613,59 +1618,95 @@ const RegistrationManager = ({ mode = "all" }) => {
             </div>
 
             {/* Student Full Info Card */}
-            <div className="p-4.5 bg-surface-low rounded-xl border border-line-soft/80 flex flex-col sm:flex-row items-start gap-4 text-xs sm:text-[13px] shadow-sm">
+            <div className="p-4 sm:p-5 bg-surface-low rounded-2xl border border-line-soft/80 flex flex-col sm:flex-row items-start gap-4 text-xs sm:text-[13px] shadow-sm">
               {selectedStudent.photoUrl ? (
                 <img
                   src={selectedStudent.photoUrl}
-                  alt=""
-                  className="w-20 h-24 rounded-xl object-cover border border-line-soft/80 shrink-0 shadow-sm"
+                  alt={selectedStudent.nameBn || ""}
+                  className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl object-cover border border-line-soft shrink-0 shadow-sm"
                 />
               ) : (
-                <div className="w-20 h-24 rounded-xl bg-surface-card border border-line-soft/80 flex items-center justify-center text-ink-muted text-3xl shrink-0">
-                  👨‍🎓
+                <div className="w-20 h-24 sm:w-24 sm:h-28 rounded-xl bg-surface-card border border-line-soft flex flex-col items-center justify-center text-ink-muted shrink-0 gap-1">
+                  <HiAcademicCap className="text-3xl text-primary/60" />
+                  <span className="text-[10px] text-ink-muted">ছবি নেই</span>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-ink-body w-full">
-                <p>
-                  <strong className="text-ink-strong">নাম (বাংলা):</strong> {selectedStudent.nameBn}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">নাম (En):</strong> {selectedStudent.nameEn || "—"}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">লিঙ্গ:</strong> {selectedStudent.gender || "ছাত্র"}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">জন্ম তারিখ:</strong> {selectedStudent.dateOfBirth || "—"}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">পিতা:</strong> {selectedStudent.fatherName}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">মাতা:</strong> {selectedStudent.motherName || "—"}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">শ্রেণি ও শাখা:</strong> {selectedStudent.studentClass} ({selectedStudent.section || "ক"}) • রোল: {selectedStudent.classRoll || "—"}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">প্রতিষ্ঠান:</strong> {selectedStudent.institution}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">মোবাইল:</strong> {selectedStudent.mobile || selectedStudent.guardianPhone}
-                </p>
-                <p>
-                  <strong className="text-ink-strong">WhatsApp:</strong>{" "}
-                  <span className="text-primary font-mono font-bold">
-                    {selectedStudent.whatsappNumber || selectedStudent.mobile}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2.5 text-ink-body w-full">
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">নাম (বাংলা)</span>
+                  <span className="font-bold text-ink-strong text-xs sm:text-sm">{selectedStudent.nameBn || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">নাম (English)</span>
+                  <span className="font-semibold text-ink-strong text-xs">{selectedStudent.nameEn || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">লিঙ্গ ও ধর্ম</span>
+                  <span className="text-ink-strong font-medium">
+                    {selectedStudent.gender || "ছাত্র"} • {selectedStudent.religion || "ইসলাম"}
                   </span>
-                </p>
-                <p className="sm:col-span-2">
-                  <strong className="text-ink-strong">ঠিকানা:</strong> {[selectedStudent.village, selectedStudent.postOffice, selectedStudent.union, selectedStudent.thana, selectedStudent.district].filter(Boolean).join(", ") || "—"}
-                </p>
-                <p className="sm:col-span-2 text-secondary pt-1.5 border-t border-line-soft/60 font-semibold">
-                  <strong>পেমেন্ট:</strong> {selectedStudent.paymentMethod} | প্রেরক: {selectedStudent.senderNumber || "—"} | TrxID: {selectedStudent.trxId || "—"}
-                </p>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">পিতা / অভিভাবক</span>
+                  <span className="text-ink-strong font-semibold">{selectedStudent.fatherName || selectedStudent.guardianName || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">মাতা</span>
+                  <span className="text-ink-strong font-medium">{selectedStudent.motherName || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">জন্ম তারিখ</span>
+                  <span className="text-ink-strong font-mono">{selectedStudent.dateOfBirth || "—"}</span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">শ্রেণি ও শাখা</span>
+                  <span className="font-bold text-primary text-xs">
+                    {selectedStudent.studentClass} {selectedStudent.section ? `(${selectedStudent.section})` : ""}
+                    {selectedStudent.classRoll ? ` • রোল: ${selectedStudent.classRoll}` : ""}
+                  </span>
+                </div>
+                <div className="sm:col-span-2">
+                  <span className="block text-[11px] text-ink-muted font-medium">শিক্ষা প্রতিষ্ঠান</span>
+                  <span className="font-semibold text-ink-strong truncate block">{selectedStudent.institution || "—"}</span>
+                </div>
+
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">মোবাইল নম্বর</span>
+                  <span className="font-mono text-ink-strong font-semibold">{selectedStudent.mobile || selectedStudent.guardianPhone || "—"}</span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">WhatsApp নম্বর</span>
+                  <span className="font-mono text-emerald-400 font-bold flex items-center gap-1">
+                    <FaWhatsapp className="text-xs" />
+                    {selectedStudent.whatsappNumber || selectedStudent.mobile || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-ink-muted font-medium">পেমেন্ট মেথড</span>
+                  <span className="text-secondary font-bold text-xs">
+                    {selectedStudent.paymentMethod || "নগদ"}
+                    {selectedStudent.trxId ? ` (${selectedStudent.trxId})` : ""}
+                  </span>
+                </div>
+
+                <div className="col-span-2 sm:col-span-3 pt-1 border-t border-line-soft/60">
+                  <span className="block text-[11px] text-ink-muted font-medium">ঠিকানা</span>
+                  <span className="text-ink-strong text-xs">
+                    {[
+                      selectedStudent.village,
+                      selectedStudent.postOffice,
+                      selectedStudent.union,
+                      selectedStudent.thana,
+                      selectedStudent.upazila,
+                      selectedStudent.district,
+                    ]
+                      .filter((v) => v && v !== "না" && v !== "N/A")
+                      .join(", ") || "—"}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1673,15 +1714,17 @@ const RegistrationManager = ({ mode = "all" }) => {
             <form onSubmit={handleSaveStatus} className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-bold text-ink-body mb-1">
-                    আবেদনের স্ট্যাটাস নির্ধারণ <span className="text-error">*</span>
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                    <HiShieldCheck className="text-primary text-sm" />
+                    <span>আবেদনের স্ট্যাটাস নির্ধারণ</span>
+                    <span className="text-error">*</span>
                   </label>
                   <select
                     value={assignData.status}
                     onChange={(e) =>
                       setAssignData((prev) => ({ ...prev, status: e.target.value }))
                     }
-                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs font-bold focus:outline-none focus:border-primary cursor-pointer"
+                    className="w-full min-h-[42px] px-3 bg-surface-card border border-line-soft/90 rounded-xl text-ink-strong text-xs font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all"
                   >
                     <option value="approved">✓ অনুমোদন করুন (Approved)</option>
                     <option value="pending">⏳ অপেক্ষমাণ রাখুন (Pending)</option>
@@ -1690,8 +1733,9 @@ const RegistrationManager = ({ mode = "all" }) => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-ink-body mb-1">
-                    🔢 পরীক্ষার রোল নম্বর বরাদ্দ করুন (Roll Number)
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                    <HiHashtag className="text-primary text-sm" />
+                    <span>পরীক্ষার রোল নম্বর বরাদ্দ</span>
                   </label>
                   <input
                     type="text"
@@ -1700,21 +1744,22 @@ const RegistrationManager = ({ mode = "all" }) => {
                       setAssignData((prev) => ({ ...prev, assignedRoll: e.target.value }))
                     }
                     placeholder="যেমন: ১০৫০১"
-                    className="w-full min-h-[40px] px-3 bg-surface-low border border-primary/50 rounded-lg text-primary text-xs sm:text-sm font-mono font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25"
+                    className="w-full min-h-[42px] px-3.5 bg-surface-card border border-primary/50 rounded-xl text-primary text-xs sm:text-sm font-mono font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/25 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-ink-body mb-1">
-                  🏫 পরীক্ষা কেন্দ্রের নাম (Exam Center)
+                <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                  <HiBuildingLibrary className="text-secondary text-sm" />
+                  <span>পরীক্ষা কেন্দ্রের নাম</span>
                 </label>
                 <select
                   value={assignData.examCenter}
                   onChange={(e) =>
                     setAssignData((prev) => ({ ...prev, examCenter: e.target.value }))
                   }
-                  className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs font-medium focus:outline-none focus:border-primary cursor-pointer"
+                  className="w-full min-h-[42px] px-3 bg-surface-card border border-line-soft/90 rounded-xl text-ink-strong text-xs font-medium focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all"
                 >
                   <option value="">কেন্দ্র নির্বাচন করুন</option>
                   {centerOptions(assignData.examCenter).map((name) => (
@@ -1732,8 +1777,9 @@ const RegistrationManager = ({ mode = "all" }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-ink-body mb-1">
-                    📅 পরীক্ষার তারিখ ও সময়
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                    <HiCalendarDays className="text-ink-muted text-sm" />
+                    <span>পরীক্ষার তারিখ ও সময়</span>
                   </label>
                   <input
                     type="text"
@@ -1742,13 +1788,14 @@ const RegistrationManager = ({ mode = "all" }) => {
                       setAssignData((prev) => ({ ...prev, examDate: e.target.value }))
                     }
                     placeholder="২৪ অক্টোবর ২০২৫ (শুক্রবার) | সকাল ১০:০০ টা"
-                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
+                    className="w-full min-h-[42px] px-3.5 bg-surface-card border border-line-soft/90 rounded-xl text-ink-strong text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-ink-body mb-1">
-                    🏢 রুম / সিট নম্বর
+                  <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                    <HiMapPin className="text-ink-muted text-sm" />
+                    <span>রুম / সিট নম্বর</span>
                   </label>
                   <input
                     type="text"
@@ -1757,14 +1804,15 @@ const RegistrationManager = ({ mode = "all" }) => {
                       setAssignData((prev) => ({ ...prev, roomNo: e.target.value }))
                     }
                     placeholder="রুম-২০৪"
-                    className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
+                    className="w-full min-h-[42px] px-3.5 bg-surface-card border border-line-soft/90 rounded-xl text-ink-strong text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-ink-body mb-1">
-                  📝 অ্যাডমিন নোট / মন্তব্য
+                <label className="flex items-center gap-1.5 text-xs font-bold text-ink-body mb-1.5">
+                  <HiChatBubbleBottomCenterText className="text-ink-muted text-sm" />
+                  <span>অ্যাডমিন নোট / মন্তব্য</span>
                 </label>
                 <input
                   type="text"
@@ -1773,15 +1821,14 @@ const RegistrationManager = ({ mode = "all" }) => {
                     setAssignData((prev) => ({ ...prev, adminNote: e.target.value }))
                   }
                   placeholder="যেমন: ফি যাচাইকৃত ও প্রবেশপত্র প্রস্তুত"
-                  className="w-full min-h-[40px] px-3 bg-surface-low border border-line-soft/80 rounded-lg text-ink-strong text-xs focus:outline-none focus:border-primary"
+                  className="w-full min-h-[42px] px-3.5 bg-surface-card border border-line-soft/90 rounded-xl text-ink-strong text-xs focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                 />
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-line-soft/80">
-                {/* Two-stage WhatsApp dispatch — sends the saved record, so
-                    edit and save first, then send. */}
-                <div className="w-full sm:w-auto flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3.5 pt-4 border-t border-line-soft/80">
+                {/* Two-stage WhatsApp dispatch */}
+                <div className="w-full sm:w-auto flex items-center gap-2.5 bg-surface-low px-3 py-1.5 rounded-xl border border-line-soft/80">
                   <NoticeButtons student={selectedStudent} onSend={sendNotice} />
                   <span className="text-[11px] text-ink-muted leading-tight">
                     ১ = ট্র্যাকিং নম্বর
@@ -1796,11 +1843,11 @@ const RegistrationManager = ({ mode = "all" }) => {
                     size="md"
                     onClick={() => setSelectedStudent(null)}
                   >
-                    বন্ধ করুন
+                    বাতিল
                   </Button>
                   <button
                     type="submit"
-                    className="min-h-[42px] px-5 rounded-xl bg-gradient-to-r from-emerald-500 via-primary to-emerald-600 hover:brightness-110 text-primary-on font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer select-none"
+                    className="min-h-[42px] px-6 rounded-xl bg-gradient-to-r from-emerald-500 via-primary to-emerald-600 hover:brightness-110 text-primary-on font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.98] cursor-pointer select-none"
                   >
                     সংরক্ষণ ও অনুমোদন
                   </button>
