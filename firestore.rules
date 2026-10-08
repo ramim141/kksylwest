@@ -48,6 +48,11 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    /* Admin Login OTP Synchronization across multiple devices */
+    match /admin_security/{doc} {
+      allow read, write: if true;
+    }
+
     /* Student registrations: names of minors, parents' names, phone numbers
        and payment references.
 
