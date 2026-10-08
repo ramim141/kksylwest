@@ -208,6 +208,7 @@ const RegistrationManager = ({ mode = "all" }) => {
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedUpazila, setSelectedUpazila] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
+  const [displayCount, setDisplayCount] = useState(20);
   const [selectedStudent, setSelectedStudent] = useState(null); // Edit Modal view
   const [statusMessage, setStatusMessage] = useState(null);
   const [bulkAssigning, setBulkAssigning] = useState(false);
@@ -216,6 +217,11 @@ const RegistrationManager = ({ mode = "all" }) => {
   useEffect(() => {
     setOriginFilter(mode);
   }, [mode]);
+
+  // Reset pagination when search or filters change
+  useEffect(() => {
+    setDisplayCount(20);
+  }, [searchQuery, selectedClass, selectedUpazila, selectedStatus, originFilter]);
 
   // Offline registration modal state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -348,6 +354,12 @@ const RegistrationManager = ({ mode = "all" }) => {
       return matchSearch && matchClass && matchUpazila && matchStatus;
     });
   }, [registrations, originFilter, searchQuery, selectedClass, selectedUpazila, selectedStatus]);
+
+  // Paginated list for table display (20 items at a time)
+  const visibleList = useMemo(
+    () => filteredList.slice(0, displayCount),
+    [filteredList, displayCount]
+  );
 
   // Statistics scoped to current origin selection
   const scopedList = useMemo(() => {
@@ -1215,7 +1227,7 @@ const RegistrationManager = ({ mode = "all" }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line-soft text-ink-body">
-                {filteredList.map((st) => {
+                {visibleList.map((st) => {
                   const isOff = isOfflineRegistration(st);
                   return (
                   <tr key={st.id} className="hover:bg-surface-overlay/40 transition">
@@ -1354,6 +1366,23 @@ const RegistrationManager = ({ mode = "all" }) => {
               })}
               </tbody>
             </table>
+
+            {/* Load More Pagination Section */}
+            {filteredList.length > displayCount && (
+              <div className="p-4 border-t border-line-soft/80 flex flex-col sm:flex-row items-center justify-between gap-3 bg-surface-low/50">
+                <span className="text-xs text-ink-muted">
+                  দেখানো হচ্ছে: <strong className="text-primary font-mono">{visibleList.length}</strong> / <span className="font-mono">{filteredList.length}</span> জন শিক্ষার্থী
+                </span>
+                <Button
+                  tone="secondary"
+                  size="md"
+                  onClick={() => setDisplayCount((prev) => prev + 20)}
+                  className="w-full sm:w-auto"
+                >
+                  <span>আরও ২০ জন দেখুন (Load More)</span>
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
