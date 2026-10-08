@@ -8,7 +8,7 @@ import React, {
 import { getFirebaseAuth } from "../firebase/config";
 import {
   validateAdminCredentials,
-  verifyAdminOTP,
+  verifyAdminOTPAsync,
   ADMIN_CREDENTIALS,
 } from "../services/otpService";
 
@@ -169,8 +169,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error("ভুল ইমেইল বা পাসওয়ার্ড প্রদান করা হয়েছে।");
       }
 
-      // 2. Verify OTP code
-      const otpCheck = verifyAdminOTP(otp);
+      // 2. Verify OTP code (supports both local session and cross-device Firestore sync)
+      const otpCheck = await verifyAdminOTPAsync(otp);
       if (!otpCheck.valid) {
         throw new Error(otpCheck.error || "ভুল ওটিপি কোড!");
       }
