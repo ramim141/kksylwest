@@ -10,7 +10,6 @@ import {
   HiArrowDownTray,
 } from "react-icons/hi2";
 import { QRCodeSVG } from "qrcode.react";
-import { jsPDF } from "jspdf";
 import { toJpeg } from "html-to-image";
 import {
   getRegistrations,
@@ -531,6 +530,7 @@ const AdmitCardBulkPrintManager = () => {
       setDownloadingPdf(true);
       showToast("উচ্চ মানের A4 PDF তৈরি হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...", "info");
 
+      const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "mm",

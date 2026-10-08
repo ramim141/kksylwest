@@ -25,6 +25,10 @@ const vendorChunks = [
   [/node_modules\/html-to-image/, 'image-export-vendor'],
   // Spreadsheet parser: admin bulk upload, never on a public page.
   [/node_modules\/xlsx/, 'xlsx-vendor'],
+  // PDF generator: admin bulk print, loaded on demand.
+  [/node_modules\/jspdf/, 'pdf-vendor'],
+  // QR code generator: admit card & result, separate chunk.
+  [/node_modules\/qrcode\.react/, 'qr-vendor'],
 ]
 
 /* Firebase's signInWithPopup polls `window.closed` on the window it opened.

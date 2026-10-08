@@ -73,27 +73,29 @@ export const prefetchRoute = (path) => {
  * of parallel chunk requests on a slow connection competes with the images
  * and data the visible page is still waiting for.
  */
-export const prefetchLikelyRoutes = (paths = ['/search', '/admit-card', '/leaderboard', '/notice']) => {
+export const prefetchLikelyRoutes = (paths = ['/search', '/admit-card']) => {
   if (typeof window === 'undefined') return;
 
-  // A metered or 2G connection should spend its bytes on what was asked for.
+  // A metered or 2G/3G connection should spend its bytes only on what was asked for.
   const conn = navigator.connection;
-  if (conn?.saveData || /2g/.test(conn?.effectiveType || '')) return;
+  if (conn?.saveData || /2g|3g/.test(conn?.effectiveType || '')) return;
 
   const schedule = (fn) =>
     'requestIdleCallback' in window
-      ? window.requestIdleCallback(fn, { timeout: 3000 })
-      : setTimeout(fn, 300);
+      ? window.requestIdleCallback(fn, { timeout: 4000 })
+      : setTimeout(fn, 2000);
 
-  const queue = [...paths];
-  const step = () => {
-    const next = queue.shift();
-    if (!next) return;
-    prefetchRoute(next);
+  // Defer after initial window load so first paint is never blocked
+  setTimeout(() => {
+    const queue = [...paths];
+    const step = () => {
+      const next = queue.shift();
+      if (!next) return;
+      prefetchRoute(next);
+      schedule(step);
+    };
     schedule(step);
-  };
-
-  schedule(step);
+  }, 2500);
 };
 
 /**
