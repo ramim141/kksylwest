@@ -602,7 +602,9 @@ export const useOverviewData = () => {
       .slice(0, 8);
 
     const isOfflineReg = (r) =>
-      r?.registrationType === "offline" || r?.isOffline === true;
+      r?.registrationType === "offline" ||
+      r?.isOffline === true ||
+      String(r?.adminNote || "").includes("অফলাইন");
 
     const onlineRegs = (regs || []).filter((r) => !isOfflineReg(r));
     const offlineRegs = (regs || []).filter((r) => isOfflineReg(r));
