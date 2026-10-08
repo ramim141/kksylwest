@@ -322,6 +322,8 @@ const OnlineRegistration = () => {
         examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
         examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
         roomNo: "",
+        registrationType: "online",
+        isOffline: false,
       };
 
       // 3. Save to Firestore

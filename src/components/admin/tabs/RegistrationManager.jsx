@@ -187,7 +187,11 @@ const NoticeButtons = ({ student, onSend }) => {
 
 export const isOfflineRegistration = (r) => {
   if (!r) return false;
-  return r.registrationType === "offline" || r.isOffline === true;
+  return (
+    r.registrationType === "offline" ||
+    r.isOffline === true ||
+    String(r.adminNote || "").includes("অফলাইন")
+  );
 };
 
 const RegistrationManager = ({ mode = "all" }) => {
@@ -695,6 +699,8 @@ const RegistrationManager = ({ mode = "all" }) => {
         examTime: offlineForm.examTime.trim(),
         roomNo: offlineForm.roomNo.trim(),
         adminNote: offlineForm.adminNote.trim() || "অফলাইন রেজিস্ট্রেশন",
+        registrationType: "offline",
+        isOffline: true,
       };
 
       const res = await addRegistration(payload);
