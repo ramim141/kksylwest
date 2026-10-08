@@ -47,18 +47,39 @@ const CLASSES = [
   "১০ম শ্রেণি",
 ];
 
-/* Class-wise roll blocks. The roll alone tells you which class sat the exam:
-   4th starts at 40101, 5th at 50101 ... 9th at 90101, and class 10 keeps the
-   same five-digit width by starting at 10101. Keyed off CLASSES so the
-   Bengali labels live in exactly one place. */
-const CLASS_ROLL_START = {
-  [CLASSES[0]]: 40101,
-  [CLASSES[1]]: 50101,
-  [CLASSES[2]]: 60101,
-  [CLASSES[3]]: 70101,
-  [CLASSES[4]]: 80101,
-  [CLASSES[5]]: 90101,
-  [CLASSES[6]]: 10101,
+export const isFemale = (gender) => {
+  const g = String(gender || "").trim().toLowerCase();
+  return (
+    g.includes("ছাত্রী") ||
+    g.includes("female") ||
+    g.includes("girl") ||
+    g.includes("নারী") ||
+    g.includes("মহিলা")
+  );
+};
+
+/* Class and Gender wise roll start blocks:
+   4th: Male 40101, Female 41101
+   5th: Male 50101, Female 51101
+   6th: Male 60101, Female 61101
+   7th: Male 70101, Female 71101
+   8th: Male 80101, Female 81101
+   9th: Male 90101, Female 91101
+   10th: Male 10101, Female 11101 */
+const CLASS_GENDER_ROLL_START = {
+  [CLASSES[0]]: { male: 40101, female: 41101 },
+  [CLASSES[1]]: { male: 50101, female: 51101 },
+  [CLASSES[2]]: { male: 60101, female: 61101 },
+  [CLASSES[3]]: { male: 70101, female: 71101 },
+  [CLASSES[4]]: { male: 80101, female: 81101 },
+  [CLASSES[5]]: { male: 90101, female: 91101 },
+  [CLASSES[6]]: { male: 10101, female: 11101 },
+};
+
+const getStartRoll = (studentClass, gender) => {
+  const classObj = CLASS_GENDER_ROLL_START[studentClass];
+  if (!classObj) return null;
+  return isFemale(gender) ? classObj.female : classObj.male;
 };
 
 /* Rolls are stored in ASCII digits: the admit-card link and searchAdmitCard
@@ -393,15 +414,15 @@ const RegistrationManager = ({ mode = "all" }) => {
     return { approval, roll, blocked };
   }, [scopedList]);
 
-  /* Next free roll inside a class's own block. Blocks are 10k wide, so a
-     stray legacy roll (e.g. 100001) can't drag the counter out of range. */
+  /* Next free roll inside a class and gender block. */
   const nextRollFor = useCallback(
-    (studentClass) => {
-      const start = CLASS_ROLL_START[studentClass];
+    (studentClass, gender = "ছাত্র") => {
+      const start = getStartRoll(studentClass, gender);
       if (!start) return "";
-      const blockEnd = Math.floor(start / 10000) * 10000 + 9999;
+      const female = isFemale(gender);
+      const blockEnd = start + 898; // e.g. 40101 to 40999 (male) or 41101 to 41999 (female)
       const used = registrations
-        .filter((r) => r.studentClass === studentClass)
+        .filter((r) => r.studentClass === studentClass && isFemale(r.gender) === female)
         .map((r) => rollNumberOf(r.assignedRoll))
         .filter((n) => Number.isFinite(n) && n >= start && n <= blockEnd);
       return String(used.length ? Math.max(...used) + 1 : start);
@@ -441,13 +462,6 @@ const RegistrationManager = ({ mode = "all" }) => {
   );
 
   const handleBulkAssignRolls = async () => {
-    if (selectedClass === "all") {
-      setStatusMessage({
-        type: "error",
-        text: "এক ক্লিকে রোল বরাদ্দ করতে হলে আগে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন!",
-      });
-      return;
-    }
     if (bulkTargets.length === 0) {
       setStatusMessage({
         type: "error",
@@ -456,24 +470,64 @@ const RegistrationManager = ({ mode = "all" }) => {
       return;
     }
 
-    const firstRoll = Number(nextRollFor(selectedClass));
-    const lastRoll = firstRoll + bulkTargets.length - 1;
+    const assignments = [];
+    const summaryLines = [];
+
+    // Process classes: either all or selected class
+    const targetClasses = selectedClass === "all" ? CLASSES : [selectedClass];
+
+    for (const cls of targetClasses) {
+      const classTargets = bulkTargets.filter((st) => st.studentClass === cls);
+      if (!classTargets.length) continue;
+
+      const males = classTargets.filter((st) => !isFemale(st.gender));
+      const females = classTargets.filter((st) => isFemale(st.gender));
+
+      if (males.length > 0) {
+        const startM = Number(nextRollFor(cls, "ছাত্র"));
+        males.forEach((st, idx) => {
+          assignments.push({ id: st.id, assignedRoll: String(startM + idx) });
+        });
+        summaryLines.push(
+          `${cls} (ছাত্র - ${males.length} জন): রোল ${startM} - ${startM + males.length - 1}`
+        );
+      }
+
+      if (females.length > 0) {
+        const startF = Number(nextRollFor(cls, "ছাত্রী"));
+        females.forEach((st, idx) => {
+          assignments.push({ id: st.id, assignedRoll: String(startF + idx) });
+        });
+        summaryLines.push(
+          `${cls} (ছাত্রী - ${females.length} জন): রোল ${startF} - ${startF + females.length - 1}`
+        );
+      }
+    }
+
+    if (!assignments.length) {
+      setStatusMessage({
+        type: "error",
+        text: "বরাদ্দ করার মতো কোনো রোল পাওয়া যায়নি।",
+      });
+      return;
+    }
+
+    const title =
+      selectedClass === "all"
+        ? `সকল শ্রেণি (${assignments.length} জন) — এক ক্লিকে জেন্ডারভিত্তিক রোল বরাদ্দ`
+        : `${selectedClass} (${assignments.length} জন) — এক ক্লিকে জেন্ডারভিত্তিক রোল বরাদ্দ`;
 
     const ok = await confirm({
       tone: "primary",
       confirmLabel: "রোল বরাদ্দ করুন",
-      title: `${selectedClass} — এক ক্লিকে রোল বরাদ্দ`,
-      body: `${bulkTargets.length} জন শিক্ষার্থীকে আবেদনের ক্রম অনুসারে রোল দেওয়া হবে। যাদের রোল আগেই বরাদ্দ আছে এবং যারা বাতিলকৃত, তারা বাদ থাকবে। স্ট্যাটাস ও কেন্দ্র অপরিবর্তিত থাকবে।`,
-      detail: `রোল: ${firstRoll} - ${lastRoll}`,
+      title: title,
+      body: `${assignments.length} জন শিক্ষার্থীকে শ্রেণি ও জেন্ডার (ছাত্র: ৪০১০১..., ছাত্রী: ৪১১০১...) অনুসারে নির্ধারিত ক্রমানুসারে রোল বরাদ্দ করা হবে। যাদের রোল ইতিমধ্যে বরাদ্দ আছে তারা অপরিবর্তিত থাকবে।`,
+      detail: summaryLines.join("\n"),
     });
     if (!ok) return;
 
     setBulkAssigning(true);
     try {
-      const assignments = bulkTargets.map((st, i) => ({
-        id: st.id,
-        assignedRoll: String(firstRoll + i),
-      }));
       await bulkAssignRolls(assignments);
 
       const rollById = new Map(assignments.map((a) => [a.id, a.assignedRoll]));
@@ -484,7 +538,7 @@ const RegistrationManager = ({ mode = "all" }) => {
       );
       setStatusMessage({
         type: "success",
-        text: `${selectedClass}-এর ${assignments.length} জন শিক্ষার্থীর রোল (${firstRoll} - ${lastRoll}) সফলভাবে বরাদ্দ হয়েছে! এবার ফিল্টার থেকে "২য় নোটিশ বাকি" বেছে নিয়ে WhatsApp নোটিশ পাঠান।`,
+        text: `${assignments.length} জন শিক্ষার্থীর রোল জেন্ডার ও শ্রেণিমতো সফলভাবে বরাদ্দ হয়েছে!`,
       });
     } catch (err) {
       console.error(err);
@@ -1047,17 +1101,17 @@ const RegistrationManager = ({ mode = "all" }) => {
             tone="secondary"
             icon={HiHashtag}
             loading={bulkAssigning}
-            disabled={selectedClass !== "all" && bulkTargets.length === 0}
+            disabled={bulkTargets.length === 0}
             title={
               selectedClass === "all"
-                ? "প্রথমে নিচের ফিল্টার থেকে একটি শ্রেণি বেছে নিন"
-                : `${selectedClass}: ${bulkTargets.length} জনের রোল বরাদ্দ হবে`
+                ? `সকল শ্রেণি: মোট ${bulkTargets.length} জনের জেন্ডারভিত্তিক রোল বরাদ্দ হবে`
+                : `${selectedClass}: ${bulkTargets.length} জনের জেন্ডারভিত্তিক রোল বরাদ্দ হবে`
             }
             onClick={handleBulkAssignRolls}
           >
             <span>
               এক ক্লিকে রোল বরাদ্দ
-              {selectedClass !== "all" ? ` (${bulkTargets.length})` : ""}
+              {bulkTargets.length > 0 ? ` (${bulkTargets.length})` : ""}
             </span>
           </Button>
 
