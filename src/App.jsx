@@ -75,6 +75,7 @@ const AppContent = () => {
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/notice" element={<Notice />} />
+              <Route path="/notices" element={<Notice />} />
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/gallery/archive/:id" element={<GalleryGridDetails detailsData={archiveDetailsData} />} />
               <Route path="/gallery/:id" element={<GalleryGridDetails />} />

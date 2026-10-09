@@ -257,7 +257,7 @@ const AdmitCardPortal = () => {
 
             <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
               <Link
-                to="/notices"
+                to="/notice"
                 className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
               >
                 <HiLightBulb className="text-amber-400" />
