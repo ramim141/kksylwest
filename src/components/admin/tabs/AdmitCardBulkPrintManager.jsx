@@ -15,6 +15,7 @@ import {
   getRegistrations,
   getExamCenters,
   getAdmitCardSettings,
+  saveAdmitCardSettings,
   DEFAULT_ADMIT_CARD_SETTINGS,
 } from "../../../services/firestore";
 import { useBranding } from "../../../context/BrandingContext";
@@ -432,8 +433,33 @@ const AdmitCardBulkPrintManager = () => {
   // Print Mode: 'duplex' (Front then Back sheet pair), 'front-only', 'back-only'
   const [printMode, setPrintMode] = useState("duplex");
   const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [togglingPublish, setTogglingPublish] = useState(false);
 
   const showToast = (text, type = "success") => setStatusMessage({ type, text });
+
+  const handleTogglePublish = async () => {
+    try {
+      setTogglingPublish(true);
+      const newStatus = admitSettings.isPublished === false ? true : false;
+      const updated = {
+        ...admitSettings,
+        isPublished: newStatus,
+      };
+      await saveAdmitCardSettings(updated);
+      setAdmitSettings(updated);
+      showToast(
+        newStatus
+          ? "প্রবেশপত্র পাবলিক ডাউনলোড সফলভাবে উন্মুক্ত করা হয়েছে!"
+          : "প্রবেশপত্র পাবলিক ডাউনলোড সাময়িকভাবে বন্ধ করা হয়েছে!",
+        newStatus ? "success" : "info"
+      );
+    } catch (err) {
+      console.error(err);
+      showToast("স্ট্যাটাস আপডেট করতে সমস্যা হয়েছে!", "error");
+    } finally {
+      setTogglingPublish(false);
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -651,8 +677,33 @@ const AdmitCardBulkPrintManager = () => {
             </div>
           </div>
 
-          {/* Quick Metrics */}
+          {/* Quick Metrics & Public Download Gate Toggle */}
           <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleTogglePublish}
+              disabled={togglingPublish}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
+                admitSettings.isPublished !== false
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 shadow-sm"
+                  : "bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25"
+              }`}
+              title="পাবলিক ওয়েবসাইট থেকে ছাত্র-ছাত্রীদের প্রবেশপত্র ডাউনলোড চালু বা বন্ধ করুন"
+            >
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  admitSettings.isPublished !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                }`}
+              />
+              <span>
+                পাবলিক ডাউনলোড:{" "}
+                <strong>{admitSettings.isPublished !== false ? "সক্রিয় (উন্মুক্ত)" : "স্থগিত (বন্ধ)"}</strong>
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 opacity-80 underline ml-0.5">
+                {togglingPublish ? "পরিবর্তন হচ্ছে..." : "ক্লিক করে পরিবর্তন"}
+              </span>
+            </button>
+
             <Chip tone="primary" icon={HiAcademicCap}>
               যোগ্য শিক্ষার্থী: {toBnDigits(filteredStudents.length)} জন
             </Chip>
