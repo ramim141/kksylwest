@@ -1112,10 +1112,21 @@ export const deleteRegistration = async (id) => {
 
 /**
  * Searches for an Admit Card by Tracking ID, Roll Number, or Phone
+ * Supports Bengali/English numerals, exact tracking, numeric suffixes, and 10/11-digit phones.
  */
 export const searchAdmitCard = async (queryTerm) => {
   const cleanTerm = (queryTerm || "").trim();
   if (!cleanTerm) return null;
+
+  // Bengali to English numeral normalization
+  const toEn = (str) =>
+    String(str ?? "").replace(/[\u09e6-\u09ef]/g, (d) =>
+      String(d.charCodeAt(0) - 0x09e6)
+    );
+
+  const enTerm = toEn(cleanTerm);
+  const termLower = enTerm.toLowerCase();
+  const digitsOnly = enTerm.replace(/[^0-9]/g, "");
 
   if (isFirebaseConfigured()) {
     try {
@@ -1125,17 +1136,42 @@ export const searchAdmitCard = async (queryTerm) => {
       if (!snapshot.empty) {
         const found = snapshot.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .find(
-            (r) =>
-              (r.status === "approved" || r.assignedRoll) &&
-              (r.assignedRoll === cleanTerm ||
-                r.trackingId?.toLowerCase() === cleanTerm.toLowerCase() ||
-                r.trackingId?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
-                r.mobile?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
-                r.whatsappNumber?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
-                r.guardianPhone?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, "") ||
-                r.studentPhone?.replace(/[^0-9]/g, "") === cleanTerm.replace(/[^0-9]/g, ""))
-          );
+          .find((r) => {
+            // Must have a roll assigned or be approved
+            if (!r.assignedRoll && !r.roll && r.status !== "approved") return false;
+
+            const rollEn = toEn(r.assignedRoll || r.roll || "");
+            const trackingEn = toEn(r.trackingId || "").toLowerCase();
+            const trackingDigits = trackingEn.replace(/[^0-9]/g, "");
+            const mobileEn = toEn(r.mobile || "").replace(/[^0-9]/g, "");
+            const whatsappEn = toEn(r.whatsappNumber || "").replace(/[^0-9]/g, "");
+            const guardianPhoneEn = toEn(r.guardianPhone || "").replace(/[^0-9]/g, "");
+            const studentPhoneEn = toEn(r.studentPhone || "").replace(/[^0-9]/g, "");
+
+            // 1. Exact match on roll
+            if (rollEn && (rollEn === enTerm || (digitsOnly && rollEn === digitsOnly))) {
+              return true;
+            }
+
+            // 2. Match on Tracking ID (exact or suffix digits e.g. 295399)
+            if (trackingEn && (trackingEn === termLower || trackingEn.includes(termLower))) {
+              return true;
+            }
+            if (digitsOnly && trackingDigits && digitsOnly.length >= 5 && trackingDigits.includes(digitsOnly)) {
+              return true;
+            }
+
+            // 3. Match on Phone Numbers (exact or suffix match for 10-11 digits)
+            if (digitsOnly && digitsOnly.length >= 10) {
+              const last10 = digitsOnly.slice(-10);
+              if (mobileEn && mobileEn.includes(last10)) return true;
+              if (whatsappEn && whatsappEn.includes(last10)) return true;
+              if (guardianPhoneEn && guardianPhoneEn.includes(last10)) return true;
+              if (studentPhoneEn && studentPhoneEn.includes(last10)) return true;
+            }
+
+            return false;
+          });
 
         if (found) return found;
       }
@@ -1143,7 +1179,7 @@ export const searchAdmitCard = async (queryTerm) => {
       // 2. Search in results as fallback
       const qResult = query(
         collection(db, COLLECTIONS.RESULTS),
-        where("roll", "==", cleanTerm)
+        where("roll", "==", enTerm)
       );
       const resSnap = await getDocs(qResult);
       if (!resSnap.empty) {
@@ -1169,7 +1205,9 @@ export const searchAdmitCard = async (queryTerm) => {
   try {
     const res = await fetch("/results.json");
     const data = await res.json();
-    const student = data.find((s) => s.roll === cleanTerm);
+    const student = data.find(
+      (s) => toEn(s.roll) === enTerm || (digitsOnly && toEn(s.roll) === digitsOnly)
+    );
     if (student) {
       return {
         id: `mock-${student.roll}`,
@@ -1745,6 +1783,13 @@ export const saveResultVisibility = async ({ resultsPublished, meritListYear }) 
 const LOCAL_ADMIT_CARD_SETTINGS_KEY = "kkmb_admit_card_settings_data";
 
 export const DEFAULT_ADMIT_CARD_SETTINGS = {
+  isPublished: true, // Controlled from Admin: true = download open, false = pending/unpublished notice
+  unpublishedNotice: "কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষার প্রবেশপত্র ডাউনলোড এখনো উন্মুক্ত করা হয়নি। অ্যাডমিন কর্তৃক উন্মুক্ত করার পর এখানে মোবাইল নম্বর, ট্র্যাকিং আইডি বা রোল দিয়ে প্রবেশপত্র ডাউনলোড করা যাবে।",
+  publishDateBn: "",
+  allowDownload: true,
+  allowSearchByMobile: true,
+  allowSearchByTracking: true,
+  allowSearchByRoll: true,
   defaultCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
   defaultExamDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
   defaultExamTime: "সকাল ১০:০০ টা - ১১:০০ টা",

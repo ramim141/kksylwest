@@ -191,58 +191,155 @@ const AdmitCardPortal = () => {
           </h1>
 
           <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto leading-relaxed font-normal">
-            আপনার বরাদ্দকৃত রোল নম্বর, ট্র্যাকিং আইডি বা মোবাইল নম্বর দিয়ে সরাসরি প্রবেশপত্র ডাউনলোড ও প্রিন্ট করুন।
+            আপনার মোবাইল নম্বর, ট্র্যাকিং আইডি অথবা বরাদ্দকৃত রোল নম্বর দিয়ে সরাসরি ডিজিটাল প্রবেশপত্র ডাউনলোড ও প্রিন্ট করুন।
           </p>
         </div>
 
-        {/* SEARCH BAR CARD - Hidden on Print */}
-        <div className="p-4 sm:p-6 bg-[#14162b] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl space-y-3.5 print:hidden">
-          <form onSubmit={handleSearchSubmit} className="space-y-3">
-            <label className="block text-xs sm:text-sm font-bold text-slate-300">
-              রোল নম্বর / ট্র্যাকিং আইডি / মোবাইল নম্বর লিখুন:
-            </label>
+        {/* ===================================================================
+            UNPUBLISHED NOTICE GATE (When Admin turns off download)
+            =================================================================== */}
+        {admitSettings.isPublished === false && !admitData && (
+          <div className="p-6 sm:p-8 bg-[#14162b] border-2 border-amber-500/30 rounded-2xl sm:rounded-3xl shadow-2xl space-y-6 text-center print:hidden content-swap">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-3xl sm:text-4xl shadow-inner">
+              <HiClock className="animate-pulse" />
+            </div>
 
-            <div className="flex flex-col sm:flex-row gap-2.5">
-              <div className="relative flex-1">
-                <HiMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
-                <input
-                  type="text"
-                  value={queryInput}
-                  onChange={(e) => setQueryInput(e.target.value)}
-                  placeholder="যেমন: 10501 অথবা KKMB-2025-XXXXXX অথবা 017XXXXXXXX"
-                  required
-                  className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#090a16] border border-white/15 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 font-mono font-bold"
-                />
+            <div className="space-y-2 max-w-lg mx-auto">
+              <span className="inline-block px-3.5 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[11px] font-bold">
+                ⚠️ প্রবেশপত্র ডাউনলোড সাময়িকভাবে স্থগিত / শুরু হয়নি
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                প্রবেশপত্র বিতরণ কার্যক্রম এখনো শুরু হয়নি
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed text-justify sm:text-center">
+                {admitSettings.unpublishedNotice ||
+                  "কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষার প্রবেশপত্র ডাউনলোড কার্যক্রম এখনো শুরু হয়নি। নির্ধারিত সময়সূচী অনুযায়ী অ্যাডমিন প্যানেল থেকে প্রকাশ করার পর সকল শিক্ষার্থী তাদের মোবাইল নম্বর বা ট্র্যাকিং আইডি দিয়ে প্রবেশপত্র সংগ্রহ করতে পারবে।"}
+              </p>
+            </div>
+
+            {admitSettings.publishDateBn && (
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-900/80 border border-white/10 text-xs sm:text-sm text-slate-300 font-medium">
+                <HiCalendarDays className="text-amber-400 text-base" />
+                <span>সম্ভাব্য প্রকাশের সময়কাল:</span>
+                <strong className="text-amber-300 font-bold">{admitSettings.publishDateBn}</strong>
+              </div>
+            )}
+
+            {/* Information Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-left">
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                  📱 মোবাইল নম্বর
+                </span>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  আবেদনে প্রদত্ত যেকোনো মোবাইল নম্বর দিয়ে প্রবেশপত্র সার্চ করা যাবে।
+                </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm hover:scale-102 active:scale-98 transition shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap"
-              >
-                {loading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                    <span>খোঁজা হচ্ছে...</span>
-                  </>
-                ) : (
-                  <>
-                    <HiMagnifyingGlass className="text-base" />
-                    <span>প্রবেশপত্র খুঁজুন</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                <span className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  📋 ট্র্যাকিং আইডি
+                </span>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  নিবন্ধনের পর প্রাপ্ত ট্র্যাকিং নম্বর (যেমন KKMB-2025-XXXXXX) ব্যবহার করতে পারবেন।
+                </p>
+              </div>
 
-          {/* Error Notice */}
-          {errorMessage && (
-            <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm font-bold flex items-start gap-2.5 content-swap">
-              <HiExclamationCircle className="text-lg shrink-0 mt-0.5 text-rose-400" />
-              <p className="text-justify leading-relaxed flex-1">{errorMessage}</p>
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 space-y-1">
+                <span className="text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                  🎫 রোল নম্বর
+                </span>
+                <p className="text-[11px] text-slate-400 leading-normal">
+                  অ্যাডমিন কর্তৃক বরাদ্দকৃত ৫ অঙ্কের রোল নম্বর দিয়েও কার্ড পাওয়া যাবে।
+                </p>
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+              <Link
+                to="/notices"
+                className="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs sm:text-sm transition flex items-center gap-1.5"
+              >
+                <HiLightBulb className="text-amber-400" />
+                <span>নোটিশ বোর্ড দেখুন</span>
+              </Link>
+
+              <Link
+                to="/"
+                className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs sm:text-sm transition flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
+              >
+                <HiArrowLeft />
+                <span>মূল পাতায় ফিরে যান</span>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* ===================================================================
+            SEARCH BAR CARD - Active when published or result is open
+            =================================================================== */}
+        {(admitSettings.isPublished !== false || admitData) && (
+          <div className="p-4 sm:p-6 bg-[#14162b] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl space-y-3.5 print:hidden">
+            <form onSubmit={handleSearchSubmit} className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <label className="block text-xs sm:text-sm font-bold text-slate-300">
+                  যেকোনো একটি তথ্য দিয়ে প্রবেশপত্র খুঁজুন:
+                </label>
+                <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400 font-medium">
+                  <span className="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                    📱 মোবাইল নম্বর
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-sky-500/15 text-sky-300 border border-sky-500/30">
+                    📋 ট্র্যাকিং আইডি
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-purple-500/15 text-purple-300 border border-purple-500/30">
+                    🎫 রোল নম্বর
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2.5">
+                <div className="relative flex-1">
+                  <HiMagnifyingGlass className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg" />
+                  <input
+                    type="text"
+                    value={queryInput}
+                    onChange={(e) => setQueryInput(e.target.value)}
+                    placeholder="যেমন: 017XXXXXXXX অথবা KKMB-2025-XXXXXX অথবা 50101 (বাংলা বা ইংরেজি)"
+                    required
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#090a16] border border-white/15 text-xs sm:text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 font-mono font-bold"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs sm:text-sm hover:scale-102 active:scale-98 transition shadow-lg shadow-emerald-500/25 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5 whitespace-nowrap"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                      <span>খোঁজা হচ্ছে...</span>
+                    </>
+                  ) : (
+                    <>
+                      <HiMagnifyingGlass className="text-base" />
+                      <span>প্রবেশপত্র খুঁজুন</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Error Notice */}
+            {errorMessage && (
+              <div className="p-4 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs sm:text-sm font-bold flex items-start gap-2.5 content-swap">
+                <HiExclamationCircle className="text-lg shrink-0 mt-0.5 text-rose-400" />
+                <p className="text-justify leading-relaxed flex-1">{errorMessage}</p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Lookup in flight: toolbar + card footprint, so the layout is
             already the right shape when the real admit card arrives. */}

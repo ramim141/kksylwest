@@ -1307,11 +1307,91 @@ const SiteSettingsManager = () => {
           <div className="border-b border-line-soft pb-3">
             <h3 className="text-base sm:text-lg font-semibold text-ink-strong flex items-center gap-2">
               <HiIdentification className="text-error" />
-              <span>প্রবেশপত্রের ডিফল্ট তথ্য ও পরীক্ষা সংক্রান্ত নিয়মাবলি</span>
+              <span>প্রবেশপত্রের প্রকাশ নিয়ন্ত্রণ, ডিফল্ট তথ্য ও পরীক্ষা সংক্রান্ত নিয়মাবলি</span>
             </h3>
             <p className="text-[13px] text-ink-muted mt-0.5">
-              প্রবেশপত্রে স্বয়ংক্রিয়ভাবে প্রিন্ট হওয়া ডিফল্ট কেন্দ্র, সময়সূচী, বিষয় ও নিচের ৮টি নিয়মাবলি এখান থেকে সরাসরি এডিট করুন।
+              প্রবেশপত্র ডাউনলোড উন্মুক্তকরণ, ডিফল্ট কেন্দ্র, সময়সূচী, বিষয় ও নিচের নিয়মাবলি এখান থেকে সরাসরি নিয়ন্ত্রণ করুন।
             </p>
+          </div>
+
+          {/* ============================================================
+              ADMIT CARD PUBLICATION CONTROL CARD
+              ============================================================ */}
+          <div className="p-5 sm:p-6 bg-surface rounded-xl border border-primary/40 space-y-4 shadow-sm">
+            <div className="flex items-start gap-3 border-b border-line-soft/80 pb-3">
+              <span className="p-2 rounded-lg bg-primary/15 text-primary text-lg shrink-0">
+                <HiShieldCheck />
+              </span>
+              <div>
+                <h4 className="text-sm sm:text-base font-bold text-ink-strong">
+                  প্রবেশপত্র ডাউনলোড প্রকাশ নিয়ন্ত্রণ (Admit Card Publication Gate)
+                </h4>
+                <p className="text-xs text-ink-muted mt-0.5">
+                  অ্যাডমিন এখান থেকে "উন্মুক্ত" করে দিলে সকল শিক্ষার্থী মোবাইল নম্বর, ট্র্যাকিং আইডি বা রোল নম্বর দিয়ে নিজেদের প্রবেশপত্র ডাউনলোড ও প্রিন্ট করতে পারবে।
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+              {/* Main Publication Toggle */}
+              <div>
+                <label className="block text-[13px] font-bold text-ink-body mb-1.5 flex items-center gap-1.5">
+                  <span>প্রবেশপত্র ডাউনলোড পোর্টাল (/admit-card) স্ট্যাটাস *</span>
+                </label>
+                <select
+                  value={admitData.isPublished !== false ? "yes" : "no"}
+                  onChange={(e) =>
+                    setAdmitData({ ...admitData, isPublished: e.target.value === "yes" })
+                  }
+                  className={`w-full px-4 py-3 bg-surface-card border rounded-xl text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary cursor-pointer transition-all ${
+                    admitData.isPublished !== false
+                      ? "border-emerald-500/50 text-emerald-400"
+                      : "border-amber-500/50 text-amber-400"
+                  }`}
+                >
+                  <option value="yes">✅ উন্মুক্ত (Published) — মোবাইল, ট্র্যাকিং আইডি বা রোল দিয়ে প্রবেশপত্র ডাউনলোড চালু</option>
+                  <option value="no">🔒 বন্ধ (Unpublished) — "প্রবেশপত্র ডাউনলোড এখনো শুরু হয়নি" নোটিশ দেখাবে</option>
+                </select>
+                <span className="block mt-1.5 text-[11px] text-ink-muted">
+                  {admitData.isPublished !== false
+                    ? "বর্তমানে সাধারণ শিক্ষার্থীরা ওয়েবসাইট থেকে প্রবেশপত্র সার্চ করে ডাউনলোড করতে পারছে।"
+                    : "বর্তমানে পাবলিক ডাউনলোড স্থগিত রয়েছে। শিক্ষার্থীরা ভিজিট করলে নোটিশ দেখতে পাবে।"}
+                </span>
+              </div>
+
+              {/* Published / Start Date Text */}
+              <div>
+                <label className="block text-[13px] font-bold text-ink-body mb-1.5">
+                  প্রবেশপত্র ডাউনলোডের সময়সীমা / শুরুর তারিখ (ঐচ্ছিক)
+                </label>
+                <input
+                  type="text"
+                  value={admitData.publishDateBn || ""}
+                  onChange={(e) => setAdmitData({ ...admitData, publishDateBn: e.target.value })}
+                  placeholder="যেমন: ১৫ অক্টোবর ২০২৫ থেকে পরীক্ষা শুরু পর্যন্ত"
+                  className="w-full px-4 py-3 bg-surface-card border border-line-soft rounded-xl text-ink-strong text-[13px] sm:text-sm font-medium focus:outline-none focus:border-primary"
+                />
+                <span className="block mt-1.5 text-[11px] text-ink-muted">
+                  পাবলিক পোর্টালে এই সময়সীমাটি শিক্ষার্থীদের সুবিধার্থে দৃশ্যমান হবে।
+                </span>
+              </div>
+            </div>
+
+            {/* Custom Notice Message when Unpublished */}
+            {admitData.isPublished === false && (
+              <div className="space-y-1.5 pt-2 border-t border-line-soft/60">
+                <label className="block text-[13px] font-bold text-amber-400">
+                  🔒 বন্ধ থাকা অবস্থায় শিক্ষার্থীদের প্রদর্শিত নোটিশ বার্তা:
+                </label>
+                <textarea
+                  rows={3}
+                  value={admitData.unpublishedNotice || ""}
+                  onChange={(e) => setAdmitData({ ...admitData, unpublishedNotice: e.target.value })}
+                  placeholder="কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষার প্রবেশপত্র ডাউনলোড শীঘ্রই শুরু হবে..."
+                  className="w-full p-3.5 bg-surface-card border border-amber-500/30 rounded-xl text-ink-strong text-xs sm:text-sm focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
