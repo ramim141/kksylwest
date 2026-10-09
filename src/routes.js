@@ -37,6 +37,7 @@ const ALIASES = {
   '/admit': '/admit-card',
   '/merit-list': '/leaderboard',
   '/certificate': '/verify-certificate',
+  '/notices': '/notice',
 };
 
 const started = new Set();
