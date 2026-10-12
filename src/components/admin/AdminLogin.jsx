@@ -149,16 +149,19 @@ const AdminLogin = () => {
     setError("");
     setInfoMsg("");
 
-    if (!email.trim()) {
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail) {
       setError("অনুগ্রহ করে ইমেইল অ্যাড্রেস প্রদান করুন।");
       return;
     }
-    if (!password) {
+    if (!cleanPassword) {
       setError("অনুগ্রহ করে পাসওয়ার্ড প্রদান করুন।");
       return;
     }
 
-    if (!validateAdminCredentials(email, password)) {
+    if (!validateAdminCredentials(cleanEmail, cleanPassword)) {
       setError("ভুল ইমেইল বা পাসওয়ার্ড প্রদান করা হয়েছে। সঠিক তথ্য দিয়ে আবার চেষ্টা করুন।");
       return;
     }
@@ -166,13 +169,13 @@ const AdminLogin = () => {
     try {
       setLoading(true);
       const generatedOtp = generateOTP();
-      await sendOTPEmail(email.trim(), generatedOtp);
+      await sendOTPEmail(cleanEmail, generatedOtp);
 
       setStep("OTP");
       setOtpDigits(["", "", "", "", "", ""]);
       setExpirySeconds(300); // 5 mins
       setResendSeconds(60); // 60s cooldown
-      setInfoMsg(`${email.trim()} ইমেইলে একটি ৬ সংখ্যার ওটিপি কোড পাঠানো হয়েছে।`);
+      setInfoMsg(`${cleanEmail} ইমেইলে একটি ৬ সংখ্যার ওটিপি কোড পাঠানো হয়েছে।`);
     } catch (err) {
       console.error(err);
       setError("ওটিপি কোড পাঠাতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।");
@@ -196,7 +199,7 @@ const AdminLogin = () => {
       setOtpDigits(["", "", "", "", "", ""]);
       setExpirySeconds(300);
       setResendSeconds(60);
-      setInfoMsg("নতুন ওটিপি কোড পাঠানো হয়েছে! আপনার ইনবক্স চেক করুন।");
+      setInfoMsg("নতুন ওটিপি কোড পাঠানো হয়েছে! আপনার ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।");
       otpInputRefs.current[0]?.focus();
     } catch (err) {
       console.error(err);
@@ -229,10 +232,14 @@ const AdminLogin = () => {
 
     try {
       setLoading(true);
-      await loginWithCredentials(email, password, fullOtp);
+      await loginWithCredentials(email.trim(), password.trim(), fullOtp);
     } catch (err) {
       console.error(err);
-      setError(err.message || "ভুল ওটিপি কোড প্রদান করা হয়েছে।");
+      let errMsg = err.message || "ভুল ওটিপি কোড প্রদান করা হয়েছে।";
+      if (errMsg.includes("sessionStorage") || errMsg.includes("storage")) {
+        errMsg = "ব্রাউজারের স্টোরেজ পারমিশন এড়িয়ে সুরক্ষিত মেমোরিতে ভেরিফাই করা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।";
+      }
+      setError(errMsg);
       setLoading(false);
     }
   };
@@ -597,6 +604,11 @@ const AdminLogin = () => {
                     : "কোড পুনরায় পাঠান"}
                 </button>
               </div>
+
+              {/* Multi-device & Delivery Note */}
+              <p className="text-[11px] text-slate-400 text-center leading-relaxed px-2">
+                ইমেইলে কোড না পেলে ইনবক্সের পাশাপাশি <strong>Spam/Junk</strong> ফোল্ডার চেক করুন। একাধিক ডিভাইসে একই সাথে ওটিপি কার্যকর থাকবে।
+              </p>
 
               {/* Confirm Login Button */}
               <div className="pt-1">

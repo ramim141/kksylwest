@@ -11,6 +11,7 @@ import {
   verifyAdminOTPAsync,
   ADMIN_CREDENTIALS,
 } from "../services/otpService";
+import { safeSessionStorage, safeLocalStorage } from "../utils/safeStorage";
 
 /* Accounts allowed into the admin panel.
    firestore.rules also enforces kishorkanthasylwest@gmail.com. */
@@ -55,9 +56,9 @@ export const AuthProvider = ({ children }) => {
     if (typeof window !== "undefined") {
       try {
         // Clean up any legacy localStorage key to ensure browser-close logout works reliably
-        localStorage.removeItem(ADMIN_STORAGE_KEY);
+        safeLocalStorage.removeItem(ADMIN_STORAGE_KEY);
 
-        const saved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+        const saved = safeSessionStorage.getItem(ADMIN_STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed?.email && isAdminEmail(parsed.email)) {
@@ -81,8 +82,8 @@ export const AuthProvider = ({ children }) => {
 
     (async () => {
       try {
-        // Check active session in sessionStorage
-        const saved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+        // Check active session in safeSessionStorage
+        const saved = safeSessionStorage.getItem(ADMIN_STORAGE_KEY);
         if (saved) {
           try {
             const parsed = JSON.parse(saved);
@@ -108,7 +109,10 @@ export const AuthProvider = ({ children }) => {
         try {
           await setPersistence(auth, browserSessionPersistence);
         } catch {
-          // ignore if persistence fails
+          try {
+            const { inMemoryPersistence } = await import("firebase/auth");
+            await setPersistence(auth, inMemoryPersistence);
+          } catch {}
         }
 
         try {
@@ -121,7 +125,7 @@ export const AuthProvider = ({ children }) => {
           if (user) {
             if (!isAdminEmail(user.email)) {
               await signOut(auth).catch(() => {});
-              sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+              safeSessionStorage.removeItem(ADMIN_STORAGE_KEY);
               setCurrentUser(null);
               setAuthError(notAllowedMessage(user.email));
             } else {
@@ -132,12 +136,12 @@ export const AuthProvider = ({ children }) => {
                 photoURL: user.photoURL || null,
                 emailVerified: true,
               };
-              sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+              safeSessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
               setCurrentUser(adminUser);
             }
           } else {
-            // Check if we still have local session in sessionStorage
-            const sessionSaved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+            // Check if we still have local session in safeSessionStorage
+            const sessionSaved = safeSessionStorage.getItem(ADMIN_STORAGE_KEY);
             if (!sessionSaved) {
               setCurrentUser(null);
             }
@@ -146,7 +150,7 @@ export const AuthProvider = ({ children }) => {
         });
       } catch (err) {
         console.warn("Firebase Auth unavailable:", err);
-        const sessionSaved = sessionStorage.getItem(ADMIN_STORAGE_KEY);
+        const sessionSaved = safeSessionStorage.getItem(ADMIN_STORAGE_KEY);
         if (!sessionSaved) {
           setCurrentUser(null);
           setAuthError(describeAuthError(err));
@@ -169,7 +173,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error("ভুল ইমেইল বা পাসওয়ার্ড প্রদান করা হয়েছে।");
       }
 
-      // 2. Verify OTP code (supports both local session and cross-device Firestore sync)
+      // 2. Verify OTP code (supports local safe storage, Firestore multi-device sync & emergency code)
       const otpCheck = await verifyAdminOTPAsync(otp);
       if (!otpCheck.valid) {
         throw new Error(otpCheck.error || "ভুল ওটিপি কোড!");
@@ -197,7 +201,12 @@ export const AuthProvider = ({ children }) => {
 
         try {
           await setPersistence(auth, browserSessionPersistence);
-        } catch {}
+        } catch {
+          try {
+            const { inMemoryPersistence } = await import("firebase/auth");
+            await setPersistence(auth, inMemoryPersistence);
+          } catch {}
+        }
 
         try {
           const res = await signInWithEmailAndPassword(auth, email.trim(), password.trim());
@@ -221,9 +230,9 @@ export const AuthProvider = ({ children }) => {
         console.info("Firebase Auth background link note:", e?.message);
       }
 
-      // 4. Persist admin session in sessionStorage (auto-logout on browser close)
-      sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
-      localStorage.removeItem(ADMIN_STORAGE_KEY);
+      // 4. Persist admin session in safeSessionStorage (never throws on restricted mobile browsers)
+      safeSessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+      safeLocalStorage.removeItem(ADMIN_STORAGE_KEY);
       setCurrentUser(adminUser);
       return adminUser;
     },
@@ -249,7 +258,12 @@ export const AuthProvider = ({ children }) => {
 
     try {
       await setPersistence(auth, browserSessionPersistence);
-    } catch {}
+    } catch {
+      try {
+        const { inMemoryPersistence } = await import("firebase/auth");
+        await setPersistence(auth, inMemoryPersistence);
+      } catch {}
+    }
 
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: "select_account" });
@@ -267,7 +281,7 @@ export const AuthProvider = ({ children }) => {
 
     if (!isAdminEmail(result.user.email)) {
       await signOut(auth).catch(() => {});
-      sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+      safeSessionStorage.removeItem(ADMIN_STORAGE_KEY);
       throw new Error(notAllowedMessage(result.user.email));
     }
 
@@ -280,8 +294,8 @@ export const AuthProvider = ({ children }) => {
       authenticatedAt: Date.now(),
     };
 
-    sessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
+    safeSessionStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(adminUser));
+    safeLocalStorage.removeItem(ADMIN_STORAGE_KEY);
     setCurrentUser(adminUser);
     return adminUser;
   }, [ensureAuth]);
@@ -297,9 +311,9 @@ export const AuthProvider = ({ children }) => {
     } catch {
       // ignore
     }
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
-    sessionStorage.removeItem(ADMIN_STORAGE_KEY);
-    sessionStorage.removeItem("_kk_admin_otp_session");
+    safeLocalStorage.removeItem(ADMIN_STORAGE_KEY);
+    safeSessionStorage.removeItem(ADMIN_STORAGE_KEY);
+    safeSessionStorage.removeItem("_kk_admin_otp_session");
     setCurrentUser(null);
     setAuthError("");
   }, []);
