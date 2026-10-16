@@ -53,17 +53,26 @@ const AdmitCardPortal = () => {
     });
   }, []);
 
-  // Auto-search if query param exists
+  // Auto-search if query param exists (only when published)
   useEffect(() => {
+    if (!admitSettings.isPublished) return;
     const params = new URLSearchParams(location.search);
     const searchId = params.get("id") || params.get("roll") || params.get("tracking");
     if (searchId) {
       setQueryInput(searchId);
       performSearch(searchId);
     }
-  }, [location.search]);
+  }, [location.search, admitSettings.isPublished]);
 
   const performSearch = async (searchTerm) => {
+    if (!admitSettings.isPublished) {
+      setErrorMessage(
+        admitSettings.unpublishedNotice ||
+          "প্রবেশপত্র ডাউনলোড কার্যক্রম এখনো শুরু হয়নি। অ্যাডমিন প্যানেল থেকে প্রকাশ করার পর প্রবেশপত্র ডাউনলোড করা যাবে।"
+      );
+      return;
+    }
+
     const term = (searchTerm || queryInput).trim();
     if (!term) return;
 
@@ -77,7 +86,7 @@ const AdmitCardPortal = () => {
         setAdmitData(data);
       } else {
         setErrorMessage(
-          "দুঃখিত! এই রোল নম্বর, ট্র্যাকিং আইডি বা মোবাইল নম্বরে কোনো অনুমোদিত প্রবেশপত্র পাওয়া যায়নি। অ্যাডমিন প্যানেল থেকে আবেদন অনুমোদন সাপেক্ষে প্রবেশপত্র সক্রিয় হবে।"
+          "দুঃখিত! এই রোল নম্বর, ট্র্যাকিং আইডি বা মোবাইল নম্বরে কোনো অনুমোদিত প্রবেশপত্র পাওয়া যায়নি। অ্যাডমিন প্যানেল থেকে আবেদন অনুমোদন ও রোল বরাদ্দ সাপেক্ষে প্রবেশপত্র সক্রিয় হবে।"
         );
       }
     } catch (err) {
@@ -157,7 +166,7 @@ const AdmitCardPortal = () => {
     if (!admitData) return;
     const targetRoll = admitData.assignedRoll || admitData.trackingId || "";
     const studentName = admitData.nameBn || admitData.name || "";
-    const center = admitData.examCenter || admitSettings.defaultCenter;
+    const center = admitData.examCenter || admitSettings.defaultCenter || "নির্ধারিত কেন্দ্র দ্রষ্টব্য";
     const date = admitData.examDate || admitSettings.defaultExamDate;
     const rawTime = admitData.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা";
     const time = rawTime.replace(/১১:৩০/g, "১১:০০");
@@ -198,7 +207,7 @@ const AdmitCardPortal = () => {
         {/* ===================================================================
             UNPUBLISHED NOTICE GATE (When Admin turns off download)
             =================================================================== */}
-        {admitSettings.isPublished === false && !admitData && (
+        {!admitSettings.isPublished ? (
           <div className="p-6 sm:p-8 bg-[#14162b] border-2 border-amber-500/30 rounded-2xl sm:rounded-3xl shadow-2xl space-y-6 text-center print:hidden content-swap">
             <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-3xl sm:text-4xl shadow-inner">
               <HiClock className="animate-pulse" />
@@ -273,13 +282,12 @@ const AdmitCardPortal = () => {
               </Link>
             </div>
           </div>
-        )}
-
-        {/* ===================================================================
-            SEARCH BAR CARD - Active when published or result is open
-            =================================================================== */}
-        {(admitSettings.isPublished !== false || admitData) && (
-          <div className="p-4 sm:p-6 bg-[#14162b] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl space-y-3.5 print:hidden">
+        ) : (
+          <>
+            {/* ===================================================================
+                SEARCH BAR CARD - Active when published
+                =================================================================== */}
+            <div className="p-4 sm:p-6 bg-[#14162b] border border-white/10 rounded-2xl sm:rounded-3xl shadow-2xl space-y-3.5 print:hidden">
             <form onSubmit={handleSearchSubmit} className="space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-slate-300">
@@ -339,7 +347,6 @@ const AdmitCardPortal = () => {
               </div>
             )}
           </div>
-        )}
 
         {/* Lookup in flight: toolbar + card footprint, so the layout is
             already the right shape when the real admit card arrives. */}
@@ -591,7 +598,7 @@ const AdmitCardPortal = () => {
                         পরীক্ষা কেন্দ্র :
                       </span>
                       <span className="font-black text-indigo-900 text-xs sm:text-sm">
-                        {admitData.examCenter || admitSettings.defaultCenter}
+                        {admitData.examCenter || admitSettings.defaultCenter || "নির্ধারিত কেন্দ্র দ্রষ্টব্য"}
                       </span>
                     </div>
                     <span className="text-[11px] font-bold text-slate-500 italic shrink-0">
@@ -701,6 +708,8 @@ const AdmitCardPortal = () => {
             </div>
           </div>
         )}
+      </>
+    )}
       </div>
     </div>
   );

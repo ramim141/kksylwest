@@ -1118,6 +1118,16 @@ export const searchAdmitCard = async (queryTerm) => {
   const cleanTerm = (queryTerm || "").trim();
   if (!cleanTerm) return null;
 
+  // Gate check: If Admin has turned off admit card download, return null
+  try {
+    const settings = await uncached_getAdmitCardSettings();
+    if (settings && settings.isPublished === false) {
+      return null;
+    }
+  } catch (gateErr) {
+    console.warn("searchAdmitCard settings check error:", gateErr);
+  }
+
   // Bengali to English numeral normalization
   const toEn = (str) =>
     String(str ?? "").replace(/[\u09e6-\u09ef]/g, (d) =>
@@ -1137,8 +1147,9 @@ export const searchAdmitCard = async (queryTerm) => {
         const found = snapshot.docs
           .map((d) => ({ id: d.id, ...d.data() }))
           .find((r) => {
-            // Must have a roll assigned or be approved
-            if (!r.assignedRoll && !r.roll && r.status !== "approved") return false;
+            // Must be approved AND have an official roll assigned
+            if (r.status !== "approved") return false;
+            if (!r.assignedRoll && !r.roll) return false;
 
             const rollEn = toEn(r.assignedRoll || r.roll || "");
             const trackingEn = toEn(r.trackingId || "").toLowerCase();
@@ -1193,7 +1204,7 @@ export const searchAdmitCard = async (queryTerm) => {
           assignedRoll: resData.roll,
           trackingId: `KKMB-2025-${resData.roll}`,
           status: "approved",
-          examCenter: resData.upazila || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+          examCenter: resData.examCenter || resData.upazila || "",
         };
       }
     } catch (err) {
@@ -1218,7 +1229,7 @@ export const searchAdmitCard = async (queryTerm) => {
         assignedRoll: student.roll,
         trackingId: `KKMB-2025-${student.roll}`,
         status: "approved",
-        examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+        examCenter: student.examCenter || "",
       };
     }
   } catch (e) {
@@ -1783,14 +1794,14 @@ export const saveResultVisibility = async ({ resultsPublished, meritListYear }) 
 const LOCAL_ADMIT_CARD_SETTINGS_KEY = "kkmb_admit_card_settings_data";
 
 export const DEFAULT_ADMIT_CARD_SETTINGS = {
-  isPublished: true, // Controlled from Admin: true = download open, false = pending/unpublished notice
+  isPublished: false, // Controlled from Admin: true = download open, false = pending/unpublished notice (Default is false/off)
   unpublishedNotice: "কিশোরকণ্ঠ মেধাবৃত্তি পরীক্ষার প্রবেশপত্র ডাউনলোড এখনো উন্মুক্ত করা হয়নি। অ্যাডমিন কর্তৃক উন্মুক্ত করার পর এখানে মোবাইল নম্বর, ট্র্যাকিং আইডি বা রোল দিয়ে প্রবেশপত্র ডাউনলোড করা যাবে।",
   publishDateBn: "",
-  allowDownload: true,
+  allowDownload: false,
   allowSearchByMobile: true,
   allowSearchByTracking: true,
   allowSearchByRoll: true,
-  defaultCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+  defaultCenter: "",
   defaultExamDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
   defaultExamTime: "সকাল ১০:০০ টা - ১১:০০ টা",
   defaultSubjects: "বাংলা, ইংরেজি, গণিত, বিজ্ঞান, সাধারণ জ্ঞান",
@@ -1815,7 +1826,19 @@ const uncached_getAdmitCardSettings = async () => {
       const docRef = doc(db, COLLECTIONS.SITE_SETTINGS, "admit_card_defaults");
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        return { ...DEFAULT_ADMIT_CARD_SETTINGS, ...docSnap.data() };
+        const data = docSnap.data() || {};
+        return {
+          ...DEFAULT_ADMIT_CARD_SETTINGS,
+          ...data,
+          // Only true if explicitly set to true
+          isPublished: data.isPublished === true,
+          // Strip legacy hardcoded Alia Madrasa default if it was auto-populated
+          defaultCenter:
+            (typeof data.defaultCenter === "string" &&
+             (data.defaultCenter.includes("আলিয়া") || data.defaultCenter.includes("আলিয়া")))
+              ? ""
+              : (data.defaultCenter || ""),
+        };
       }
     } catch (e) {
       console.warn("Firestore getAdmitCardSettings fallback:", e);
@@ -1824,7 +1847,19 @@ const uncached_getAdmitCardSettings = async () => {
 
   try {
     const saved = localStorage.getItem(LOCAL_ADMIT_CARD_SETTINGS_KEY);
-    if (saved) return { ...DEFAULT_ADMIT_CARD_SETTINGS, ...JSON.parse(saved) };
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        ...DEFAULT_ADMIT_CARD_SETTINGS,
+        ...parsed,
+        isPublished: parsed.isPublished === true,
+        defaultCenter:
+          (typeof parsed.defaultCenter === "string" &&
+           (parsed.defaultCenter.includes("আলিয়া") || parsed.defaultCenter.includes("আলিয়া")))
+            ? ""
+            : (parsed.defaultCenter || ""),
+      };
+    }
   } catch (e) {
     console.warn("localStorage getAdmitCardSettings error:", e);
   }

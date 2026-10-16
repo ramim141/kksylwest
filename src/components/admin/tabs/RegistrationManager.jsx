@@ -280,7 +280,7 @@ const RegistrationManager = ({ mode = "all" }) => {
 
     // Admin Assigments
     assignedRoll: "",
-    examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+    examCenter: "",
     examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
     examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
     roomNo: "",
@@ -853,7 +853,7 @@ const RegistrationManager = ({ mode = "all" }) => {
         district: "সিলেট",
         presentAddress: "",
         assignedRoll: "",
-        examCenter: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট",
+        examCenter: "",
         examDate: "২৪ অক্টোবর ২০২৫ (শুক্রবার)",
         examTime: "সকাল ১০:০০ টা - ১১:০০ টা",
         roomNo: "",

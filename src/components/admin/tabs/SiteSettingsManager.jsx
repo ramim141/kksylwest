@@ -1339,12 +1339,12 @@ const SiteSettingsManager = () => {
                   <span>প্রবেশপত্র ডাউনলোড পোর্টাল (/admit-card) স্ট্যাটাস *</span>
                 </label>
                 <select
-                  value={admitData.isPublished !== false ? "yes" : "no"}
+                  value={admitData.isPublished === true ? "yes" : "no"}
                   onChange={(e) =>
                     setAdmitData({ ...admitData, isPublished: e.target.value === "yes" })
                   }
                   className={`w-full px-4 py-3 bg-surface-card border rounded-xl text-[13px] sm:text-sm font-bold focus:outline-none focus:border-primary cursor-pointer transition-all ${
-                    admitData.isPublished !== false
+                    admitData.isPublished === true
                       ? "border-emerald-500/50 text-emerald-400"
                       : "border-amber-500/50 text-amber-400"
                   }`}
@@ -1353,7 +1353,7 @@ const SiteSettingsManager = () => {
                   <option value="no">🔒 বন্ধ (Unpublished) — "প্রবেশপত্র ডাউনলোড এখনো শুরু হয়নি" নোটিশ দেখাবে</option>
                 </select>
                 <span className="block mt-1.5 text-[11px] text-ink-muted">
-                  {admitData.isPublished !== false
+                  {admitData.isPublished === true
                     ? "বর্তমানে সাধারণ শিক্ষার্থীরা ওয়েবসাইট থেকে প্রবেশপত্র সার্চ করে ডাউনলোড করতে পারছে।"
                     : "বর্তমানে পাবলিক ডাউনলোড স্থগিত রয়েছে। শিক্ষার্থীরা ভিজিট করলে নোটিশ দেখতে পাবে।"}
                 </span>
@@ -1378,7 +1378,7 @@ const SiteSettingsManager = () => {
             </div>
 
             {/* Custom Notice Message when Unpublished */}
-            {admitData.isPublished === false && (
+            {!admitData.isPublished && (
               <div className="space-y-1.5 pt-2 border-t border-line-soft/60">
                 <label className="block text-[13px] font-bold text-amber-400">
                   🔒 বন্ধ থাকা অবস্থায় শিক্ষার্থীদের প্রদর্শিত নোটিশ বার্তা:

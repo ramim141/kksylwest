@@ -71,7 +71,7 @@ const AdmitCardFront = ({ student, logo, admitSettings }) => {
   }
 
   const rollDisplay = student.assignedRoll || student.roll || "—";
-  const centerName = student.examCenter || admitSettings.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র, সিলেট";
+  const centerName = student.examCenter || admitSettings.defaultCenter || "নির্ধারিত কেন্দ্র দ্রষ্টব্য";
   const examDate = student.examDate || admitSettings.defaultExamDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)";
   const rawExamTime = student.examTime || admitSettings.defaultExamTime || "সকাল ১০:০০ টা - ১১:০০ টা";
   const examTime = rawExamTime.replace(/১১:৩০/g, "১১:০০");
@@ -440,7 +440,7 @@ const AdmitCardBulkPrintManager = () => {
   const handleTogglePublish = async () => {
     try {
       setTogglingPublish(true);
-      const newStatus = admitSettings.isPublished === false ? true : false;
+      const newStatus = !admitSettings.isPublished;
       const updated = {
         ...admitSettings,
         isPublished: newStatus,
@@ -684,7 +684,7 @@ const AdmitCardBulkPrintManager = () => {
               onClick={handleTogglePublish}
               disabled={togglingPublish}
               className={`px-3 py-1.5 rounded-xl border text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 ${
-                admitSettings.isPublished !== false
+                admitSettings.isPublished === true
                   ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 shadow-sm"
                   : "bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25"
               }`}
@@ -692,12 +692,12 @@ const AdmitCardBulkPrintManager = () => {
             >
               <span
                 className={`w-2 h-2 rounded-full ${
-                  admitSettings.isPublished !== false ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
+                  admitSettings.isPublished === true ? "bg-emerald-400 animate-pulse" : "bg-amber-400"
                 }`}
               />
               <span>
                 পাবলিক ডাউনলোড:{" "}
-                <strong>{admitSettings.isPublished !== false ? "সক্রিয় (উন্মুক্ত)" : "স্থগিত (বন্ধ)"}</strong>
+                <strong>{admitSettings.isPublished === true ? "সক্রিয় (উন্মুক্ত)" : "স্থগিত (বন্ধ)"}</strong>
               </span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-black/30 opacity-80 underline ml-0.5">
                 {togglingPublish ? "পরিবর্তন হচ্ছে..." : "ক্লিক করে পরিবর্তন"}
