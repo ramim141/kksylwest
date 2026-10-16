@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import {
   HiTrash,
@@ -14,6 +14,9 @@ import {
   HiCalendarDays,
   HiMapPin,
   HiChatBubbleBottomCenterText,
+  HiCamera,
+  HiPhoto,
+  HiArrowPath,
 } from "react-icons/hi2";
 import { FaWhatsapp, FaUserPlus } from "react-icons/fa";
 import {
@@ -249,6 +252,13 @@ const RegistrationManager = ({ mode = "all" }) => {
   const [addingSubmitting, setAddingSubmitting] = useState(false);
   const [offlinePhotoFile, setOfflinePhotoFile] = useState(null);
   const [offlinePhotoPreview, setOfflinePhotoPreview] = useState("");
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState("user");
+  const [cameraError, setCameraError] = useState("");
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const nativeCameraInputRef = useRef(null);
 
   const [offlineForm, setOfflineForm] = useState({
     nameBn: "",
@@ -735,17 +745,131 @@ const RegistrationManager = ({ mode = "all" }) => {
     setIsAddModalOpen(true);
   };
 
+  // Camera & Photo Controls for Offline Form
+  const stopCamera = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setIsCameraActive(false);
+    setCameraError("");
+  }, []);
+
+  const startCamera = async (facing = cameraFacingMode) => {
+    stopCamera();
+    setCameraError("");
+    setIsCameraActive(true);
+
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        throw new Error("আপনার ব্রাউজারে সরাসরি ওয়েবক্যাম চালু করা যাচ্ছে না। ডিভাইস ক্যামেরা বাটন বা ফাইল সিলেক্ট করুন।");
+      }
+
+      const constraints = {
+        video: {
+          facingMode: facing,
+          width: { ideal: 720 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch((err) => console.warn("Video stream play warning:", err));
+      }
+    } catch (err) {
+      console.warn("Camera start error:", err);
+      let msg = "ক্যামেরা চালু করা যায়নি। ক্যামেরা ব্যবহারের অনুমতি দিন অথবা নিচের বোতাম চেপে ফাইল বা মোবাইল ক্যামেরা নির্বাচন করুন।";
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        msg = "ক্যামেরা পারমিশন ডিনাই করা হয়েছে। অনুগ্রহ করে ব্রাউজার সেটিংসে ক্যামেরা ব্যবহারের অনুমতি দিন।";
+      } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+        msg = "ডিভাইসে কোনো ক্যামেরা পাওয়া যায়নি।";
+      }
+      setCameraError(msg);
+    }
+  };
+
+  const switchCamera = () => {
+    const nextMode = cameraFacingMode === "user" ? "environment" : "user";
+    setCameraFacingMode(nextMode);
+    startCamera(nextMode);
+  };
+
+  const capturePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    if (!video.videoWidth || !video.videoHeight) return;
+
+    try {
+      const canvas = document.createElement("canvas");
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+
+      // Center crop for neat portrait square
+      const startX = (video.videoWidth - size) / 2;
+      const startY = (video.videoHeight - size) / 2;
+      ctx.drawImage(video, startX, startY, size, size, 0, 0, size, size);
+
+      canvas.toBlob((blob) => {
+        if (!blob) return;
+        const file = new File([blob], `offline_student_camera_${Date.now()}.jpg`, {
+          type: "image/jpeg",
+        });
+        setOfflinePhotoFile(file);
+        setOfflinePhotoPreview(URL.createObjectURL(blob));
+        stopCamera();
+        setStatusMessage({
+          type: "success",
+          text: "ক্যামেরা থেকে শিক্ষার্থীর ছবি সফলভাবে গ্রহণ করা হয়েছে!",
+        });
+      }, "image/jpeg", 0.92);
+    } catch (e) {
+      console.error("Camera snapshot error:", e);
+      setStatusMessage({ type: "error", text: "ছবি ধারণ করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।" });
+    }
+  };
+
   const handleOfflinePhotoSelect = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setStatusMessage({ type: "error", text: "ছবির সাইজ ৫MB এর কম হতে হবে!" });
+        setStatusMessage({ type: "error", text: "ছবির সাইজ সর্বোচ্চ ৫MB হতে পারবে!" });
         return;
       }
       setOfflinePhotoFile(file);
       setOfflinePhotoPreview(URL.createObjectURL(file));
+      stopCamera();
     }
   };
+
+  const handleRemoveOfflinePhoto = () => {
+    setOfflinePhotoFile(null);
+    setOfflinePhotoPreview("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (nativeCameraInputRef.current) nativeCameraInputRef.current.value = "";
+  };
+
+  const closeAddModal = () => {
+    stopCamera();
+    setIsAddModalOpen(false);
+  };
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, []);
 
   const handleAddOfflineSubmit = async (e) => {
     e.preventDefault();
@@ -822,7 +946,7 @@ const RegistrationManager = ({ mode = "all" }) => {
       const newEntry = { ...payload, trackingId: res.trackingId, id: res.id };
 
       setRegistrations((prev) => [newEntry, ...prev]);
-      setIsAddModalOpen(false);
+      closeAddModal();
       setStatusMessage({
         type: "success",
         text: `অফলাইন শিক্ষার্থী ${newEntry.nameBn}-এর রেজিস্ট্রেশন সফলভাবে সম্পন্ন হয়েছে!`,
@@ -1447,7 +1571,7 @@ const RegistrationManager = ({ mode = "all" }) => {
       {isAddModalOpen && typeof document !== "undefined" && createPortal(
         <div
           className="fixed inset-0 z-[9999] overflow-y-auto bg-black/85 backdrop-blur-md p-3 sm:p-6 flex min-h-full items-center justify-center animate-fade-in"
-          onClick={() => setIsAddModalOpen(false)}
+          onClick={closeAddModal}
         >
           <div
             className="relative w-full max-w-5xl bg-surface-card border border-line-soft/90 rounded-2xl p-5 sm:p-7 shadow-2xl space-y-4 my-auto overflow-hidden animate-scale-up"
@@ -1473,7 +1597,7 @@ const RegistrationManager = ({ mode = "all" }) => {
               </div>
               <button
                 type="button"
-                onClick={() => setIsAddModalOpen(false)}
+                onClick={closeAddModal}
                 className="w-9 h-9 rounded-xl bg-surface-low hover:bg-surface-overlay text-ink-muted hover:text-ink-strong border border-line-soft/80 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 title="বন্ধ করুন"
               >
@@ -1687,13 +1811,235 @@ const RegistrationManager = ({ mode = "all" }) => {
                 </div>
               </div>
 
+              {/* SECTION 3: STUDENT PHOTO (CAMERA CAPTURE OR FILE UPLOAD) */}
+              <div className="p-4 rounded-xl bg-surface-low border border-line-soft/80 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-primary uppercase tracking-wider block">
+                      ৩. শিক্ষার্থীর পাসপোর্ট সাইজ ছবি
+                    </span>
+                    <span className="text-[11px] text-ink-muted">(ঐচ্ছিক কিন্তু প্রবেশপত্রের জন্য প্রয়োজনীয়)</span>
+                  </div>
+                  {offlinePhotoPreview && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/25">
+                      <HiCheck className="text-xs" /> ছবি সংযুক্ত করা হয়েছে
+                    </span>
+                  )}
+                </div>
+
+                {/* Case 1: Live Interactive Camera Viewfinder */}
+                {isCameraActive ? (
+                  <div className="p-4 rounded-xl bg-surface-card border-2 border-primary/40 space-y-3.5 animate-fade-in shadow-xl">
+                    <div className="flex items-center justify-between border-b border-line-soft/70 pb-2.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-ink-strong">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+                        <span>লাইভ ক্যামেরা ফিড (সরাসরি ছবি তুলুন)</span>
+                      </div>
+                      <span className="text-[11px] text-ink-muted">
+                        শিক্ষার্থীর মুখমণ্ডল ফ্রেমের মাঝে রাখুন
+                      </span>
+                    </div>
+
+                    <div className="relative w-full max-w-xs sm:max-w-sm mx-auto aspect-square rounded-2xl overflow-hidden bg-black border-2 border-primary/50 shadow-2xl flex items-center justify-center">
+                      <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Passport Oval Guide Line Overlay */}
+                      <div className="absolute inset-5 sm:inset-7 border-2 border-dashed border-emerald-400/70 rounded-full pointer-events-none flex flex-col items-center justify-end pb-3 shadow-inner">
+                        <span className="px-2.5 py-0.5 rounded-full bg-black/75 text-emerald-300 text-[10px] font-bold border border-emerald-400/30 backdrop-blur-sm">
+                          মুখমণ্ডল ফ্রেম
+                        </span>
+                      </div>
+                    </div>
+
+                    {cameraError ? (
+                      <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-xs text-center space-y-2">
+                        <p className="font-medium">{cameraError}</p>
+                        <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => nativeCameraInputRef.current?.click()}
+                            className="px-3.5 py-1.5 rounded-lg bg-rose-500/30 hover:bg-rose-500/40 text-white font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
+                          >
+                            <HiCamera className="text-sm" />
+                            <span>ডিভাইস ক্যামেরা অ্যাপ দিয়ে তুলুন</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => startCamera()}
+                            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition cursor-pointer"
+                          >
+                            পুনরায় চেষ্টা করুন
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                        >
+                          <HiCamera className="text-base" />
+                          <span>📸 ছবি তুলুন (Capture)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={switchCamera}
+                          className="px-3 py-2.5 rounded-xl bg-surface-low hover:bg-surface-overlay text-ink-strong border border-line-soft text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                          title="ক্যামেরা সুইচ করুন"
+                        >
+                          <HiArrowPath className="text-sm" />
+                          <span className="hidden sm:inline">ক্যামেরা পরিবর্তন</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-3 py-2.5 rounded-xl bg-surface-low hover:bg-rose-500/20 text-ink-muted hover:text-rose-400 border border-line-soft text-xs font-bold transition cursor-pointer"
+                        >
+                          বাতিল / বন্ধ
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : offlinePhotoPreview ? (
+                  /* Case 2: Attached Photo Preview Card */
+                  <div className="p-3.5 rounded-xl bg-surface-card border border-primary/30 flex flex-col sm:flex-row items-center justify-between gap-3.5 animate-scale-up">
+                    <div className="flex items-center gap-3.5 w-full sm:w-auto">
+                      <div className="relative shrink-0">
+                        <img
+                          src={offlinePhotoPreview}
+                          alt="Student"
+                          className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl object-cover border-2 border-primary/50 shadow-md bg-surface-lowest"
+                        />
+                        <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-[10px] font-black shadow">
+                          ✓
+                        </span>
+                      </div>
+                      <div className="space-y-0.5 min-w-0">
+                        <span className="text-xs sm:text-sm font-bold text-ink-strong block truncate">
+                          {offlinePhotoFile?.name || "ক্যামেরা ছবি সংযুক্ত হয়েছে"}
+                        </span>
+                        <span className="text-[11px] text-ink-muted block font-mono">
+                          {offlinePhotoFile ? `${(offlinePhotoFile.size / 1024).toFixed(1)} KB` : "ছবি প্রস্তুত"}
+                        </span>
+                        <span className="text-[10px] text-emerald-400 font-semibold block">
+                          ✓ রেজিস্ট্রেশন সাবমিট করলে ImgBB-তে আপলোড হয়ে যুক্ত হবে
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                      <button
+                        type="button"
+                        onClick={() => startCamera()}
+                        className="px-3 py-2 rounded-lg bg-surface-low hover:bg-primary/15 text-primary border border-primary/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        title="ক্যামেরা দিয়ে পুনরায় তুলুন"
+                      >
+                        <HiCamera className="text-sm" />
+                        <span>পুনরায় তুলুন</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-3 py-2 rounded-lg bg-surface-low hover:bg-surface-overlay text-ink-strong border border-line-soft text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                        title="গ্যালারি থেকে পরিবর্তন"
+                      >
+                        <HiPhoto className="text-sm" />
+                        <span>পরিবর্তন</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveOfflinePhoto}
+                        className="p-2 rounded-lg bg-tertiary-container/15 hover:bg-tertiary-container/25 text-tertiary transition cursor-pointer"
+                        title="ছবি মুছে ফেলুন"
+                      >
+                        <HiTrash className="text-base" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Case 3: Initial State - Direct Camera Capture & File Upload Options */
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Option 1: Live Camera Capture */}
+                    <div
+                      onClick={() => startCamera()}
+                      className="p-4 rounded-xl bg-gradient-to-br from-primary/15 via-primary/5 to-surface-card border-2 border-dashed border-primary/40 hover:border-primary hover:bg-primary/20 transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2.5 group shadow-sm"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-primary/20 text-primary border border-primary/40 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform shadow-inner">
+                        <HiCamera />
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs sm:text-sm font-bold text-ink-strong block group-hover:text-primary transition-colors">
+                          সরাসরি ক্যামেরা দিয়ে ছবি তুলুন
+                        </span>
+                        <span className="text-[11px] text-ink-muted block">
+                          ক্যামেরা অন করে সরাসরি লাইভ ছবি ক্যাপচার করুন
+                        </span>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-primary/20 text-primary text-[10px] font-bold group-hover:bg-primary group-hover:text-slate-950 transition-colors">
+                        📸 ক্যামেরা চালু করুন
+                      </span>
+                    </div>
+
+                    {/* Option 2: File / Device Gallery Upload */}
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-4 rounded-xl bg-surface-card border-2 border-dashed border-line-soft hover:border-line-strong hover:bg-surface-overlay transition-all cursor-pointer flex flex-col items-center justify-center text-center gap-2.5 group shadow-sm"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-surface-low text-ink-muted group-hover:text-ink-strong border border-line-soft flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">
+                        <HiPhoto />
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-xs sm:text-sm font-bold text-ink-strong block">
+                          ফাইল বা গ্যালারি থেকে আপলোড
+                        </span>
+                        <span className="text-[11px] text-ink-muted block">
+                          JPG, PNG, WEBP (সর্বোচ্চ ৫ MB)
+                        </span>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-full bg-surface-low text-ink-muted text-[10px] font-bold group-hover:bg-surface-overlay group-hover:text-ink-strong transition-colors">
+                        📁 ব্রাউজ করুন
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hidden File Input for Gallery Browsing */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  onChange={handleOfflinePhotoSelect}
+                  className="hidden"
+                />
+
+                {/* Hidden Native Camera Input for Direct Mobile Camera Call */}
+                <input
+                  ref={nativeCameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleOfflinePhotoSelect}
+                  className="hidden"
+                />
+              </div>
+
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-line-soft/80">
                 <Button
                   type="button"
                   tone="neutral"
                   size="md"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={closeAddModal}
                 >
                   বাতিল
                 </Button>
