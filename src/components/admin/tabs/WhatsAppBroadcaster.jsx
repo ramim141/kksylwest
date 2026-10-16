@@ -185,7 +185,7 @@ const WhatsAppBroadcaster = () => {
           mobile: r.whatsappNumber || r.mobile || r.guardianPhone || "",
           studentClass: r.studentClass || "—",
           institution: r.institution || "—",
-          center: r.examCenter || settings?.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+          center: r.examCenter || settings?.defaultCenter || "প্রবেশপত্রে উল্লেখিত কেন্দ্র",
           examDate: r.examDate || settings?.defaultExamDate || "২৪ অক্টোবর ২০২৬",
           status: r.status || "pending",
         }));
@@ -198,7 +198,7 @@ const WhatsAppBroadcaster = () => {
           mobile: res.mobile || "",
           studentClass: res.class || "—",
           institution: res.school || "—",
-          center: settings?.defaultCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+          center: res.examCenter || settings?.defaultCenter || "প্রবেশপত্রে উল্লেখিত কেন্দ্র",
           examDate: settings?.defaultExamDate || "২৪ অক্টোবর ২০২৬",
           status: "approved",
         }));
@@ -257,7 +257,7 @@ const WhatsAppBroadcaster = () => {
       .replace(/{roll}|{রোল}/g, student.roll || "")
       .replace(/{class}|{শ্রেণি}/g, student.studentClass || "")
       .replace(/{school}|{প্রতিষ্ঠান}/g, student.institution || "")
-      .replace(/{center}|{কেন্দ্র}/g, student.center || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র")
+      .replace(/{center}|{কেন্দ্র}/g, student.center || "প্রবেশপত্রে উল্লেখিত কেন্দ্র")
       .replace(/{examDate}|{তারিখ}/g, student.examDate || "২৪ অক্টোবর ২০২৬")
       .replace(/{admitUrl}|{প্রবেশপত্র_লিংক}/g, admitUrl)
       .replace(/{resultUrl}|{ফলাফল_লিংক}/g, resultUrl);
@@ -598,7 +598,7 @@ const WhatsAppBroadcaster = () => {
                     roll: "১০০১৩",
                     studentClass: "১০ম শ্রেণি",
                     institution: "শাহজালাল জামেয়া স্কুল এন্ড কলেজ",
-                    center: "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র",
+                    center: "প্রবেশপত্রে উল্লেখিত কেন্দ্র",
                     examDate: "২৪ অক্টোবর ২০২৬",
                   })}
                   <div className="text-right text-[10px] text-emerald-200/80 mt-2 font-mono flex items-center justify-end gap-1">

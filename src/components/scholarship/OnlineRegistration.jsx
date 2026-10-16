@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   HiAcademicCap,
@@ -26,7 +26,12 @@ import {
   HiChatBubbleLeftRight,
 } from "react-icons/hi2";
 import { FaGraduationCap, FaQrcode, FaCheckCircle, FaPrint, FaWhatsapp } from "react-icons/fa";
-import { addRegistration, getRegistrations } from "../../services/firestore";
+import {
+  addRegistration,
+  getRegistrations,
+  getAdmitCardSettings,
+  DEFAULT_ADMIT_CARD_SETTINGS,
+} from "../../services/firestore";
 import { uploadToImgBB } from "../../services/imgbb";
 import ExamRulesCard from "./ExamRulesCard";
 import { useExamYear } from "../../context/ExamYearContext";
@@ -149,6 +154,13 @@ const OnlineRegistration = () => {
   const [trackError, setTrackError] = useState(null);
   const [copiedTrackingId, setCopiedTrackingId] = useState(false);
   const [copiedPaymentNumber, setCopiedPaymentNumber] = useState(false);
+  const [admitSettings, setAdmitSettings] = useState(DEFAULT_ADMIT_CARD_SETTINGS);
+
+  useEffect(() => {
+    getAdmitCardSettings().then((data) => {
+      if (data) setAdmitSettings(data);
+    });
+  }, []);
 
   const handleCopyPaymentNumber = (num) => {
     const cleanNum = num.replace(/[^0-9]/g, "");
@@ -1232,10 +1244,12 @@ const OnlineRegistration = () => {
             <div className="border-b border-line-soft pb-2">
               <h3 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <HiQrCode className="text-primary" />
-                <span>আবেদনের স্ট্যাটাস ও প্রবেশপত্র যাচাই</span>
+                <span>{admitSettings.isPublished ? "আবেদনের স্ট্যাটাস ও প্রবেশপত্র যাচাই" : "আবেদনের স্ট্যাটাস যাচাই"}</span>
               </h3>
               <p className="text-xs text-ink-muted">
-                আপনার আবেদনের ট্র্যাকিং আইডি, রোল বা WhatsApp নম্বর দিয়ে বর্তমান অবস্থা জানুন।
+                {admitSettings.isPublished
+                  ? "আপনার আবেদনের ট্র্যাকিং আইডি, রোল বা WhatsApp নম্বর দিয়ে বর্তমান অবস্থা জানুন।"
+                  : "আপনার আবেদনের ট্র্যাকিং আইডি বা মোবাইল নম্বর দিয়ে বর্তমান অবস্থা জানুন।"}
               </p>
             </div>
 
@@ -1307,25 +1321,43 @@ const OnlineRegistration = () => {
 
                   {trackedRecord.status === "approved" && (
                     <>
-                      <div className="flex justify-between py-1 border-b border-line-soft bg-primary-container/10 p-2 rounded">
-                        <span className="text-primary-300 font-bold">অফিসিয়াল রোল:</span>
-                        <span className="font-black font-mono text-base text-primary">
-                          {trackedRecord.assignedRoll || "অ্যাসাইন প্রক্রিয়াধীন"}
-                        </span>
-                      </div>
-                      <div className="flex justify-between py-1 border-b border-line-soft">
-                        <span className="text-ink-muted">পরীক্ষা কেন্দ্র:</span>
-                        <span className="font-bold text-white">{trackedRecord.examCenter || "সিলেট সরকারি আলিয়া মাদরাসা কেন্দ্র"}</span>
-                      </div>
-                      <div className="flex justify-between py-1">
-                        <span className="text-ink-muted">পরীক্ষার সময়:</span>
-                        <span className="font-bold text-white">{trackedRecord.examDate || "২৪ অক্টোবর ২০২৫"} ({trackedRecord.examTime || "সকাল ১০:০০ টা"})</span>
-                      </div>
+                      {admitSettings.isPublished ? (
+                        <>
+                          <div className="flex justify-between py-1 border-b border-line-soft bg-primary-container/10 p-2 rounded">
+                            <span className="text-primary-300 font-bold">অফিসিয়াল রোল:</span>
+                            <span className="font-black font-mono text-base text-primary">
+                              {trackedRecord.assignedRoll || "অ্যাসাইন প্রক্রিয়াধীন"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-1 border-b border-line-soft">
+                            <span className="text-ink-muted">পরীক্ষা কেন্দ্র:</span>
+                            <span className="font-bold text-white">
+                              {trackedRecord.examCenter || "প্রবেশপত্রে উল্লেখিত কেন্দ্র"}
+                            </span>
+                          </div>
+                          <div className="flex justify-between py-1">
+                            <span className="text-ink-muted">পরীক্ষার সময়:</span>
+                            <span className="font-bold text-white">
+                              {trackedRecord.examDate || "২৪ অক্টোবর ২০২৫ (শুক্রবার)"} ({trackedRecord.examTime || "সকাল ১০:০০ টা - ১১:০০ টা"})
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 space-y-1.5 text-left">
+                          <div className="flex items-center gap-1.5 text-amber-300 font-bold text-xs sm:text-sm">
+                            <span>📢</span>
+                            <span>প্রবেশপত্র ও পরীক্ষা সংক্রান্ত তথ্য</span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-slate-300 leading-relaxed">
+                            আপনার আবেদনটি অনুমোদিত হয়েছে। প্রবেশপত্র বিতরণ কার্যক্রম শুরু হলে অ্যাডমিন প্যানেল থেকে প্রকাশ করার পর আপনার চূড়ান্ত রোল নম্বর, নির্ধারিত পরীক্ষা কেন্দ্র ও প্রবেশপত্র ডাউনলোড সুবিধা উন্মুক্ত হবে।
+                          </p>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
 
-                {trackedRecord.status === "approved" && trackedRecord.assignedRoll && (
+                {admitSettings.isPublished && trackedRecord.status === "approved" && trackedRecord.assignedRoll && (
                   <Link
                     to={`/admit-card?roll=${trackedRecord.assignedRoll}`}
                     className="block w-full py-3 px-4 rounded bg-gradient-to-r from-primary-container to-tertiary-container text-white font-black text-center text-xs sm:text-sm hover:scale-[1.02] active:scale-95 transition"
